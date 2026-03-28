@@ -6,6 +6,7 @@ use App\Livewire\CrmDashboard;
 use App\Models\Company;
 use App\Models\Lead;
 use App\Models\Opportunity;
+use App\Models\Quote;
 use App\Models\SheetSource;
 use App\Models\User;
 use App\Models\Workspace;
@@ -35,7 +36,7 @@ class DashboardTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_workspace_users_can_see_the_sources_tab(): void
+    public function test_workspace_owners_can_open_sources_from_workspace_settings(): void
     {
         $company = Company::create([
             'name' => 'Acme Marine',
@@ -57,17 +58,26 @@ class DashboardTest extends TestCase
             'default_workspace_id' => $workspace->id,
         ]);
 
-        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($salesRole);
 
         $this->actingAs($user);
 
         $response = $this->get('/dashboard');
 
         $response->assertOk();
-        $response->assertSee('Sources');
+        $response->assertSee('Settings');
+        $response->assertDontSee('>Sources<', false);
 
         Livewire::test(CrmDashboard::class)
             ->set('workspaceId', $workspace->id)
+            ->set('activeTab', 'settings')
+            ->assertSee('Workspace Settings')
             ->set('activeTab', 'sources')
             ->assertSee('Integrations and sources');
     }
@@ -484,6 +494,71 @@ class DashboardTest extends TestCase
         ]);
     }
 
+    public function test_disqualified_lead_requires_a_reason_before_status_is_saved(): void
+    {
+        $company = Company::create([
+            'name' => 'Disqualify Marine',
+            'slug' => 'disqualify-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Disqualify Workspace',
+            'slug' => 'disqualify-workspace',
+            'is_default' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+
+        $lead = Lead::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'assigned_user_id' => $user->id,
+            'external_key' => 'lead-disq-1',
+            'lead_id' => 'LD-D-1',
+            'contact_name' => 'Nadia Salem',
+            'company_name' => 'Anchor Gulf Shipping',
+            'email' => 'nadia@example.com',
+            'lead_source' => 'Website Quote Form',
+            'service' => 'Freight Services',
+            'status' => Lead::STATUS_IN_PROGRESS,
+            'submission_date' => now()->subDay(),
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'leads')
+            ->call('updateLeadStatus', $lead->id, Lead::STATUS_DISQUALIFIED)
+            ->assertSet('pendingDisqualificationLeadId', $lead->id)
+            ->call('saveDisqualificationReason', $lead->id, '')
+            ->assertHasErrors(['reason'])
+            ->call('saveDisqualificationReason', $lead->id, Lead::DISQUALIFICATION_REASON_MISMATCH)
+            ->assertSet('pendingDisqualificationLeadId', null);
+
+        $this->assertDatabaseHas('leads', [
+            'id' => $lead->id,
+            'status' => Lead::STATUS_DISQUALIFIED,
+            'disqualification_reason' => Lead::DISQUALIFICATION_REASON_MISMATCH,
+        ]);
+
+        $this->assertDatabaseHas('lead_status_logs', [
+            'lead_id' => $lead->id,
+            'user_id' => $user->id,
+            'from_status' => Lead::STATUS_IN_PROGRESS,
+            'to_status' => Lead::STATUS_DISQUALIFIED,
+            'note' => Lead::DISQUALIFICATION_REASON_MISMATCH,
+        ]);
+    }
+
     public function test_lead_details_popup_closes_when_switching_tabs(): void
     {
         $company = Company::create([
@@ -659,6 +734,8 @@ class DashboardTest extends TestCase
         $this->actingAs($user);
 
         $component = Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'settings')
+            ->assertSee('User Access')
             ->set('activeTab', 'access')
             ->assertSee('Access')
             ->assertSee('Add workspace user')
@@ -723,6 +800,229 @@ class DashboardTest extends TestCase
         $this->assertFalse($createdUser->hasPermission($permission->slug));
     }
 
+    public function test_workspace_owner_can_customize_workspace_vocabulary_from_settings_tab(): void
+    {
+        $company = Company::create([
+            'name' => 'Config Marine',
+            'slug' => 'config-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Config Workspace',
+            'slug' => 'config-workspace',
+            'is_default' => true,
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($salesRole);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->assertSee('Settings')
+            ->set('activeTab', 'settings')
+            ->set('workspaceSettingsForm.lead_status_labels.'.Lead::STATUS_IN_PROGRESS, 'Working')
+            ->set('workspaceSettingsForm.opportunity_stage_labels.'.Opportunity::STAGE_INITIAL_CONTACT, 'New Deal')
+            ->set('workspaceSettingsForm.disqualification_reasons', ['Geo Limits', 'Duplicate Inquiry'])
+            ->set('workspaceSettingsForm.lead_sources', ['Email', 'Meta Ads', 'Partner Portal'])
+            ->set('workspaceSettingsForm.lead_services', ['Marine Freight', 'Port Services'])
+            ->call('saveWorkspaceSettings')
+            ->assertHasNoErrors();
+
+        $workspace = $workspace->fresh();
+
+        $this->assertSame(
+            'Working',
+            data_get($workspace->settings, 'crm_vocabulary.lead_status_labels.'.Lead::STATUS_IN_PROGRESS)
+        );
+        $this->assertSame(
+            'New Deal',
+            data_get($workspace->settings, 'crm_vocabulary.opportunity_stage_labels.'.Opportunity::STAGE_INITIAL_CONTACT)
+        );
+        $this->assertSame(
+            ['Geo Limits', 'Duplicate Inquiry'],
+            data_get($workspace->settings, 'crm_vocabulary.disqualification_reasons')
+        );
+        $this->assertSame(
+            ['Email', 'Meta Ads', 'Partner Portal'],
+            data_get($workspace->settings, 'crm_vocabulary.lead_sources')
+        );
+        $this->assertSame(
+            ['Marine Freight', 'Port Services'],
+            data_get($workspace->settings, 'crm_vocabulary.lead_services')
+        );
+
+        Livewire::test(CrmDashboard::class)
+            ->assertSee('Working')
+            ->assertSee('Meta Ads')
+            ->assertSee('Marine Freight');
+    }
+
+    public function test_workspace_owner_can_switch_workspace_mode(): void
+    {
+        $company = Company::create([
+            'name' => 'Template Marine',
+            'slug' => 'template-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Template Workspace',
+            'slug' => 'template-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'general_maritime'),
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($salesRole);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'settings')
+            ->set('workspaceSettingsForm.template_key', 'ship_chandling')
+            ->call('saveWorkspaceSettings')
+            ->assertHasNoErrors()
+            ->assertSee('Ship Chandling');
+
+        $workspace = $workspace->fresh();
+
+        $this->assertSame('ship_chandling', $workspace->templateKey());
+        $this->assertContains('vessel_calls', $workspace->templateModules());
+        $this->assertSame('Vessel Enquiry', $workspace->opportunityStageLabels()[Opportunity::STAGE_INITIAL_CONTACT]);
+    }
+
+    public function test_freight_forwarding_mode_shows_activated_module_tabs(): void
+    {
+        $company = Company::create([
+            'name' => 'Forwarding Marine',
+            'slug' => 'forwarding-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Forwarding Workspace',
+            'slug' => 'forwarding-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($salesRole);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->assertSee('Forwarding Workspace Dashboard')
+            ->assertSee('Quotes')
+            ->assertSee('Shipments')
+            ->assertSee('Carriers')
+            ->assertSee('Analytics')
+            ->call('openTemplateModule', 'quotes')
+            ->assertSet('activeTab', 'quotes')
+            ->assertSee('Quote List')
+            ->assertSee('New Quote')
+            ->assertSee('No quotes created yet for this workspace.');
+    }
+
+    public function test_freight_forwarder_workspace_can_create_a_quote(): void
+    {
+        $company = Company::create([
+            'name' => 'Forwarding Marine',
+            'slug' => 'forwarding-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Forwarding Workspace',
+            'slug' => 'forwarding-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($salesRole);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-quote')
+            ->set('manualQuoteForm.company_name', 'Oceanic Traders')
+            ->set('manualQuoteForm.contact_name', 'Lina Noor')
+            ->set('manualQuoteForm.contact_email', 'lina@example.com')
+            ->set('manualQuoteForm.service_mode', 'Ocean Freight')
+            ->set('manualQuoteForm.origin', 'Jebel Ali')
+            ->set('manualQuoteForm.destination', 'Hamburg')
+            ->set('manualQuoteForm.buy_amount', '8200')
+            ->set('manualQuoteForm.sell_amount', '9500')
+            ->call('addManualQuote')
+            ->assertHasNoErrors()
+            ->assertSet('activeTab', 'quotes')
+            ->assertSee('QT-00001')
+            ->assertSee('Oceanic Traders');
+
+        $quote = Quote::query()->where('workspace_id', $workspace->id)->first();
+
+        $this->assertNotNull($quote);
+        $this->assertSame('QT-00001', $quote->quote_number);
+        $this->assertSame('Oceanic Traders', $quote->company_name);
+        $this->assertSame('Ocean Freight', $quote->service_mode);
+        $this->assertSame('1300.00', $quote->margin_amount);
+    }
+
     public function test_non_owner_workspace_users_cannot_manage_workspace_access(): void
     {
         $company = Company::create([
@@ -762,8 +1062,12 @@ class DashboardTest extends TestCase
         $this->actingAs($user);
 
         Livewire::test(CrmDashboard::class)
-            ->assertDontSee('Access')
-            ->assertDontSee('Add workspace user');
+            ->assertDontSee('Add workspace user')
+            ->assertDontSee('Create permission')
+            ->set('activeTab', 'access')
+            ->assertSet('activeTab', 'leads')
+            ->set('activeTab', 'settings')
+            ->assertSet('activeTab', 'leads');
 
         Livewire::test(CrmDashboard::class)
             ->set('permissionForm.name', 'Manage Workspace')
@@ -775,6 +1079,61 @@ class DashboardTest extends TestCase
             'name' => 'Manage Workspace',
             'slug' => 'manage-workspace',
         ]);
+    }
+
+    public function test_workspace_owner_can_export_leads_csv(): void
+    {
+        $company = Company::create([
+            'name' => 'Export Marine',
+            'slug' => 'export-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Export Workspace',
+            'slug' => 'export-workspace',
+            'is_default' => true,
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($salesRole);
+
+        Lead::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'assigned_user_id' => $user->id,
+            'external_key' => 'lead-export-1',
+            'lead_id' => 'LD-EXP-1',
+            'contact_name' => 'Amina Noor',
+            'company_name' => 'Tide Cargo',
+            'email' => 'amina@example.com',
+            'phone' => '971500000111',
+            'service' => 'Freight Services',
+            'lead_source' => 'Email',
+            'status' => Lead::STATUS_IN_PROGRESS,
+            'lead_value' => 100000,
+            'submission_date' => now()->subDay(),
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->assertSee('Export CSV')
+            ->call('exportLeadsCsv')
+            ->assertFileDownloaded();
     }
 
     public function test_managers_can_edit_a_source_from_the_dashboard(): void

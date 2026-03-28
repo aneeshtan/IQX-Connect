@@ -7,23 +7,103 @@
         <flux:sidebar sticky stashable class="border-r border-sky-100 bg-white/90 backdrop-blur">
             <flux:sidebar.toggle class="lg:hidden" icon="x-mark" />
 
+            @php
+                $sidebarUser = auth()->user();
+                $sidebarRequestedTab = request()->query('tab', 'leads');
+                $sidebarWorkspace = null;
+                $sidebarWorkspaceTabs = [];
+                $sidebarWorkspaceTools = [];
+
+                if ($sidebarUser && request()->routeIs('dashboard')) {
+                    $sidebarWorkspace = $sidebarUser->defaultWorkspace;
+
+                    if (! $sidebarWorkspace && ! $sidebarUser->isAdmin()) {
+                        $sidebarWorkspace = $sidebarUser->workspaces()->with('company')->orderBy('name')->first();
+                    }
+
+                    if ($sidebarWorkspace) {
+                        $sidebarWorkspaceTabs = [
+                            'leads' => 'Leads',
+                            'opportunities' => 'Opportunities',
+                            'contacts' => 'Contacts',
+                            'customers' => 'Customers',
+                        ];
+
+                        foreach ($sidebarWorkspace->templateModules() as $module) {
+                            if (in_array($module, ['quotes', 'shipments', 'carriers', 'projects', 'drawings', 'delivery_tracking', 'vessel_calls', 'supply_orders', 'delivery_tasks', 'bookings', 'sailings', 'customer_accounts', 'fleet', 'technical_management', 'crewing', 'inventory', 'leasing', 'depots'], true)) {
+                                $sidebarWorkspaceTabs[$module] = str($module)->replace('_', ' ')->title();
+                            }
+                        }
+
+                        $sidebarWorkspaceTabs['analytics'] = 'Analytics';
+
+                        $sidebarWorkspaceTools = [
+                            'settings' => 'Settings',
+                            'sources' => 'Sources',
+                        ];
+
+                        if ($sidebarUser->isAdmin() || $sidebarUser->ownsWorkspace($sidebarWorkspace->id)) {
+                            $sidebarWorkspaceTools['access'] = 'User Access';
+                        }
+                    }
+                }
+            @endphp
+
             <a href="{{ route('dashboard') }}" class="mr-5 flex items-center space-x-2" wire:navigate>
                 <x-app-logo class="size-8" href="#"></x-app-logo>
             </a>
 
             <flux:navlist variant="outline">
                 <flux:navlist.group heading="Platform" class="grid">
-                    <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>CRM Dashboard</flux:navlist.item>
-                    <flux:navlist.item icon="cog" :href="route('settings.profile')" :current="request()->routeIs('settings.*')" wire:navigate>Profile Settings</flux:navlist.item>
+                    <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard') && ! request()->has('tab')" wire:navigate>Home</flux:navlist.item>
                 </flux:navlist.group>
             </flux:navlist>
 
-            <flux:spacer />
+            @if ($sidebarWorkspace && ($sidebarWorkspaceTabs !== [] || $sidebarWorkspaceTools !== []))
+                <div class="mt-6 space-y-5">
+                    <div class="px-2">
+                        <div class="text-xs font-medium uppercase tracking-[0.25em] text-zinc-400">Workspace</div>
+                        <div class="mt-2 text-sm font-semibold text-zinc-900">{{ $sidebarWorkspace->name }}</div>
+                        <div class="text-xs text-zinc-500">{{ $sidebarWorkspace->company?->name }}</div>
+                    </div>
 
-            <div class="rounded-2xl border border-sky-100 bg-sky-50 p-4 text-sm text-sky-950">
-                <div class="font-medium">IQX Connect</div>
-                <div class="mt-1 text-sky-700">Live lead sync, one-page updates, and admin reporting in a single workspace.</div>
-            </div>
+                    @if ($sidebarWorkspaceTabs !== [])
+                        <div class="space-y-2">
+                            <div class="px-2 text-xs font-medium uppercase tracking-[0.25em] text-zinc-400">CRM Views</div>
+                            <div class="space-y-1">
+                                @foreach ($sidebarWorkspaceTabs as $tabKey => $label)
+                                    <a
+                                        href="{{ route('dashboard', ['tab' => $tabKey]) }}"
+                                        class="flex items-center rounded-xl px-3 py-2 text-sm font-medium transition {{ request()->routeIs('dashboard') && $sidebarRequestedTab === $tabKey ? 'bg-sky-50 text-sky-900' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900' }}"
+                                        wire:navigate
+                                    >
+                                        {{ $label }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    @if ($sidebarWorkspaceTools !== [])
+                        <div class="space-y-2">
+                            <div class="px-2 text-xs font-medium uppercase tracking-[0.25em] text-zinc-400">Workspace Tools</div>
+                            <div class="space-y-1">
+                                @foreach ($sidebarWorkspaceTools as $tabKey => $label)
+                                    <a
+                                        href="{{ route('dashboard', ['tab' => $tabKey]) }}"
+                                        class="flex items-center rounded-xl px-3 py-2 text-sm font-medium transition {{ request()->routeIs('dashboard') && $sidebarRequestedTab === $tabKey ? 'bg-sky-50 text-sky-900' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900' }}"
+                                        wire:navigate
+                                    >
+                                        {{ $label }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            <flux:spacer />
 
             <flux:dropdown position="bottom" align="start">
                 <flux:profile

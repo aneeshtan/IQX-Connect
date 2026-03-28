@@ -1,34 +1,4 @@
 <div class="space-y-6">
-    <section class="rounded-[1.75rem] border border-sky-100 bg-white p-5 shadow-sm">
-        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Workspace CRM</p>
-                <h1 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
-                    {{ $currentWorkspace ? $currentWorkspace->name.' Dashboard' : 'Workspace Dashboard' }}
-                </h1>
-                <p class="mt-2 max-w-2xl text-sm text-zinc-500">
-                    The workspace stays spreadsheet-simple: switch tabs, scan tables, and update lead or opportunity status inline.
-                </p>
-            </div>
-
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <select wire:model.live="workspaceId" class="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
-                    @forelse ($workspaces as $workspace)
-                        <option value="{{ $workspace->id }}">{{ $workspace->company->name }} / {{ $workspace->name }}</option>
-                    @empty
-                        <option value="">No workspace assigned</option>
-                    @endforelse
-                </select>
-
-                @if (auth()->user()->isAdmin())
-                    <a href="{{ route('admin') }}" class="rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
-                        Open Admin
-                    </a>
-                @endif
-            </div>
-        </div>
-    </section>
-
     @if (session('status'))
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {{ session('status') }}
@@ -56,10 +26,18 @@
                         <input wire:model="companyForm.name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none md:col-span-2" />
                         <input wire:model="workspaceForm.name" type="text" placeholder="Workspace name" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
                         <input wire:model="workspaceForm.description" type="text" placeholder="Workspace description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                        <select wire:model="workspaceForm.template_key" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none md:col-span-2">
+                            @foreach ($workspaceTemplates as $templateKey => $template)
+                                <option value="{{ $templateKey }}">{{ $template['name'] }}</option>
+                            @endforeach
+                        </select>
                         <input wire:model="companyForm.contact_email" type="email" placeholder="Company email" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
                         <input wire:model="companyForm.contact_phone" type="text" placeholder="Company phone" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
                         <input wire:model="companyForm.industry" type="text" placeholder="Industry" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
                         <input wire:model="companyForm.timezone" type="text" placeholder="Timezone" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                        <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-500 md:col-span-2">
+                            {{ data_get($workspaceTemplates, $workspaceForm['template_key'].'.description') }}
+                        </div>
                         <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2">
                             Start a new workspace
                         </button>
@@ -102,49 +80,83 @@
             </section>
         @endif
 
-        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            @foreach ($kpis as $kpi)
-                <article class="rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-sm">
-                    <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $kpi['label'] }}</p>
-                    <p class="mt-3 text-2xl font-semibold text-zinc-950">{{ $kpi['value'] }}</p>
-                    <p class="mt-2 text-sm text-zinc-500">{{ $kpi['detail'] }}</p>
-                </article>
-            @endforeach
+        <section class="rounded-[1.75rem] border border-sky-100 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Workspace CRM</p>
+                    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
+                        {{ $currentWorkspace ? $currentWorkspace->name.' Dashboard' : 'Workspace Dashboard' }}
+                    </h1>
+                </div>
+
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <select wire:model.live="workspaceId" class="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                        @forelse ($workspaces as $workspace)
+                            <option value="{{ $workspace->id }}">{{ $workspace->company->name }} / {{ $workspace->name }}</option>
+                        @empty
+                            <option value="">No workspace assigned</option>
+                        @endforelse
+                    </select>
+
+                    @if (auth()->user()->isAdmin())
+                        <a href="{{ route('admin') }}" class="rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                            Open Admin
+                        </a>
+                    @endif
+                </div>
+            </div>
+
+            <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                @foreach ($kpis as $kpi)
+                    <article class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50/40 p-4 shadow-sm">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $kpi['label'] }}</p>
+                        <p class="mt-3 text-2xl font-semibold text-zinc-950">{{ $kpi['value'] }}</p>
+                        <p class="mt-2 text-sm text-zinc-500">{{ $kpi['detail'] }}</p>
+                    </article>
+                @endforeach
+            </div>
         </section>
 
         <section class="overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white shadow-sm">
             <div class="border-b border-zinc-200 bg-zinc-50 px-4">
-                <div class="flex flex-wrap gap-1 py-2">
-                    @php
-                        $tabs = [
-                            'leads' => 'Leads',
-                            'opportunities' => 'Opportunities',
-                            'contacts' => 'Contacts',
-                            'customers' => 'Customers',
-                            'sources' => 'Sources',
-                            'analytics' => 'Analytics',
-                            'manual-lead' => 'Add Lead',
-                            'manual-opportunity' => 'Add Opportunity',
-                        ];
-
-                        if ($canManageAccess) {
-                            $tabs['access'] = 'Access';
-                        }
-                    @endphp
+                <div class="py-3">
+                    <div class="ios-tab-strip">
                     @foreach ($tabs as $tabKey => $label)
                         <button
                             wire:click="$set('activeTab', '{{ $tabKey }}')"
                             type="button"
-                            class="rounded-xl px-4 py-2 text-sm font-medium transition {{ $activeTab === $tabKey ? 'bg-white text-zinc-950 shadow-sm' : 'text-zinc-500 hover:text-zinc-900' }}"
+                            class="ios-tab-pill {{ $activeTab === $tabKey ? 'ios-tab-pill-active' : '' }}"
                         >
                             {{ $label }}
                         </button>
                     @endforeach
+                    </div>
                 </div>
             </div>
 
             @if ($activeTab === 'leads')
                 <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="ios-tab-strip">
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                Lead List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-lead')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Add Lead
+                            </button>
+                        </div>
+
+                        @if ($canManageAccess)
+                            <button wire:click="exportLeadsCsv" type="button" class="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                Export CSV
+                            </button>
+                        @endif
+                    </div>
+
                     <div class="grid gap-3 lg:grid-cols-6">
                         <input
                             wire:model.live.debounce.300ms="search"
@@ -154,8 +166,8 @@
                         />
                         <select wire:model.live="leadStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                             <option value="">All statuses</option>
-                            @foreach (\App\Models\Lead::STATUSES as $status)
-                                <option value="{{ $status }}">{{ $status }}</option>
+                            @foreach ($leadStatusOptions as $status => $label)
+                                <option value="{{ $status }}">{{ $label }}</option>
                             @endforeach
                         </select>
                         <select wire:model.live="leadSourceFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
@@ -193,15 +205,11 @@
                                     <th class="border-b border-zinc-200 px-4 py-3 font-medium">Source</th>
                                     <th class="border-b border-zinc-200 px-4 py-3 font-medium">Service</th>
                                     <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
-                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Lead Score</th>
                                     <th class="border-b border-zinc-200 px-4 py-3 font-medium">Date</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse ($leads as $lead)
-                                    @php
-                                        $leadScore = $this->leadScore($lead);
-                                    @endphp
                                     <tr
                                         wire:click="selectLead({{ $lead->id }})"
                                         class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedLead?->id === $lead->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
@@ -215,21 +223,38 @@
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $lead->lead_source ?: 'Unknown' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $lead->service ?: 'Not set' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3">
+                                            @php
+                                                $displayedLeadStatus = $this->displayedLeadStatus($lead);
+                                            @endphp
                                             <select
                                                 wire:click.stop
                                                 wire:change="updateLeadStatus({{ $lead->id }}, $event.target.value)"
-                                                class="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none {{ $this->leadStatusClasses($lead->status) }}"
+                                                class="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none {{ $this->leadStatusClasses($displayedLeadStatus) }}"
                                             >
-                                                @foreach (\App\Models\Lead::STATUSES as $status)
-                                                    <option value="{{ $status }}" @selected($lead->status === $status)>{{ $status }}</option>
+                                                @foreach ($leadStatusOptions as $status => $label)
+                                                    <option value="{{ $status }}" @selected($displayedLeadStatus === $status)>{{ $label }}</option>
                                                 @endforeach
                                             </select>
-                                        </td>
-                                        <td class="border-b border-zinc-100 px-4 py-3">
-                                            <div class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {{ $this->leadScoreClasses($leadScore['score']) }}">
-                                                {{ $leadScore['score'] }}/100
-                                            </div>
-                                            <div class="mt-1 text-xs text-zinc-400">{{ $leadScore['label'] }}</div>
+
+                                            @if ($this->showsDisqualificationReasonSelector($lead))
+                                                @php
+                                                    $leadDisqualificationReasons = collect($disqualificationReasons)
+                                                        ->prepend($lead->disqualification_reason)
+                                                        ->filter()
+                                                        ->unique()
+                                                        ->values();
+                                                @endphp
+                                                <select
+                                                    wire:click.stop
+                                                    wire:change="saveDisqualificationReason({{ $lead->id }}, $event.target.value)"
+                                                    class="mt-2 w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 outline-none"
+                                                >
+                                                    <option value="">Select disqualification reason</option>
+                                                    @foreach ($leadDisqualificationReasons as $reason)
+                                                        <option value="{{ $reason }}" @selected($lead->disqualification_reason === $reason)>{{ $reason }}</option>
+                                                    @endforeach
+                                                </select>
+                                            @endif
                                         </td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
                                             {{ $lead->submission_date?->format('d M Y') ?: '-' }}
@@ -237,7 +262,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="px-4 py-10 text-center text-zinc-500">No leads match the current filters.</td>
+                                        <td colspan="7" class="px-4 py-10 text-center text-zinc-500">No leads match the current filters.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -281,7 +306,7 @@
                                             <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
                                             <div class="mt-2">
                                                 <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $this->leadStatusClasses($selectedLead->status) }}">
-                                                    {{ $selectedLead->status }}
+                                                    {{ $this->leadStatusLabel($selectedLead->status, $currentWorkspace) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -364,15 +389,133 @@
                                             <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $selectedLead->disqualification_reason }}</p>
                                         </div>
                                     @endif
+
+                                    <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                        <div class="text-sm font-semibold text-zinc-950">System and source details</div>
+                                        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">External key</div>
+                                                <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedLead->external_key ?: 'Not provided' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">RFID</div>
+                                                <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedLead->rfid ?: 'Not provided' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Lead key</div>
+                                                <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedLead->lead_key ?: 'Not provided' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Sheet source</div>
+                                                <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedLead->sheetSource?->name ?: 'Manual / no source' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Manual entry</div>
+                                                <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedLead->manual_entry ? 'Yes' : 'No' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Converted</div>
+                                                <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedLead->is_converted ? 'Yes' : 'No' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Nurture minutes</div>
+                                                <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedLead->nurture_minutes !== null ? number_format((int) $selectedLead->nurture_minutes) : 'Not provided' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Nurture hours</div>
+                                                <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedLead->nurture_hours !== null ? number_format((float) $selectedLead->nurture_hours, 2) : 'Not provided' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Hashed email</div>
+                                                <div class="mt-2 break-all text-sm font-medium text-zinc-900">{{ $selectedLead->hashed_email ?: 'Not provided' }}</div>
+                                            </div>
+                                            <div class="rounded-[1rem] bg-zinc-50 px-4 py-4 sm:col-span-2 lg:col-span-3">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Hashed phone</div>
+                                                <div class="mt-2 break-all text-sm font-medium text-zinc-900">{{ $selectedLead->hashed_phone ?: 'Not provided' }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    @php
+                                        $rawLeadPayload = collect($selectedLead->source_payload ?? [])
+                                            ->reject(function ($value, $key) {
+                                                if (! is_string($key) || str_starts_with($key, '_')) {
+                                                    return true;
+                                                }
+
+                                                return in_array($key, [
+                                                    'Column 1',
+                                                    'Name',
+                                                    'Contact Name',
+                                                    'Full Name',
+                                                    'Company name',
+                                                    'Company Name',
+                                                    'Company',
+                                                    'Email',
+                                                    'Phone number',
+                                                    'Service',
+                                                    'Submission Create Date',
+                                                    'Lead Source',
+                                                    'Lead Status',
+                                                    'Reason of Disqualification',
+                                                    'Note',
+                                                    'Time to Nurture (minutes)',
+                                                    'Time to Nurture (hours)',
+                                                    'Lead Value',
+                                                    'Hashed Email',
+                                                    'Hashed Phone',
+                                                    'Is Coverted',
+                                                ], true);
+                                            });
+                                    @endphp
+
+                                    @if ($rawLeadPayload->isNotEmpty())
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Imported fields</div>
+                                            <p class="mt-1 text-sm text-zinc-500">Additional values captured from the connected source.</p>
+                                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                                @foreach ($rawLeadPayload as $key => $value)
+                                                    <div class="rounded-[1rem] bg-zinc-50 px-4 py-4">
+                                                        <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $key }}</div>
+                                                        <div class="mt-2 break-words text-sm font-medium text-zinc-900">
+                                                            {{ is_array($value) ? json_encode($value) : ($value !== null && $value !== '' ? $value : 'Not provided') }}
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
                     </div>
                 @endif
+
             @endif
 
             @if ($activeTab === 'opportunities')
                 <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="ios-tab-strip">
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                Opportunity List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-opportunity')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Add Opportunity
+                            </button>
+                        </div>
+
+                        @if ($canManageAccess)
+                            <button wire:click="exportOpportunitiesCsv" type="button" class="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                Export CSV
+                            </button>
+                        @endif
+                    </div>
+
                     <div class="grid gap-3 lg:grid-cols-5">
                         <input
                             wire:model.live.debounce.300ms="search"
@@ -382,8 +525,8 @@
                         />
                         <select wire:model.live="opportunityStageFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                             <option value="">All stages</option>
-                            @foreach (\App\Models\Opportunity::STAGES as $stage)
-                                <option value="{{ $stage }}">{{ $stage }}</option>
+                            @foreach ($opportunityStageOptions as $stage => $label)
+                                <option value="{{ $stage }}">{{ $label }}</option>
                             @endforeach
                         </select>
                         <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
@@ -438,8 +581,8 @@
                                                 wire:change="updateOpportunityStage({{ $opportunity->id }}, $event.target.value)"
                                                 class="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none {{ $this->opportunityStageClasses($opportunity->sales_stage) }}"
                                             >
-                                                @foreach (\App\Models\Opportunity::STAGES as $stage)
-                                                    <option value="{{ $stage }}" @selected($opportunity->sales_stage === $stage)>{{ $stage }}</option>
+                                                @foreach ($opportunityStageOptions as $stage => $label)
+                                                    <option value="{{ $stage }}" @selected($opportunity->sales_stage === $stage)>{{ $label }}</option>
                                                 @endforeach
                                             </select>
                                         </td>
@@ -486,7 +629,7 @@
                                             <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Stage</div>
                                             <div class="mt-2">
                                                 <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $this->opportunityStageClasses($selectedOpportunity->sales_stage) }}">
-                                                    {{ $selectedOpportunity->sales_stage }}
+                                                    {{ $this->opportunityStageLabel($selectedOpportunity->sales_stage, $currentWorkspace) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -516,13 +659,13 @@
                                     <form wire:submit="saveOpportunityDetails" class="grid gap-3 md:grid-cols-2">
                                         <input wire:model="opportunityEditForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                         <input wire:model="opportunityEditForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                        <input wire:model="opportunityEditForm.lead_source" type="text" placeholder="Lead source" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                        <input wire:model="opportunityEditForm.required_service" type="text" placeholder="Required service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="opportunityEditForm.lead_source" list="workspace-lead-sources" type="text" placeholder="Lead source" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="opportunityEditForm.required_service" list="workspace-lead-services" type="text" placeholder="Required service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                         <input wire:model="opportunityEditForm.revenue_potential" type="number" step="0.01" placeholder="Revenue potential (AED)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                         <input wire:model="opportunityEditForm.project_timeline_days" type="number" placeholder="Timeline (days)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                         <select wire:model="opportunityEditForm.sales_stage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2">
-                                            @foreach (\App\Models\Opportunity::STAGES as $stage)
-                                                <option value="{{ $stage }}">{{ $stage }}</option>
+                                            @foreach ($opportunityStageOptions as $stage => $label)
+                                                <option value="{{ $stage }}">{{ $label }}</option>
                                             @endforeach
                                         </select>
                                         <textarea wire:model="opportunityEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2"></textarea>
@@ -531,6 +674,199 @@
                                                 Save Opportunity
                                             </button>
                                             <button wire:click="closeOpportunityDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($activeTab === 'quotes')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Quote List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-quote')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Quote
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="quoteSearch"
+                            type="text"
+                            placeholder="Search quote, company, lane"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="quoteStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All statuses</option>
+                            @foreach ($quoteStatusOptions as $quoteStatus)
+                                <option value="{{ $quoteStatus }}">{{ $quoteStatus }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                            {{ $currentWorkspace->company->name }}
+                        </div>
+                        <select wire:model.live="quoteSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Newest quote</option>
+                            <option value="oldest">Oldest quote</option>
+                            <option value="company_asc">Company A-Z</option>
+                            <option value="company_desc">Company Z-A</option>
+                            <option value="sell_desc">Highest sell value</option>
+                            <option value="sell_asc">Lowest sell value</option>
+                        </select>
+                        <select wire:model.live="quotePerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                            Freight quote register
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Quote</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Company</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Lane</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Mode</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Sell</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Margin</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($quotes as $quote)
+                                    <tr
+                                        wire:click="selectQuote({{ $quote->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedQuote?->id === $quote->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $quote->quote_number }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $quote->quoted_at?->format('d M Y') ?: 'Not dated' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $quote->company_name ?: 'Unknown company' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $quote->contact_email ?: 'No email' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            {{ collect([$quote->origin, $quote->destination])->filter()->join(' -> ') ?: 'Lane not set' }}
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $quote->service_mode ?: 'Not set' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            {{ $quote->sell_amount !== null ? ($quote->currency.' '.number_format((float) $quote->sell_amount, 0)) : '-' }}
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            {{ $quote->margin_amount !== null ? ($quote->currency.' '.number_format((float) $quote->margin_amount, 0)) : '-' }}
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->quoteStatusClasses($quote->status) }}">
+                                                {{ $quote->status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-10 text-center text-zinc-500">No quotes created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $quotes->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedQuote)
+                    <div
+                        wire:click.self="closeQuoteDetails"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                    >
+                        <div class="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Quote Details</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedQuote->quote_number }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedQuote->company_name ?: 'Unknown company' }}</p>
+                                </div>
+                                <button
+                                    wire:click="closeQuoteDetails"
+                                    type="button"
+                                    class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="max-h-[calc(90vh-92px)] overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->quoteStatusClasses($selectedQuote->status) }}">
+                                                    {{ $selectedQuote->status }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Sell value</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedQuote->sell_amount !== null ? ($selectedQuote->currency.' '.number_format((float) $selectedQuote->sell_amount, 0)) : 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Margin</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedQuote->margin_amount !== null ? ($selectedQuote->currency.' '.number_format((float) $selectedQuote->margin_amount, 0)) : 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Linked opportunity</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedQuote->opportunity?->external_key ?: 'No linked opportunity' }}</div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveQuoteDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <input wire:model="quoteEditForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.service_mode" type="text" placeholder="Mode or service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.origin" type="text" placeholder="Origin" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.destination" type="text" placeholder="Destination" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.incoterm" type="text" placeholder="Incoterm" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.commodity" type="text" placeholder="Commodity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.equipment_type" type="text" placeholder="Equipment type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.weight_kg" type="number" step="0.01" placeholder="Weight (kg)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.volume_cbm" type="number" step="0.001" placeholder="Volume (CBM)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.valid_until" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.buy_amount" type="number" step="0.01" placeholder="Buy amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.sell_amount" type="number" step="0.01" placeholder="Sell amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="quoteEditForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <select wire:model="quoteEditForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                            @foreach ($quoteStatusOptions as $quoteStatus)
+                                                <option value="{{ $quoteStatus }}">{{ $quoteStatus }}</option>
+                                            @endforeach
+                                        </select>
+                                        <textarea wire:model="quoteEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                                                Save Quote
+                                            </button>
+                                            <button wire:click="closeQuoteDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
                                                 Cancel
                                             </button>
                                         </div>
@@ -570,6 +906,14 @@
                         </div>
                     </div>
 
+                    @if ($canManageAccess)
+                        <div class="flex justify-end">
+                            <button wire:click="exportContactsCsv" type="button" class="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                Export CSV
+                            </button>
+                        </div>
+                    @endif
+
                     <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
                         <table class="min-w-full text-sm">
                             <thead>
@@ -594,7 +938,7 @@
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $contact->company_name ?: 'Unknown company' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3">
                                             <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $this->leadStatusClasses($contact->status) }}">
-                                                {{ $contact->status }}
+                                                {{ $this->leadStatusLabel($contact->status, $currentWorkspace) }}
                                             </span>
                                         </td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $contact->lead_source ?: 'Unknown' }}</td>
@@ -743,6 +1087,14 @@
                         </div>
                     </div>
 
+                    @if ($canManageAccess)
+                        <div class="flex justify-end">
+                            <button wire:click="exportCustomersCsv" type="button" class="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                Export CSV
+                            </button>
+                        </div>
+                    @endif
+
                     <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
                         <table class="min-w-full text-sm">
                             <thead>
@@ -890,6 +1242,31 @@
 
             @if ($activeTab === 'sources')
                 <div class="space-y-6 p-4">
+                    <div class="ios-tab-strip">
+                        <button
+                            wire:click="$set('activeTab', 'settings')"
+                            type="button"
+                            class="ios-tab-pill"
+                        >
+                            Workspace Settings
+                        </button>
+                        <button
+                            type="button"
+                            class="ios-tab-pill ios-tab-pill-active"
+                        >
+                            Sources
+                        </button>
+                        @if ($canManageAccess)
+                            <button
+                                wire:click="$set('activeTab', 'access')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                User Access
+                            </button>
+                        @endif
+                    </div>
+
                     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-zinc-950">Integrations and sources</h2>
@@ -1084,6 +1461,29 @@
 
             @if ($activeTab === 'access' && $canManageAccess)
                 <div class="space-y-6 p-4">
+                    <div class="ios-tab-strip">
+                        <button
+                            wire:click="$set('activeTab', 'settings')"
+                            type="button"
+                            class="ios-tab-pill"
+                        >
+                            Workspace Settings
+                        </button>
+                        <button
+                            wire:click="$set('activeTab', 'sources')"
+                            type="button"
+                            class="ios-tab-pill"
+                        >
+                            Sources
+                        </button>
+                        <button
+                            type="button"
+                            class="ios-tab-pill ios-tab-pill-active"
+                        >
+                            User Access
+                        </button>
+                    </div>
+
                     <div class="flex flex-col gap-2">
                         <h2 class="text-lg font-semibold text-zinc-950">Workspace access</h2>
                         <p class="text-sm text-zinc-500">
@@ -1584,18 +1984,233 @@
                 </div>
             @endif
 
+            @if ($currentWorkspaceExtraModules->contains($activeTab) && $activeTab !== 'quotes')
+                <div class="space-y-6 p-4">
+                    <section class="rounded-[1.5rem] border border-emerald-200 bg-[linear-gradient(135deg,_#f0fdf4,_#ecfeff)] p-6">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="max-w-2xl">
+                                <p class="text-xs uppercase tracking-[0.3em] text-emerald-700">{{ $currentWorkspaceTemplateName }}</p>
+                                <h2 class="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">
+                                    {{ data_get($templateModuleMeta, $activeTab.'.label', str($activeTab)->replace('_', ' ')->title()) }}
+                                </h2>
+                                <p class="mt-3 text-sm leading-7 text-zinc-600">
+                                    {{ data_get($templateModuleMeta, $activeTab.'.description', 'This module is activated for the selected workspace mode.') }}
+                                </p>
+                            </div>
+                            <div class="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-zinc-600 lg:max-w-sm">
+                                <div class="font-medium text-zinc-950">Module activated</div>
+                                <p class="mt-2 leading-6">
+                                    {{ $currentWorkspace->name }} is using the {{ $currentWorkspaceTemplateName }} mode, so this module is now active in the workspace.
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="grid gap-4 lg:grid-cols-3">
+                        <article class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 shadow-sm">
+                            <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</p>
+                            <p class="mt-3 text-2xl font-semibold text-zinc-950">Live</p>
+                            <p class="mt-2 text-sm leading-7 text-zinc-500">The workspace mode is applied correctly and this domain module is available for this team.</p>
+                        </article>
+                        <article class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 shadow-sm">
+                            <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Workspace</p>
+                            <p class="mt-3 text-2xl font-semibold text-zinc-950">{{ $currentWorkspace->name }}</p>
+                            <p class="mt-2 text-sm leading-7 text-zinc-500">{{ $currentWorkspaceTemplateDescription }}</p>
+                        </article>
+                        <article class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 shadow-sm">
+                            <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Next step</p>
+                            <p class="mt-3 text-2xl font-semibold text-zinc-950">Model screen</p>
+                            <p class="mt-2 text-sm leading-7 text-zinc-500">The mode now exposes this module in the CRM. The next build step is the dedicated data model and workflow screen for it.</p>
+                        </article>
+                    </section>
+                </div>
+            @endif
+
+            @if ($activeTab === 'settings' && $canViewWorkspaceTools)
+                <div class="space-y-6 p-4">
+                    <div class="ios-tab-strip">
+                        <button
+                            type="button"
+                            class="ios-tab-pill ios-tab-pill-active"
+                        >
+                            Workspace Settings
+                        </button>
+                        <button
+                            wire:click="$set('activeTab', 'sources')"
+                            type="button"
+                            class="ios-tab-pill"
+                        >
+                            Sources
+                        </button>
+                        @if ($canManageAccess)
+                            <button
+                                wire:click="$set('activeTab', 'access')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                User Access
+                            </button>
+                        @endif
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <h2 class="text-lg font-semibold text-zinc-950">Workspace settings</h2>
+                        <p class="text-sm text-zinc-500">Edit the CRM vocabulary for {{ $currentWorkspace->name }}. Status and stage logic stays stable internally, while labels and picklists remain workspace-specific.</p>
+                    </div>
+
+                    @if (! $canManageAccess)
+                        <section class="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5">
+                            <h3 class="text-base font-semibold text-amber-900">Owner access required</h3>
+                            <p class="mt-2 text-sm leading-7 text-amber-800">
+                                Only the workspace owner can change workspace mode, labels, and CRM settings. You can still use the Sources section from this workspace tools area.
+                            </p>
+                        </section>
+                    @endif
+
+                    @if ($canManageAccess)
+                    <form wire:submit="saveWorkspaceSettings" class="grid gap-4 xl:grid-cols-2">
+                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 xl:col-span-2">
+                            <h3 class="text-base font-semibold text-zinc-950">Workspace mode</h3>
+                            <p class="mt-1 text-sm text-zinc-500">Choose the maritime business mode for this workspace. Changing the mode applies that template’s default labels, modules, and workflow wording.</p>
+                            <div class="mt-4 grid gap-4 xl:grid-cols-[320px_1fr]">
+                                <div class="space-y-3">
+                                    <select wire:model.live="workspaceSettingsForm.template_key" class="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                        @foreach ($workspaceTemplates as $templateKey => $template)
+                                            <option value="{{ $templateKey }}">{{ $template['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                        <div class="text-sm font-semibold text-zinc-950">{{ data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.name') }}</div>
+                                        <p class="mt-2 text-sm leading-7 text-zinc-600">{{ data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.description') }}</p>
+                                    </div>
+                                </div>
+                                <div class="rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                                    <div class="text-sm font-semibold text-zinc-950">Activated modules</div>
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        @foreach (data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.modules', []) as $module)
+                                            <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700">{{ str($module)->replace('_', ' ')->title() }}</span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                            <h3 class="text-base font-semibold text-zinc-950">Lead status labels</h3>
+                            <p class="mt-1 text-sm text-zinc-500">These labels are shown across the lead workflow.</p>
+                            <div class="mt-4 space-y-3">
+                                @foreach ($workspaceSettingsForm['lead_status_labels'] as $statusKey => $label)
+                                    <div class="grid gap-2 md:grid-cols-[180px_1fr]">
+                                        <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-600">{{ $statusKey }}</div>
+                                        <input wire:model="workspaceSettingsForm.lead_status_labels.{{ $statusKey }}" type="text" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+
+                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                            <h3 class="text-base font-semibold text-zinc-950">Opportunity stage labels</h3>
+                            <p class="mt-1 text-sm text-zinc-500">These labels are shown across the opportunity workflow.</p>
+                            <div class="mt-4 space-y-3">
+                                @foreach ($workspaceSettingsForm['opportunity_stage_labels'] as $stageKey => $label)
+                                    <div class="grid gap-2 md:grid-cols-[180px_1fr]">
+                                        <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-600">{{ $stageKey }}</div>
+                                        <input wire:model="workspaceSettingsForm.opportunity_stage_labels.{{ $stageKey }}" type="text" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+
+                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <h3 class="text-base font-semibold text-zinc-950">Disqualification reasons</h3>
+                                    <p class="mt-1 text-sm text-zinc-500">Used in the inline lead disqualification selector.</p>
+                                </div>
+                                <button wire:click="addWorkspaceSettingItem('disqualification_reasons')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
+                            </div>
+                            <div class="mt-4 space-y-3">
+                                @foreach ($workspaceSettingsForm['disqualification_reasons'] as $index => $value)
+                                    <div class="flex gap-2">
+                                        <input wire:model="workspaceSettingsForm.disqualification_reasons.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <button wire:click="removeWorkspaceSettingItem('disqualification_reasons', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+
+                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <h3 class="text-base font-semibold text-zinc-950">Lead sources</h3>
+                                    <p class="mt-1 text-sm text-zinc-500">Used as suggestions in lead and opportunity forms.</p>
+                                </div>
+                                <button wire:click="addWorkspaceSettingItem('lead_sources')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
+                            </div>
+                            <div class="mt-4 space-y-3">
+                                @foreach ($workspaceSettingsForm['lead_sources'] as $index => $value)
+                                    <div class="flex gap-2">
+                                        <input wire:model="workspaceSettingsForm.lead_sources.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <button wire:click="removeWorkspaceSettingItem('lead_sources', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+
+                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 xl:col-span-2">
+                            <div class="flex items-center justify-between gap-3">
+                                <div>
+                                    <h3 class="text-base font-semibold text-zinc-950">Lead services</h3>
+                                    <p class="mt-1 text-sm text-zinc-500">Used as suggestions in lead and opportunity forms.</p>
+                                </div>
+                                <button wire:click="addWorkspaceSettingItem('lead_services')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
+                            </div>
+                            <div class="mt-4 grid gap-3 md:grid-cols-2">
+                                @foreach ($workspaceSettingsForm['lead_services'] as $index => $value)
+                                    <div class="flex gap-2">
+                                        <input wire:model="workspaceSettingsForm.lead_services.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <button wire:click="removeWorkspaceSettingItem('lead_services', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+
+                        <div class="xl:col-span-2">
+                            <button type="submit" class="rounded-xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                                Save Workspace Settings
+                            </button>
+                        </div>
+                    </form>
+                    @endif
+                </div>
+            @endif
+
             @if ($activeTab === 'manual-lead')
                 <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'leads')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Lead List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                Add Lead
+                            </button>
+                        </div>
+                    </div>
                     <form wire:submit="addManualLead" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         <input wire:model="manualLeadForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <input wire:model="manualLeadForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <input wire:model="manualLeadForm.email" type="email" placeholder="Email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <input wire:model="manualLeadForm.phone" type="text" placeholder="Phone" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                        <input wire:model="manualLeadForm.service" type="text" placeholder="Required service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                        <input wire:model="manualLeadForm.lead_source" type="text" placeholder="Lead source" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualLeadForm.service" list="workspace-lead-services" type="text" placeholder="Required service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualLeadForm.lead_source" list="workspace-lead-sources" type="text" placeholder="Lead source" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <select wire:model="manualLeadForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
-                            @foreach (\App\Models\Lead::STATUSES as $status)
-                                <option value="{{ $status }}">{{ $status }}</option>
+                            @foreach ($leadStatusOptions as $status => $label)
+                                <option value="{{ $status }}">{{ $label }}</option>
                             @endforeach
                         </select>
                         <input wire:model="manualLeadForm.lead_value" type="number" step="0.01" placeholder="Lead value (AED)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
@@ -1610,6 +2225,20 @@
 
             @if ($activeTab === 'manual-opportunity')
                 <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'opportunities')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Opportunity List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                Add Opportunity
+                            </button>
+                        </div>
+                    </div>
                     <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
                         <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingOpportunityId ? 'Opportunity Draft' : 'Manual Opportunity' }}</p>
                         <h2 class="mt-2 text-lg font-semibold text-zinc-950">
@@ -1628,13 +2257,13 @@
                         </select>
                         <input wire:model="manualOpportunityForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <input wire:model="manualOpportunityForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                        <input wire:model="manualOpportunityForm.lead_source" type="text" placeholder="Lead source" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                        <input wire:model="manualOpportunityForm.required_service" type="text" placeholder="Required service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualOpportunityForm.lead_source" list="workspace-lead-sources" type="text" placeholder="Lead source" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualOpportunityForm.required_service" list="workspace-lead-services" type="text" placeholder="Required service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <input wire:model="manualOpportunityForm.revenue_potential" type="number" step="0.01" placeholder="Revenue potential (AED)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <input wire:model="manualOpportunityForm.project_timeline_days" type="number" placeholder="Timeline (days)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <select wire:model="manualOpportunityForm.sales_stage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
-                            @foreach (\App\Models\Opportunity::STAGES as $stage)
-                                <option value="{{ $stage }}">{{ $stage }}</option>
+                            @foreach ($opportunityStageOptions as $stage => $label)
+                                <option value="{{ $stage }}">{{ $label }}</option>
                             @endforeach
                         </select>
                         <textarea wire:model="manualOpportunityForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
@@ -1644,6 +2273,82 @@
                     </form>
                 </div>
             @endif
+
+            @if ($activeTab === 'manual-quote')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'quotes')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Quote List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Quote
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingQuoteId ? 'Quote Draft' : 'Freight Quote' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingQuoteId ? 'Update freight quote' : 'Create a freight quote' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Add the core forwarding details, buy and sell values, and quote validity in one screen.</p>
+                    </div>
+
+                    <form wire:submit="addManualQuote" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <select wire:model="manualQuoteForm.opportunity_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked opportunity</option>
+                            @foreach ($opportunityOptions as $opportunityOption)
+                                <option value="{{ $opportunityOption->id }}">{{ $opportunityOption->company_name ?: 'Unknown company' }} / {{ $opportunityOption->external_key }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model="manualQuoteForm.lead_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked lead</option>
+                            @foreach ($leadOptions as $lead)
+                                <option value="{{ $lead->id }}">{{ $lead->company_name ?: 'Unknown company' }} / {{ $lead->lead_id ?: $lead->external_key }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualQuoteForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.service_mode" type="text" placeholder="Mode or service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.origin" type="text" placeholder="Origin" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.destination" type="text" placeholder="Destination" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.incoterm" type="text" placeholder="Incoterm" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.commodity" type="text" placeholder="Commodity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.equipment_type" type="text" placeholder="Equipment type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.weight_kg" type="number" step="0.01" placeholder="Weight (kg)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.volume_cbm" type="number" step="0.001" placeholder="Volume (CBM)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.valid_until" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.buy_amount" type="number" step="0.01" placeholder="Buy amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.sell_amount" type="number" step="0.01" placeholder="Sell amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualQuoteForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <select wire:model="manualQuoteForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            @foreach ($quoteStatusOptions as $quoteStatus)
+                                <option value="{{ $quoteStatus }}">{{ $quoteStatus }}</option>
+                            @endforeach
+                        </select>
+                        <textarea wire:model="manualQuoteForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
+                            {{ $editingQuoteId ? 'Save Quote' : 'Create Quote' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
         </section>
+
+        <datalist id="workspace-lead-sources">
+            @foreach ($leadSources as $sourceName)
+                <option value="{{ $sourceName }}"></option>
+            @endforeach
+        </datalist>
+
+        <datalist id="workspace-lead-services">
+            @foreach ($leadServices as $serviceName)
+                <option value="{{ $serviceName }}"></option>
+            @endforeach
+        </datalist>
     @endif
 </div>

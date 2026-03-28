@@ -20,6 +20,21 @@ class Lead extends Model
         self::STATUS_DISQUALIFIED,
     ];
 
+    public const DISQUALIFICATION_REASON_NO_ANSWER = 'No Answer (ONLY SYSTEM)';
+
+    public const DISQUALIFICATION_REASON_MISMATCH = 'Mismatch of Needs';
+
+    public const DISQUALIFICATION_REASON_DUPLICATE = 'Duplicate Lead';
+
+    public const DISQUALIFICATION_REASON_GEO = 'Geo Limitations';
+
+    public const DISQUALIFICATION_REASONS = [
+        self::DISQUALIFICATION_REASON_NO_ANSWER,
+        self::DISQUALIFICATION_REASON_MISMATCH,
+        self::DISQUALIFICATION_REASON_DUPLICATE,
+        self::DISQUALIFICATION_REASON_GEO,
+    ];
+
     protected $fillable = [
         'company_id',
         'workspace_id',
@@ -84,6 +99,11 @@ class Lead extends Model
     public function opportunities(): HasMany
     {
         return $this->hasMany(Opportunity::class);
+    }
+
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class);
     }
 
     public function statusLogs(): HasMany
