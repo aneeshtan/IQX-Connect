@@ -98,4 +98,14 @@ class Opportunity extends Model
     {
         return $this->hasMany(Quote::class);
     }
+
+    public function shipmentJobs(): HasMany
+    {
+        return $this->hasMany(ShipmentJob::class);
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class);
+    }
 }

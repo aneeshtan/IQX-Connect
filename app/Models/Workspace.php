@@ -65,6 +65,21 @@ class Workspace extends Model
         return $this->hasMany(Quote::class);
     }
 
+    public function shipmentJobs(): HasMany
+    {
+        return $this->hasMany(ShipmentJob::class);
+    }
+
+    public function carriers(): HasMany
+    {
+        return $this->hasMany(Carrier::class);
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class);
+    }
+
     public function monthlyReports(): HasMany
     {
         return $this->hasMany(MonthlyReport::class);

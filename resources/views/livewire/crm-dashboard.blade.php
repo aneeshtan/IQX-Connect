@@ -59,19 +59,42 @@
 
                     <form wire:submit="saveSheetSource" class="grid w-full gap-3 xl:max-w-3xl xl:grid-cols-2">
                         <select wire:model="sourceForm.type" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
-                            <option value="{{ \App\Models\SheetSource::TYPE_LEADS }}">Leads</option>
-                            <option value="{{ \App\Models\SheetSource::TYPE_OPPORTUNITIES }}">Opportunities</option>
-                            <option value="{{ \App\Models\SheetSource::TYPE_REPORTS }}">Reports</option>
-                            <option value="{{ \App\Models\SheetSource::TYPE_GOOGLE_ADS }}">Google Ads</option>
+                            @foreach ($availableSourceTypes as $type => $label)
+                                <option value="{{ $type }}">{{ $label }}</option>
+                            @endforeach
                         </select>
-                        <select wire:model="sourceForm.source_kind" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                        <select wire:model.live="sourceForm.source_kind" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
                             @foreach (\App\Models\SheetSource::SOURCE_KINDS as $sourceKind)
-                                <option value="{{ $sourceKind }}">{{ str($sourceKind)->replace('_', ' ')->title() }}</option>
+                                <option value="{{ $sourceKind }}">{{ \App\Models\SheetSource::sourceKindLabel($sourceKind) }}</option>
                             @endforeach
                         </select>
                         <input wire:model="sourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
-                        <input wire:model="sourceForm.url" type="url" placeholder="Google Sheet or source URL" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                        <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Google Sheet or source URL' }}" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                        @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
+                            <select wire:model.live="sourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
+                                    <option value="{{ $mode }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <select wire:model="sourceForm.cargo_format" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                @foreach (\App\Models\SheetSource::cargoWiseFormats() as $format => $label)
+                                    <option value="{{ $format }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @if (($sourceForm['cargo_auth_mode'] ?? 'basic') === 'basic')
+                                <input wire:model="sourceForm.cargo_username" type="text" placeholder="CargoWise username" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                <input wire:model="sourceForm.cargo_password" type="password" placeholder="CargoWise password" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                            @elseif (($sourceForm['cargo_auth_mode'] ?? '') === 'bearer')
+                                <input wire:model="sourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                            @endif
+                            <input wire:model="sourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                        @endif
                         <input wire:model="sourceForm.description" type="text" placeholder="Short description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                        @if (! \App\Models\SheetSource::supportsSync($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS))
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 xl:col-span-2">
+                                {{ \App\Models\SheetSource::typeLabel($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are saved as connection records for now. Row sync will be added when that module has a dedicated data model.
+                            </div>
+                        @endif
                         <button type="submit" class="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800 xl:col-span-2">
                             Add first source
                         </button>
@@ -120,8 +143,18 @@
         <section class="overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white shadow-sm">
             <div class="border-b border-zinc-200 bg-zinc-50 px-4">
                 <div class="py-3">
+                    @php
+                        $orderedTabs = collect($tabs);
+
+                        if ($orderedTabs->has('analytics') && $orderedTabs->has('settings')) {
+                            $analyticsLabel = $orderedTabs->pull('analytics');
+                            $settingsLabel = $orderedTabs->pull('settings');
+                            $orderedTabs->put('analytics', $analyticsLabel);
+                            $orderedTabs->put('settings', $settingsLabel);
+                        }
+                    @endphp
                     <div class="ios-tab-strip">
-                    @foreach ($tabs as $tabKey => $label)
+                    @foreach ($orderedTabs as $tabKey => $label)
                         <button
                             wire:click="$set('activeTab', '{{ $tabKey }}')"
                             type="button"
@@ -322,28 +355,15 @@
                                         </div>
                                     </div>
 
-                                    <div class="grid gap-3 lg:grid-cols-[0.9fr_1.1fr]">
-                                        <div class="rounded-[1.25rem] border border-sky-200 bg-sky-50/70 px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-sky-700">Lead Score</div>
-                                            <div class="mt-2 flex items-center gap-3">
-                                                <span class="inline-flex rounded-full px-3 py-1 text-sm font-semibold {{ $this->leadScoreClasses((int) ($leadInsights['lead_score'] ?? 0)) }}">
-                                                    {{ $leadInsights['lead_score'] ?? 0 }}/100
-                                                </span>
-                                                <span class="text-sm font-medium text-zinc-700">{{ $leadInsights['lead_score_label'] ?? 'Cold' }}</span>
-                                            </div>
-                                            <p class="mt-3 text-sm leading-7 text-zinc-600">{{ $leadInsights['lead_score_summary'] ?? 'No score summary available yet.' }}</p>
+                                    <div class="rounded-[1.25rem] border border-sky-200 bg-sky-50/70 px-4 py-4">
+                                        <div class="text-xs uppercase tracking-[0.2em] text-sky-700">Lead Score</div>
+                                        <div class="mt-2 flex items-center gap-3">
+                                            <span class="inline-flex rounded-full px-3 py-1 text-sm font-semibold {{ $this->leadScoreClasses((int) ($leadInsights['lead_score'] ?? 0)) }}">
+                                                {{ $leadInsights['lead_score'] ?? 0 }}/100
+                                            </span>
+                                            <span class="text-sm font-medium text-zinc-700">{{ $leadInsights['lead_score_label'] ?? 'Cold' }}</span>
                                         </div>
-
-                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
-                                            <div class="text-sm font-semibold text-zinc-950">Why this lead scored this way</div>
-                                            <div class="mt-3 space-y-2">
-                                                @forelse (($leadInsights['lead_score_reasons'] ?? []) as $reason)
-                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm text-zinc-700">{{ $reason }}</div>
-                                                @empty
-                                                    <div class="text-sm text-zinc-500">No lead score reasons available.</div>
-                                                @endforelse
-                                            </div>
-                                        </div>
+                                        <p class="mt-3 text-sm text-zinc-600">{{ $leadInsights['lead_score_summary'] ?? 'No score summary available yet.' }}</p>
                                     </div>
 
                                     <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
@@ -878,6 +898,569 @@
                 @endif
             @endif
 
+            @if ($activeTab === 'shipments')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Shipment List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-shipment')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Shipment
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="shipmentSearch"
+                            type="text"
+                            placeholder="Search job, company, lane, carrier"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="shipmentStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All statuses</option>
+                            @foreach ($shipmentStatusOptions as $shipmentStatus)
+                                <option value="{{ $shipmentStatus }}">{{ $shipmentStatus }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                            {{ $currentWorkspace->company->name }}
+                        </div>
+                        <select wire:model.live="shipmentSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Newest ETD</option>
+                            <option value="oldest">Oldest ETD</option>
+                            <option value="company_asc">Company A-Z</option>
+                            <option value="company_desc">Company Z-A</option>
+                            <option value="eta_desc">Latest ETA</option>
+                            <option value="eta_asc">Earliest ETA</option>
+                        </select>
+                        <select wire:model.live="shipmentPerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                            Forwarding shipment jobs
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Job</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Company</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Lane</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Mode</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Carrier</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">ETD / ETA</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($shipments as $shipment)
+                                    <tr
+                                        wire:click="selectShipment({{ $shipment->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedShipment?->id === $shipment->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $shipment->job_number }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $shipment->house_bill_no ?: ($shipment->master_bill_no ?: 'No bill number') }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $shipment->company_name ?: 'Unknown company' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $shipment->contact_email ?: 'No email' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            {{ collect([$shipment->origin, $shipment->destination])->filter()->join(' -> ') ?: 'Lane not set' }}
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $shipment->service_mode ?: 'Not set' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            {{ $shipment->carrier_name ?: ($shipment->vessel_name ?: 'Not assigned') }}
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ $shipment->estimated_departure_at?->format('d M Y') ?: 'No ETD' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $shipment->estimated_arrival_at?->format('d M Y') ?: 'No ETA' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->shipmentStatusClasses($shipment->status) }}">
+                                                {{ $shipment->status }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-10 text-center text-zinc-500">No shipment jobs created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $shipments->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedShipment)
+                    <div
+                        wire:click.self="closeShipmentDetails"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                    >
+                        <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Shipment Job</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedShipment->job_number }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedShipment->company_name ?: 'Unknown company' }}</p>
+                                </div>
+                                <button
+                                    wire:click="closeShipmentDetails"
+                                    type="button"
+                                    class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->shipmentStatusClasses($selectedShipment->status) }}">
+                                                    {{ $selectedShipment->status }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Sell value</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedShipment->sell_amount !== null ? ($selectedShipment->currency.' '.number_format((float) $selectedShipment->sell_amount, 0)) : 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Margin</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedShipment->margin_amount !== null ? ($selectedShipment->currency.' '.number_format((float) $selectedShipment->margin_amount, 0)) : 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Linked quote</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedShipment->quote?->quote_number ?: 'No linked quote' }}</div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveShipmentDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <input wire:model="shipmentEditForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.service_mode" type="text" placeholder="Mode or service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.origin" type="text" placeholder="Origin" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.destination" type="text" placeholder="Destination" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.incoterm" type="text" placeholder="Incoterm" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.commodity" type="text" placeholder="Commodity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.equipment_type" type="text" placeholder="Equipment type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.container_count" type="number" min="0" placeholder="Container count" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.weight_kg" type="number" step="0.01" placeholder="Weight (kg)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.volume_cbm" type="number" step="0.001" placeholder="Volume (CBM)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.carrier_name" type="text" placeholder="Carrier" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.vessel_name" type="text" placeholder="Vessel name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.voyage_number" type="text" placeholder="Voyage number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.house_bill_no" type="text" placeholder="House bill number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.master_bill_no" type="text" placeholder="Master bill number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.estimated_departure_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.estimated_arrival_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.actual_departure_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.actual_arrival_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.buy_amount" type="number" step="0.01" placeholder="Buy amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.sell_amount" type="number" step="0.01" placeholder="Sell amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="shipmentEditForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <select wire:model="shipmentEditForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                            @foreach ($shipmentStatusOptions as $shipmentStatus)
+                                                <option value="{{ $shipmentStatus }}">{{ $shipmentStatus }}</option>
+                                            @endforeach
+                                        </select>
+                                        <textarea wire:model="shipmentEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                                                Save Shipment
+                                            </button>
+                                            <button wire:click="closeShipmentDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($activeTab === 'carriers')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Carrier List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-carrier')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Carrier
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="carrierSearch"
+                            type="text"
+                            placeholder="Search carrier, code, lane"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="carrierModeFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All modes</option>
+                            @foreach ($carrierModeOptions as $carrierMode)
+                                <option value="{{ $carrierMode }}">{{ $carrierMode }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                            {{ $currentWorkspace->company->name }}
+                        </div>
+                        <select wire:model.live="carrierSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="name_asc">Name A-Z</option>
+                            <option value="name_desc">Name Z-A</option>
+                            <option value="mode_asc">Mode</option>
+                            <option value="bookings_desc">Most bookings</option>
+                            <option value="newest">Newest carrier</option>
+                        </select>
+                        <select wire:model.live="carrierPerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                            Preferred carrier directory
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Carrier</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Mode</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Contact</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Lanes</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Bookings</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($carriers as $carrier)
+                                    <tr
+                                        wire:click="selectCarrier({{ $carrier->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedCarrier?->id === $carrier->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $carrier->name }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">
+                                                {{ collect([$carrier->code, $carrier->scac_code, $carrier->iata_code])->filter()->join(' / ') ?: 'No codes yet' }}
+                                            </div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->carrierModeClasses($carrier->mode) }}">
+                                                {{ $carrier->mode ?: 'Unspecified' }}
+                                            </span>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ $carrier->contact_name ?: 'No contact' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $carrier->contact_email ?: 'No email' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $carrier->service_lanes ?: 'No lanes saved' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ number_format((int) $carrier->bookings_count) }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $carrier->is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-zinc-200 bg-zinc-100 text-zinc-600' }}">
+                                                {{ $carrier->is_active ? 'Active' : 'Inactive' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-4 py-10 text-center text-zinc-500">No carriers created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $carriers->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedCarrier)
+                    <div wire:click.self="closeCarrierDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                        <div class="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Carrier Details</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedCarrier->name }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedCarrier->mode ?: 'Mode not set' }}</p>
+                                </div>
+                                <button wire:click="closeCarrierDetails" type="button" class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Mode</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->carrierModeClasses($selectedCarrier->mode) }}">
+                                                    {{ $selectedCarrier->mode ?: 'Unspecified' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Bookings</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ number_format((int) $selectedCarrier->bookings()->count()) }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Codes</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ collect([$selectedCarrier->code, $selectedCarrier->scac_code, $selectedCarrier->iata_code])->filter()->join(' / ') ?: 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $selectedCarrier->is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-zinc-200 bg-zinc-100 text-zinc-600' }}">
+                                                    {{ $selectedCarrier->is_active ? 'Active' : 'Inactive' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveCarrierDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <input wire:model="carrierEditForm.name" type="text" placeholder="Carrier name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <select wire:model="carrierEditForm.mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            <option value="">Select mode</option>
+                                            @foreach ($carrierModeOptions as $carrierMode)
+                                                <option value="{{ $carrierMode }}">{{ $carrierMode }}</option>
+                                            @endforeach
+                                        </select>
+                                        <input wire:model="carrierEditForm.code" type="text" placeholder="Carrier code" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="carrierEditForm.scac_code" type="text" placeholder="SCAC code" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="carrierEditForm.iata_code" type="text" placeholder="IATA code" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="carrierEditForm.website" type="url" placeholder="Website" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="carrierEditForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="carrierEditForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="carrierEditForm.contact_phone" type="text" placeholder="Contact phone" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="carrierEditForm.service_lanes" type="text" placeholder="Service lanes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3" />
+                                        <textarea wire:model="carrierEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <label class="inline-flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 md:col-span-2 xl:col-span-3">
+                                            <input wire:model="carrierEditForm.is_active" type="checkbox" class="size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-900" />
+                                            Active carrier
+                                        </label>
+                                        <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Save Carrier</button>
+                                            <button wire:click="closeCarrierDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($activeTab === 'bookings')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Booking List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-booking')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Booking
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="bookingSearch"
+                            type="text"
+                            placeholder="Search booking, customer, lane"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="bookingStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All statuses</option>
+                            @foreach ($bookingStatusOptions as $bookingStatus)
+                                <option value="{{ $bookingStatus }}">{{ $bookingStatus }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">{{ $currentWorkspace->company->name }}</div>
+                        <select wire:model.live="bookingSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Newest requested ETD</option>
+                            <option value="oldest">Oldest requested ETD</option>
+                            <option value="customer_asc">Customer A-Z</option>
+                            <option value="customer_desc">Customer Z-A</option>
+                            <option value="status_asc">Status</option>
+                        </select>
+                        <select wire:model.live="bookingPerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">Carrier booking register</div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Booking</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Customer</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Shipment</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Carrier</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Lane</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">ETD / ETA</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($bookings as $booking)
+                                    <tr
+                                        wire:click="selectBooking({{ $booking->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedBooking?->id === $booking->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $booking->booking_number }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $booking->carrier_confirmation_ref ?: 'No confirmation yet' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $booking->customer_name }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $booking->contact_email ?: 'No email' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $booking->shipmentJob?->job_number ?: 'No shipment linked' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $booking->carrier?->name ?: 'Not assigned' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ collect([$booking->origin, $booking->destination])->filter()->join(' -> ') ?: 'Lane not set' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ $booking->confirmed_etd?->format('d M Y') ?: ($booking->requested_etd?->format('d M Y') ?: 'No ETD') }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $booking->confirmed_eta?->format('d M Y') ?: ($booking->requested_eta?->format('d M Y') ?: 'No ETA') }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->bookingStatusClasses($booking->status) }}">{{ $booking->status }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-10 text-center text-zinc-500">No bookings created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $bookings->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedBooking)
+                    <div wire:click.self="closeBookingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                        <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Booking Details</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedBooking->booking_number }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedBooking->customer_name }}</p>
+                                </div>
+                                <button wire:click="closeBookingDetails" type="button" class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->bookingStatusClasses($selectedBooking->status) }}">{{ $selectedBooking->status }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Carrier</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedBooking->carrier?->name ?: 'Not assigned' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Linked shipment</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedBooking->shipmentJob?->job_number ?: 'No shipment linked' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Linked quote</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedBooking->quote?->quote_number ?: 'No linked quote' }}</div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveBookingDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <select wire:model="bookingEditForm.carrier_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            <option value="">Select carrier</option>
+                                            @foreach ($carrierOptions as $carrierOption)
+                                                <option value="{{ $carrierOption->id }}">{{ $carrierOption->name }}{{ $carrierOption->mode ? ' / '.$carrierOption->mode : '' }}</option>
+                                            @endforeach
+                                        </select>
+                                        <input wire:model="bookingEditForm.customer_name" type="text" placeholder="Customer name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.service_mode" type="text" placeholder="Mode or service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.origin" type="text" placeholder="Origin" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.destination" type="text" placeholder="Destination" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.incoterm" type="text" placeholder="Incoterm" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.commodity" type="text" placeholder="Commodity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.equipment_type" type="text" placeholder="Equipment type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.container_count" type="number" min="0" placeholder="Container count" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.weight_kg" type="number" step="0.01" placeholder="Weight (kg)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.volume_cbm" type="number" step="0.001" placeholder="Volume (CBM)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.requested_etd" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.requested_eta" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.confirmed_etd" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.confirmed_eta" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="bookingEditForm.carrier_confirmation_ref" type="text" placeholder="Carrier confirmation reference" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3" />
+                                        <select wire:model="bookingEditForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                            @foreach ($bookingStatusOptions as $bookingStatus)
+                                                <option value="{{ $bookingStatus }}">{{ $bookingStatus }}</option>
+                                            @endforeach
+                                        </select>
+                                        <textarea wire:model="bookingEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Save Booking</button>
+                                            <button wire:click="closeBookingDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
             @if ($activeTab === 'contacts')
                 <div class="space-y-4 p-4">
                     <div class="grid gap-3 lg:grid-cols-4">
@@ -1332,19 +1915,42 @@
 
                                 <form wire:submit="saveSheetSource" class="grid w-full gap-3 xl:max-w-3xl xl:grid-cols-2">
                                     <select wire:model="sourceForm.type" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
-                                        <option value="{{ \App\Models\SheetSource::TYPE_LEADS }}">Leads</option>
-                                        <option value="{{ \App\Models\SheetSource::TYPE_OPPORTUNITIES }}">Opportunities</option>
-                                        <option value="{{ \App\Models\SheetSource::TYPE_REPORTS }}">Reports</option>
-                                        <option value="{{ \App\Models\SheetSource::TYPE_GOOGLE_ADS }}">Google Ads</option>
+                                        @foreach ($availableSourceTypes as $type => $label)
+                                            <option value="{{ $type }}">{{ $label }}</option>
+                                        @endforeach
                                     </select>
-                                    <select wire:model="sourceForm.source_kind" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                    <select wire:model.live="sourceForm.source_kind" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
                                         @foreach (\App\Models\SheetSource::SOURCE_KINDS as $sourceKind)
-                                            <option value="{{ $sourceKind }}">{{ str($sourceKind)->replace('_', ' ')->title() }}</option>
+                                            <option value="{{ $sourceKind }}">{{ \App\Models\SheetSource::sourceKindLabel($sourceKind) }}</option>
                                         @endforeach
                                     </select>
                                     <input wire:model="sourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
-                                    <input wire:model="sourceForm.url" type="url" placeholder="Google Sheet or source URL" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Google Sheet or source URL' }}" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
+                                        <select wire:model.live="sourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                            @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
+                                                <option value="{{ $mode }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <select wire:model="sourceForm.cargo_format" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                            @foreach (\App\Models\SheetSource::cargoWiseFormats() as $format => $label)
+                                                <option value="{{ $format }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        @if (($sourceForm['cargo_auth_mode'] ?? 'basic') === 'basic')
+                                            <input wire:model="sourceForm.cargo_username" type="text" placeholder="CargoWise username" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                            <input wire:model="sourceForm.cargo_password" type="password" placeholder="CargoWise password" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                        @elseif (($sourceForm['cargo_auth_mode'] ?? '') === 'bearer')
+                                            <input wire:model="sourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                                        @endif
+                                        <input wire:model="sourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                                    @endif
                                     <input wire:model="sourceForm.description" type="text" placeholder="Short description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                                    @if (! \App\Models\SheetSource::supportsSync($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS))
+                                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 xl:col-span-2">
+                                            {{ \App\Models\SheetSource::typeLabel($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are saved as connection records for now. Row sync will be added when that module has a dedicated data model.
+                                        </div>
+                                    @endif
                                     <button type="submit" class="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800 xl:col-span-2">
                                         Save source
                                     </button>
@@ -1374,10 +1980,15 @@
                                                     <div class="font-medium text-zinc-900">{{ $sheetSource->name }}</div>
                                                     <div class="mt-1 text-xs text-zinc-500">{{ $sheetSource->description ?: 'No description' }}</div>
                                                 </td>
-                                                <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ str($sheetSource->type)->replace('_', ' ')->title() }}</td>
+                                                <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ \App\Models\SheetSource::typeLabel($sheetSource->type) }}</td>
                                                 <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
-                                                    <div>{{ str($sheetSource->source_kind)->replace('_', ' ')->title() }}</div>
-                                                    <div class="mt-1 text-xs text-zinc-400">{{ $sheetSource->is_active ? 'Active' : 'Inactive' }}</div>
+                                                    <div>{{ \App\Models\SheetSource::sourceKindLabel($sheetSource->source_kind) }}</div>
+                                                    <div class="mt-1 text-xs text-zinc-400">
+                                                        {{ $sheetSource->is_active ? 'Active' : 'Inactive' }}
+                                                        @if (! \App\Models\SheetSource::supportsSync($sheetSource->type))
+                                                            / Connection only
+                                                        @endif
+                                                    </div>
                                                 </td>
                                                 <td class="border-b border-zinc-100 px-4 py-3">
                                                     <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $this->sourceStatusClasses($sheetSource->sync_status) }}">
@@ -1396,16 +2007,22 @@
                                                             <button wire:click="startEditingSource({{ $sheetSource->id }})" type="button" class="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-white">
                                                                 Edit
                                                             </button>
-                                                            <button
-                                                                wire:click="syncSource({{ $sheetSource->id }})"
-                                                                wire:loading.attr="disabled"
-                                                                wire:target="syncSource({{ $sheetSource->id }})"
-                                                                type="button"
-                                                                class="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-                                                            >
-                                                                <span wire:loading.remove wire:target="syncSource({{ $sheetSource->id }})">Sync</span>
-                                                                <span wire:loading wire:target="syncSource({{ $sheetSource->id }})">Syncing...</span>
-                                                            </button>
+                                                            @if (\App\Models\SheetSource::supportsSync($sheetSource->type))
+                                                                <button
+                                                                    wire:click="syncSource({{ $sheetSource->id }})"
+                                                                    wire:loading.attr="disabled"
+                                                                    wire:target="syncSource({{ $sheetSource->id }})"
+                                                                    type="button"
+                                                                    class="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                                                                >
+                                                                    <span wire:loading.remove wire:target="syncSource({{ $sheetSource->id }})">Sync</span>
+                                                                    <span wire:loading wire:target="syncSource({{ $sheetSource->id }})">Syncing...</span>
+                                                                </button>
+                                                            @else
+                                                                <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
+                                                                    Connection only
+                                                                </span>
+                                                            @endif
                                                         @endif
                                                         <a href="{{ $sheetSource->url }}" target="_blank" rel="noreferrer" class="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-white">
                                                             Open source
@@ -1418,18 +2035,42 @@
                                                     <td colspan="6" class="border-b border-zinc-100 bg-zinc-50 px-4 py-4">
                                                         <form wire:submit="updateSheetSource" class="grid gap-3 rounded-[1.25rem] border border-zinc-200 bg-white p-4 md:grid-cols-2">
                                                             <select wire:model="editingSourceForm.type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
-                                                                @foreach (\App\Models\SheetSource::TYPES as $type)
-                                                                    <option value="{{ $type }}">{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
+                                                                @foreach ($availableSourceTypes as $type => $label)
+                                                                    <option value="{{ $type }}">{{ $label }}</option>
                                                                 @endforeach
                                                             </select>
-                                                            <select wire:model="editingSourceForm.source_kind" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                            <select wire:model.live="editingSourceForm.source_kind" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                                                                 @foreach (\App\Models\SheetSource::SOURCE_KINDS as $sourceKind)
-                                                                    <option value="{{ $sourceKind }}">{{ ucfirst(str_replace('_', ' ', $sourceKind)) }}</option>
+                                                                    <option value="{{ $sourceKind }}">{{ \App\Models\SheetSource::sourceKindLabel($sourceKind) }}</option>
                                                                 @endforeach
                                                             </select>
                                                             <input wire:model="editingSourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                                            <input wire:model="editingSourceForm.url" type="text" placeholder="Source URL" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                            <input wire:model="editingSourceForm.url" type="text" placeholder="{{ ($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Source URL' }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                            @if (($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
+                                                                <select wire:model.live="editingSourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                                    @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
+                                                                        <option value="{{ $mode }}">{{ $label }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <select wire:model="editingSourceForm.cargo_format" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                                    @foreach (\App\Models\SheetSource::cargoWiseFormats() as $format => $label)
+                                                                        <option value="{{ $format }}">{{ $label }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                @if (($editingSourceForm['cargo_auth_mode'] ?? 'basic') === 'basic')
+                                                                    <input wire:model="editingSourceForm.cargo_username" type="text" placeholder="CargoWise username" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                                    <input wire:model="editingSourceForm.cargo_password" type="password" placeholder="CargoWise password" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                                @elseif (($editingSourceForm['cargo_auth_mode'] ?? '') === 'bearer')
+                                                                    <input wire:model="editingSourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                                                @endif
+                                                                <input wire:model="editingSourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                                            @endif
                                                             <input wire:model="editingSourceForm.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                                            @if (! \App\Models\SheetSource::supportsSync($editingSourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS))
+                                                                <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 md:col-span-2">
+                                                                    {{ \App\Models\SheetSource::typeLabel($editingSourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are stored as connection records for now. Sync will be added when the module data model is available.
+                                                                </div>
+                                                            @endif
                                                             <label class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 md:col-span-2">
                                                                 <input wire:model="editingSourceForm.is_active" type="checkbox" class="h-4 w-4 rounded border-zinc-300 text-sky-900 focus:ring-sky-900" />
                                                                 Source is active
@@ -1984,7 +2625,7 @@
                 </div>
             @endif
 
-            @if ($currentWorkspaceExtraModules->contains($activeTab) && $activeTab !== 'quotes')
+            @if ($currentWorkspaceExtraModules->contains($activeTab) && ! in_array($activeTab, ['quotes', 'shipments', 'carriers', 'bookings'], true))
                 <div class="space-y-6 p-4">
                     <section class="rounded-[1.5rem] border border-emerald-200 bg-[linear-gradient(135deg,_#f0fdf4,_#ecfeff)] p-6">
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -2294,22 +2935,23 @@
                     <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
                         <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingQuoteId ? 'Quote Draft' : 'Freight Quote' }}</p>
                         <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingQuoteId ? 'Update freight quote' : 'Create a freight quote' }}</h2>
-                        <p class="mt-1 text-sm text-zinc-500">Add the core forwarding details, buy and sell values, and quote validity in one screen.</p>
+                        <p class="mt-1 text-sm text-zinc-500">Start from the customer, then optionally pick the opportunity so the quote inherits the right commercial context before you price the lane.</p>
                     </div>
 
                     <form wire:submit="addManualQuote" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        <select wire:model="manualQuoteForm.opportunity_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                        <select wire:model.live="manualQuoteForm.customer_record_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Select customer</option>
+                            @foreach ($quoteCustomerOptions as $customerOption)
+                                <option value="{{ $customerOption->id }}">{{ $customerOption->company_name ?: 'Unknown company' }}{{ $customerOption->contact_email ? ' / '.$customerOption->contact_email : '' }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="manualQuoteForm.opportunity_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
                             <option value="">Optional linked opportunity</option>
-                            @foreach ($opportunityOptions as $opportunityOption)
+                            @foreach ($quoteOpportunityOptions as $opportunityOption)
                                 <option value="{{ $opportunityOption->id }}">{{ $opportunityOption->company_name ?: 'Unknown company' }} / {{ $opportunityOption->external_key }}</option>
                             @endforeach
                         </select>
-                        <select wire:model="manualQuoteForm.lead_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
-                            <option value="">Optional linked lead</option>
-                            @foreach ($leadOptions as $lead)
-                                <option value="{{ $lead->id }}">{{ $lead->company_name ?: 'Unknown company' }} / {{ $lead->lead_id ?: $lead->external_key }}</option>
-                            @endforeach
-                        </select>
+                        <input wire:model="manualQuoteForm.lead_id" type="hidden" />
                         <input wire:model="manualQuoteForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <input wire:model="manualQuoteForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <input wire:model="manualQuoteForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
@@ -2333,6 +2975,203 @@
                         <textarea wire:model="manualQuoteForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
                         <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
                             {{ $editingQuoteId ? 'Save Quote' : 'Create Quote' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
+            @if ($activeTab === 'manual-shipment')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'shipments')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Shipment List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Shipment
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingShipmentId ? 'Shipment Draft' : 'Shipment Job' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingShipmentId ? 'Update shipment job' : 'Create a shipment job' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Start with the customer, then narrow into the sales opportunity and accepted quote if the job came from a commercial handoff.</p>
+                    </div>
+
+                    <form wire:submit="addManualShipment" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <select wire:model.live="manualShipmentForm.customer_record_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Select customer</option>
+                            @foreach ($shipmentCustomerOptions as $customerOption)
+                                <option value="{{ $customerOption->id }}">{{ $customerOption->company_name ?: 'Unknown company' }}{{ $customerOption->contact_email ? ' / '.$customerOption->contact_email : '' }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="manualShipmentForm.opportunity_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked opportunity</option>
+                            @foreach ($shipmentOpportunityOptions as $opportunityOption)
+                                <option value="{{ $opportunityOption->id }}">{{ $opportunityOption->company_name ?: 'Unknown company' }} / {{ $opportunityOption->external_key }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="manualShipmentForm.quote_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked quote</option>
+                            @foreach ($shipmentQuoteOptions as $quoteOption)
+                                <option value="{{ $quoteOption->id }}">{{ $quoteOption->quote_number }} / {{ $quoteOption->company_name ?: 'Unknown company' }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualShipmentForm.lead_id" type="hidden" />
+                        <input wire:model="manualShipmentForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.service_mode" type="text" placeholder="Mode or service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.origin" type="text" placeholder="Origin" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.destination" type="text" placeholder="Destination" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.incoterm" type="text" placeholder="Incoterm" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.commodity" type="text" placeholder="Commodity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.equipment_type" type="text" placeholder="Equipment type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.container_count" type="number" min="0" placeholder="Container count" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.weight_kg" type="number" step="0.01" placeholder="Weight (kg)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.volume_cbm" type="number" step="0.001" placeholder="Volume (CBM)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.carrier_name" type="text" placeholder="Carrier" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.vessel_name" type="text" placeholder="Vessel name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.voyage_number" type="text" placeholder="Voyage number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.house_bill_no" type="text" placeholder="House bill number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.master_bill_no" type="text" placeholder="Master bill number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.estimated_departure_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.estimated_arrival_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.actual_departure_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.actual_arrival_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.buy_amount" type="number" step="0.01" placeholder="Buy amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.sell_amount" type="number" step="0.01" placeholder="Sell amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualShipmentForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <select wire:model="manualShipmentForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            @foreach ($shipmentStatusOptions as $shipmentStatus)
+                                <option value="{{ $shipmentStatus }}">{{ $shipmentStatus }}</option>
+                            @endforeach
+                        </select>
+                        <textarea wire:model="manualShipmentForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
+                            {{ $editingShipmentId ? 'Save Shipment Job' : 'Create Shipment Job' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
+            @if ($activeTab === 'manual-carrier')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'carriers')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Carrier List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Carrier
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingCarrierId ? 'Carrier Draft' : 'Carrier Directory' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingCarrierId ? 'Update carrier' : 'Add a carrier' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Keep a clean carrier directory for bookings, shipment planning, and preferred lane coverage.</p>
+                    </div>
+
+                    <form wire:submit="addManualCarrier" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <input wire:model="manualCarrierForm.name" type="text" placeholder="Carrier name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <select wire:model="manualCarrierForm.mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">Select mode</option>
+                            @foreach ($carrierModeOptions as $carrierMode)
+                                <option value="{{ $carrierMode }}">{{ $carrierMode }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualCarrierForm.code" type="text" placeholder="Carrier code" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualCarrierForm.scac_code" type="text" placeholder="SCAC code" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualCarrierForm.iata_code" type="text" placeholder="IATA code" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualCarrierForm.website" type="url" placeholder="Website" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualCarrierForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualCarrierForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualCarrierForm.contact_phone" type="text" placeholder="Contact phone" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualCarrierForm.service_lanes" type="text" placeholder="Service lanes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3" />
+                        <textarea wire:model="manualCarrierForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <label class="inline-flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 md:col-span-2 xl:col-span-3">
+                            <input wire:model="manualCarrierForm.is_active" type="checkbox" class="size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-900" />
+                            Active carrier
+                        </label>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
+                            {{ $editingCarrierId ? 'Save Carrier' : 'Create Carrier' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
+            @if ($activeTab === 'manual-booking')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'bookings')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Booking List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Booking
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingBookingId ? 'Booking Draft' : 'Carrier Booking' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingBookingId ? 'Update booking' : 'Create a booking' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Start from the shipment job, then select the carrier so the booking carries the right lane, timing, and customer context.</p>
+                    </div>
+
+                    <form wire:submit="addManualBooking" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <select wire:model.live="manualBookingForm.shipment_job_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked shipment</option>
+                            @foreach ($bookingShipmentOptions as $shipmentOption)
+                                <option value="{{ $shipmentOption->id }}">{{ $shipmentOption->job_number }} / {{ $shipmentOption->company_name ?: 'Unknown company' }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="manualBookingForm.carrier_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Select carrier</option>
+                            @foreach ($carrierOptions as $carrierOption)
+                                <option value="{{ $carrierOption->id }}">{{ $carrierOption->name }}{{ $carrierOption->mode ? ' / '.$carrierOption->mode : '' }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualBookingForm.customer_name" type="text" placeholder="Customer name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.service_mode" type="text" placeholder="Mode or service" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.origin" type="text" placeholder="Origin" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.destination" type="text" placeholder="Destination" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.incoterm" type="text" placeholder="Incoterm" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.commodity" type="text" placeholder="Commodity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.equipment_type" type="text" placeholder="Equipment type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.container_count" type="number" min="0" placeholder="Container count" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.weight_kg" type="number" step="0.01" placeholder="Weight (kg)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.volume_cbm" type="number" step="0.001" placeholder="Volume (CBM)" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.requested_etd" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.requested_eta" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.confirmed_etd" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.confirmed_eta" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualBookingForm.carrier_confirmation_ref" type="text" placeholder="Carrier confirmation reference" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3" />
+                        <select wire:model="manualBookingForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            @foreach ($bookingStatusOptions as $bookingStatus)
+                                <option value="{{ $bookingStatus }}">{{ $bookingStatus }}</option>
+                            @endforeach
+                        </select>
+                        <textarea wire:model="manualBookingForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
+                            {{ $editingBookingId ? 'Save Booking' : 'Create Booking' }}
                         </button>
                     </form>
                 </div>

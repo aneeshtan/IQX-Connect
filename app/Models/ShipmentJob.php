@@ -6,24 +6,30 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Quote extends Model
+class ShipmentJob extends Model
 {
     public const STATUS_DRAFT = 'Draft';
 
-    public const STATUS_SENT = 'Sent';
+    public const STATUS_BOOKING_REQUESTED = 'Booking Requested';
 
-    public const STATUS_ACCEPTED = 'Accepted';
+    public const STATUS_BOOKED = 'Booked';
 
-    public const STATUS_DECLINED = 'Declined';
+    public const STATUS_IN_TRANSIT = 'In Transit';
 
-    public const STATUS_EXPIRED = 'Expired';
+    public const STATUS_CUSTOMS_CLEARANCE = 'Customs Clearance';
+
+    public const STATUS_DELIVERED = 'Delivered';
+
+    public const STATUS_CANCELLED = 'Cancelled';
 
     public const STATUSES = [
         self::STATUS_DRAFT,
-        self::STATUS_SENT,
-        self::STATUS_ACCEPTED,
-        self::STATUS_DECLINED,
-        self::STATUS_EXPIRED,
+        self::STATUS_BOOKING_REQUESTED,
+        self::STATUS_BOOKED,
+        self::STATUS_IN_TRANSIT,
+        self::STATUS_CUSTOMS_CLEARANCE,
+        self::STATUS_DELIVERED,
+        self::STATUS_CANCELLED,
     ];
 
     protected $fillable = [
@@ -31,9 +37,11 @@ class Quote extends Model
         'workspace_id',
         'sheet_source_id',
         'opportunity_id',
+        'quote_id',
         'lead_id',
         'assigned_user_id',
-        'quote_number',
+        'job_number',
+        'external_reference',
         'company_name',
         'contact_name',
         'contact_email',
@@ -43,15 +51,23 @@ class Quote extends Model
         'incoterm',
         'commodity',
         'equipment_type',
+        'container_count',
         'weight_kg',
         'volume_cbm',
+        'carrier_name',
+        'vessel_name',
+        'voyage_number',
+        'house_bill_no',
+        'master_bill_no',
+        'estimated_departure_at',
+        'estimated_arrival_at',
+        'actual_departure_at',
+        'actual_arrival_at',
+        'status',
         'buy_amount',
         'sell_amount',
         'margin_amount',
         'currency',
-        'status',
-        'valid_until',
-        'quoted_at',
         'notes',
         'source_payload',
     ];
@@ -59,13 +75,16 @@ class Quote extends Model
     protected function casts(): array
     {
         return [
+            'container_count' => 'integer',
             'weight_kg' => 'decimal:2',
             'volume_cbm' => 'decimal:3',
             'buy_amount' => 'decimal:2',
             'sell_amount' => 'decimal:2',
             'margin_amount' => 'decimal:2',
-            'valid_until' => 'date',
-            'quoted_at' => 'datetime',
+            'estimated_departure_at' => 'datetime',
+            'estimated_arrival_at' => 'datetime',
+            'actual_departure_at' => 'datetime',
+            'actual_arrival_at' => 'datetime',
             'source_payload' => 'array',
         ];
     }
@@ -90,6 +109,11 @@ class Quote extends Model
         return $this->belongsTo(Opportunity::class);
     }
 
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
+    }
+
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
@@ -98,11 +122,6 @@ class Quote extends Model
     public function assignedUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_user_id');
-    }
-
-    public function shipmentJobs(): HasMany
-    {
-        return $this->hasMany(ShipmentJob::class);
     }
 
     public function bookings(): HasMany

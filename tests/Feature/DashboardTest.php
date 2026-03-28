@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Livewire\CrmDashboard;
+use App\Models\Booking;
+use App\Models\Carrier;
 use App\Models\Company;
 use App\Models\Lead;
 use App\Models\Opportunity;
 use App\Models\Quote;
 use App\Models\SheetSource;
+use App\Models\ShipmentJob;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\GoogleSheetsService;
@@ -80,6 +83,59 @@ class DashboardTest extends TestCase
             ->assertSee('Workspace Settings')
             ->set('activeTab', 'sources')
             ->assertSee('Integrations and sources');
+    }
+
+    public function test_workspace_sources_can_target_active_modules(): void
+    {
+        $company = Company::create([
+            'name' => 'Forward Source Marine',
+            'slug' => 'forward-source-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Forward Source Workspace',
+            'slug' => 'forward-source-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $managerRole = Role::firstOrCreate(
+            ['slug' => 'manager'],
+            ['name' => 'Manager', 'description' => 'Manager role', 'level' => 4],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($managerRole);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'sources')
+            ->set('sourceForm.workspace_id', $workspace->id)
+            ->set('sourceForm.type', 'shipments')
+            ->set('sourceForm.name', 'Shipment Source')
+            ->set('sourceForm.url', 'https://docs.google.com/spreadsheets/d/10e7bFezWnxiVEOtTMsAn5bOS9-2Y33utDoMFFibS-dY/edit?gid=0#gid=0')
+            ->set('sourceForm.source_kind', SheetSource::SOURCE_KIND_GOOGLE_SHEET_CSV)
+            ->set('sourceForm.description', 'Freight shipment feed')
+            ->call('saveSheetSource')
+            ->assertHasNoErrors()
+            ->assertSee('Shipment Source')
+            ->assertSee('Sync');
+
+        $this->assertDatabaseHas('sheet_sources', [
+            'workspace_id' => $workspace->id,
+            'type' => 'shipments',
+            'name' => 'Shipment Source',
+        ]);
     }
 
     public function test_workspace_users_can_open_contact_and_customer_ai_briefs(): void
@@ -492,6 +548,212 @@ class DashboardTest extends TestCase
             'contact_email' => 'mina@example.com',
             'sales_stage' => Opportunity::STAGE_INITIAL_CONTACT,
         ]);
+    }
+
+    public function test_closed_won_opportunity_creates_a_draft_shipment_and_opens_the_form(): void
+    {
+        $company = Company::create([
+            'name' => 'Shipment Marine',
+            'slug' => 'shipment-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Shipment Workspace',
+            'slug' => 'shipment-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+
+        $lead = Lead::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'assigned_user_id' => $user->id,
+            'external_key' => 'lead-shipment-1',
+            'lead_id' => 'LD-S-1',
+            'contact_name' => 'Mina Patel',
+            'company_name' => 'Harbor Export Lines',
+            'email' => 'mina@example.com',
+            'lead_source' => 'Google Ads',
+            'service' => 'Ocean Freight',
+            'status' => Lead::STATUS_SALES_QUALIFIED,
+            'submission_date' => now()->subDays(2),
+        ]);
+
+        $opportunity = Opportunity::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'lead_id' => $lead->id,
+            'assigned_user_id' => $user->id,
+            'external_key' => 'opp-shipment-1',
+            'company_name' => 'Harbor Export Lines',
+            'contact_email' => 'mina@example.com',
+            'lead_source' => 'Google Ads',
+            'required_service' => 'Ocean Freight',
+            'revenue_potential' => 15000,
+            'sales_stage' => Opportunity::STAGE_PROPOSAL_SENT,
+            'submission_date' => now()->subDay(),
+        ]);
+
+        Quote::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'opportunity_id' => $opportunity->id,
+            'lead_id' => $lead->id,
+            'assigned_user_id' => $user->id,
+            'quote_number' => 'QT-00001',
+            'company_name' => 'Harbor Export Lines',
+            'contact_name' => 'Mina Patel',
+            'contact_email' => 'mina@example.com',
+            'service_mode' => 'Ocean Freight',
+            'origin' => 'Jebel Ali',
+            'destination' => 'Hamburg',
+            'buy_amount' => 12000,
+            'sell_amount' => 15000,
+            'currency' => 'AED',
+            'status' => Quote::STATUS_ACCEPTED,
+            'quoted_at' => now()->subHours(5),
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'opportunities')
+            ->call('updateOpportunityStage', $opportunity->id, Opportunity::STAGE_CLOSED_WON)
+            ->assertSet('activeTab', 'manual-shipment')
+            ->assertSet('manualShipmentForm.opportunity_id', (string) $opportunity->id)
+            ->assertSet('manualShipmentForm.company_name', 'Harbor Export Lines')
+            ->assertSet('manualShipmentForm.contact_email', 'mina@example.com')
+            ->assertSet('manualShipmentForm.origin', 'Jebel Ali')
+            ->assertSet('manualShipmentForm.destination', 'Hamburg')
+            ->assertSet('manualShipmentForm.status', ShipmentJob::STATUS_DRAFT);
+
+        $this->assertDatabaseHas('shipment_jobs', [
+            'workspace_id' => $workspace->id,
+            'opportunity_id' => $opportunity->id,
+            'company_name' => 'Harbor Export Lines',
+            'origin' => 'Jebel Ali',
+            'destination' => 'Hamburg',
+            'status' => ShipmentJob::STATUS_DRAFT,
+        ]);
+    }
+
+    public function test_selecting_an_opportunity_autofills_the_manual_shipment_form(): void
+    {
+        $company = Company::create([
+            'name' => 'Autofill Marine',
+            'slug' => 'autofill-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Autofill Workspace',
+            'slug' => 'autofill-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+
+        $lead = Lead::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'external_key' => 'lead-auto-ship-1',
+            'lead_id' => 'LD-AUTO-1',
+            'contact_name' => 'Layla Noor',
+            'company_name' => 'Northstar Cargo',
+            'email' => 'layla@northstar.test',
+            'service' => 'Ocean Freight',
+            'status' => Lead::STATUS_SALES_QUALIFIED,
+            'submission_date' => now()->subDays(3),
+        ]);
+
+        $opportunity = Opportunity::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'lead_id' => $lead->id,
+            'external_key' => 'opp-auto-ship-1',
+            'company_name' => 'Northstar Cargo',
+            'contact_email' => 'ops@northstar.test',
+            'lead_source' => 'Website Quote Form',
+            'required_service' => 'Ocean Freight',
+            'revenue_potential' => 22000,
+            'sales_stage' => Opportunity::STAGE_PROPOSAL_SENT,
+            'notes' => 'Customer confirmed preferred route.',
+            'submission_date' => now()->subDay(),
+        ]);
+
+        $quote = Quote::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'opportunity_id' => $opportunity->id,
+            'lead_id' => $lead->id,
+            'quote_number' => 'QT-AUTO-1',
+            'company_name' => 'Northstar Cargo',
+            'contact_name' => 'Layla Noor',
+            'contact_email' => 'layla@northstar.test',
+            'service_mode' => 'Ocean Freight',
+            'origin' => 'Jebel Ali',
+            'destination' => 'Rotterdam',
+            'incoterm' => 'FOB',
+            'commodity' => 'Industrial Equipment',
+            'equipment_type' => '40HC',
+            'weight_kg' => 18000,
+            'volume_cbm' => 55.2,
+            'buy_amount' => 18000,
+            'sell_amount' => 22000,
+            'currency' => 'AED',
+            'status' => Quote::STATUS_ACCEPTED,
+            'notes' => 'Approved by customer.',
+            'quoted_at' => now()->subHours(4),
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-shipment')
+            ->set('manualShipmentForm.customer_record_id', (string) $opportunity->id)
+            ->assertSet('manualShipmentForm.opportunity_id', '')
+            ->assertSet('manualShipmentForm.quote_id', '')
+            ->assertSet('manualShipmentForm.company_name', 'Northstar Cargo')
+            ->assertSet('manualShipmentForm.contact_name', 'Layla Noor')
+            ->assertSet('manualShipmentForm.contact_email', 'ops@northstar.test')
+            ->set('manualShipmentForm.opportunity_id', (string) $opportunity->id)
+            ->assertSet('manualShipmentForm.customer_record_id', (string) $opportunity->id)
+            ->assertSet('manualShipmentForm.lead_id', (string) $lead->id)
+            ->assertSet('manualShipmentForm.quote_id', (string) $quote->id)
+            ->assertSet('manualShipmentForm.company_name', 'Northstar Cargo')
+            ->assertSet('manualShipmentForm.contact_name', 'Layla Noor')
+            ->assertSet('manualShipmentForm.contact_email', 'ops@northstar.test')
+            ->assertSet('manualShipmentForm.service_mode', 'Ocean Freight')
+            ->assertSet('manualShipmentForm.origin', 'Jebel Ali')
+            ->assertSet('manualShipmentForm.destination', 'Rotterdam')
+            ->assertSet('manualShipmentForm.incoterm', 'FOB')
+            ->assertSet('manualShipmentForm.commodity', 'Industrial Equipment')
+            ->assertSet('manualShipmentForm.equipment_type', '40HC')
+            ->assertSet('manualShipmentForm.weight_kg', '18000.00')
+            ->assertSet('manualShipmentForm.volume_cbm', '55.200')
+            ->assertSet('manualShipmentForm.buy_amount', '18000.00')
+            ->assertSet('manualShipmentForm.sell_amount', '22000.00')
+            ->assertSet('manualShipmentForm.notes', 'Approved by customer.');
     }
 
     public function test_disqualified_lead_requires_a_reason_before_status_is_saved(): void
@@ -1023,6 +1285,77 @@ class DashboardTest extends TestCase
         $this->assertSame('1300.00', $quote->margin_amount);
     }
 
+    public function test_selecting_customer_and_opportunity_autofills_the_manual_quote_form(): void
+    {
+        $company = Company::create([
+            'name' => 'Quote Autofill Marine',
+            'slug' => 'quote-autofill-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Quote Autofill Workspace',
+            'slug' => 'quote-autofill-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+
+        $lead = Lead::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'external_key' => 'lead-auto-quote-1',
+            'lead_id' => 'LD-AUTO-Q-1',
+            'contact_name' => 'Lina Noor',
+            'company_name' => 'Oceanic Traders',
+            'email' => 'lina@example.com',
+            'service' => 'Ocean Freight',
+            'status' => Lead::STATUS_SALES_QUALIFIED,
+            'submission_date' => now()->subDays(3),
+        ]);
+
+        $opportunity = Opportunity::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'lead_id' => $lead->id,
+            'external_key' => 'opp-auto-quote-1',
+            'company_name' => 'Oceanic Traders',
+            'contact_email' => 'pricing@oceanic.test',
+            'lead_source' => 'Website Quote Form',
+            'required_service' => 'Ocean Freight',
+            'revenue_potential' => 9500,
+            'sales_stage' => Opportunity::STAGE_PROPOSAL_SENT,
+            'notes' => 'Customer asked for fastest routing option.',
+            'submission_date' => now()->subDay(),
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-quote')
+            ->set('manualQuoteForm.customer_record_id', (string) $opportunity->id)
+            ->assertSet('manualQuoteForm.opportunity_id', '')
+            ->assertSet('manualQuoteForm.lead_id', (string) $lead->id)
+            ->assertSet('manualQuoteForm.company_name', 'Oceanic Traders')
+            ->assertSet('manualQuoteForm.contact_name', 'Lina Noor')
+            ->assertSet('manualQuoteForm.contact_email', 'pricing@oceanic.test')
+            ->assertSet('manualQuoteForm.service_mode', 'Ocean Freight')
+            ->set('manualQuoteForm.opportunity_id', (string) $opportunity->id)
+            ->assertSet('manualQuoteForm.customer_record_id', (string) $opportunity->id)
+            ->assertSet('manualQuoteForm.lead_id', (string) $lead->id)
+            ->assertSet('manualQuoteForm.sell_amount', '9500.00')
+            ->assertSet('manualQuoteForm.notes', 'Customer asked for fastest routing option.');
+    }
+
     public function test_non_owner_workspace_users_cannot_manage_workspace_access(): void
     {
         $company = Company::create([
@@ -1188,5 +1521,145 @@ class DashboardTest extends TestCase
             ->assertSee('Source Updated Source Name updated.');
 
         $this->assertSame('Updated Source Name', $source->fresh()->name);
+    }
+
+    public function test_freight_forwarder_workspace_can_create_a_carrier(): void
+    {
+        $company = Company::create([
+            'name' => 'Carrier Marine',
+            'slug' => 'carrier-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Carrier Workspace',
+            'slug' => 'carrier-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $managerRole = Role::firstOrCreate(
+            ['slug' => 'manager'],
+            ['name' => 'Manager', 'description' => 'Manager role', 'level' => 4],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($managerRole);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-carrier')
+            ->set('manualCarrierForm.name', 'Maersk')
+            ->set('manualCarrierForm.mode', Carrier::MODE_OCEAN)
+            ->set('manualCarrierForm.code', 'MSK')
+            ->set('manualCarrierForm.scac_code', 'MAEU')
+            ->set('manualCarrierForm.contact_name', 'Lina Noor')
+            ->set('manualCarrierForm.contact_email', 'lina@maersk.test')
+            ->set('manualCarrierForm.service_lanes', 'Jebel Ali -> Rotterdam')
+            ->call('addManualCarrier')
+            ->assertHasNoErrors()
+            ->assertSet('activeTab', 'carriers');
+
+        $this->assertDatabaseHas('carriers', [
+            'workspace_id' => $workspace->id,
+            'name' => 'Maersk',
+            'mode' => Carrier::MODE_OCEAN,
+            'scac_code' => 'MAEU',
+        ]);
+    }
+
+    public function test_selecting_a_shipment_autofills_the_manual_booking_form_and_booking_updates_the_shipment(): void
+    {
+        $company = Company::create([
+            'name' => 'Booking Marine',
+            'slug' => 'booking-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Booking Workspace',
+            'slug' => 'booking-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $managerRole = Role::firstOrCreate(
+            ['slug' => 'manager'],
+            ['name' => 'Manager', 'description' => 'Manager role', 'level' => 4],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($managerRole);
+
+        $carrier = Carrier::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'name' => 'MSC',
+            'mode' => Carrier::MODE_OCEAN,
+            'is_active' => true,
+        ]);
+
+        $shipment = ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'job_number' => 'SJ-BOOK-001',
+            'company_name' => 'Oceanic Traders',
+            'contact_name' => 'Lina Noor',
+            'contact_email' => 'lina@example.com',
+            'service_mode' => 'Ocean Freight',
+            'origin' => 'Jebel Ali',
+            'destination' => 'Hamburg',
+            'estimated_departure_at' => now()->addDays(4),
+            'estimated_arrival_at' => now()->addDays(19),
+            'status' => ShipmentJob::STATUS_DRAFT,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-booking')
+            ->assertSet('manualBookingForm.customer_name', '')
+            ->set('manualBookingForm.shipment_job_id', (string) $shipment->id)
+            ->assertSet('manualBookingForm.customer_name', 'Oceanic Traders')
+            ->assertSet('manualBookingForm.origin', 'Jebel Ali')
+            ->assertSet('manualBookingForm.destination', 'Hamburg')
+            ->set('manualBookingForm.carrier_id', (string) $carrier->id)
+            ->set('manualBookingForm.status', Booking::STATUS_CONFIRMED)
+            ->set('manualBookingForm.confirmed_etd', now()->addDays(5)->format('Y-m-d\\TH:i'))
+            ->set('manualBookingForm.confirmed_eta', now()->addDays(20)->format('Y-m-d\\TH:i'))
+            ->call('addManualBooking')
+            ->assertHasNoErrors()
+            ->assertSet('activeTab', 'bookings');
+
+        $this->assertDatabaseHas('bookings', [
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'carrier_id' => $carrier->id,
+            'customer_name' => 'Oceanic Traders',
+            'status' => Booking::STATUS_CONFIRMED,
+        ]);
+
+        $this->assertDatabaseHas('shipment_jobs', [
+            'id' => $shipment->id,
+            'carrier_name' => 'MSC',
+            'status' => ShipmentJob::STATUS_BOOKED,
+        ]);
     }
 }

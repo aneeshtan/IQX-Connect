@@ -209,17 +209,36 @@
                                         @endforeach
                                     </select>
                                     <select wire:model="editingSourceForm.type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
-                                        @foreach (\App\Models\SheetSource::TYPES as $type)
-                                            <option value="{{ $type }}">{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
+                                        @foreach (\App\Models\SheetSource::availableTypes() as $type)
+                                            <option value="{{ $type }}">{{ \App\Models\SheetSource::typeLabel($type) }}</option>
                                         @endforeach
                                     </select>
                                     <input wire:model="editingSourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                    <input wire:model="editingSourceForm.url" type="text" placeholder="Source URL or upload reference" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                    <select wire:model="editingSourceForm.source_kind" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                    <input wire:model="editingSourceForm.url" type="text" placeholder="{{ ($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Source URL or upload reference' }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                    <select wire:model.live="editingSourceForm.source_kind" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                                         @foreach (\App\Models\SheetSource::SOURCE_KINDS as $sourceKind)
-                                            <option value="{{ $sourceKind }}">{{ ucfirst(str_replace('_', ' ', $sourceKind)) }}</option>
+                                            <option value="{{ $sourceKind }}">{{ \App\Models\SheetSource::sourceKindLabel($sourceKind) }}</option>
                                         @endforeach
                                     </select>
+                                    @if (($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
+                                        <select wire:model.live="editingSourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
+                                                <option value="{{ $mode }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <select wire:model="editingSourceForm.cargo_format" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            @foreach (\App\Models\SheetSource::cargoWiseFormats() as $format => $label)
+                                                <option value="{{ $format }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        @if (($editingSourceForm['cargo_auth_mode'] ?? 'basic') === 'basic')
+                                            <input wire:model="editingSourceForm.cargo_username" type="text" placeholder="CargoWise username" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                            <input wire:model="editingSourceForm.cargo_password" type="password" placeholder="CargoWise password" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        @elseif (($editingSourceForm['cargo_auth_mode'] ?? '') === 'bearer')
+                                            <input wire:model="editingSourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                        @endif
+                                        <input wire:model="editingSourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                    @endif
                                     <input wire:model="editingSourceForm.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                     <label class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
                                         <input wire:model="editingSourceForm.is_active" type="checkbox" class="h-4 w-4 rounded border-zinc-300 text-sky-900 focus:ring-sky-900" />
@@ -428,15 +447,36 @@
                             @endforeach
                         </select>
                         <select wire:model="sourceForm.type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
-                            @foreach (\App\Models\SheetSource::TYPES as $type)
-                                <option value="{{ $type }}">{{ ucfirst(str_replace('_', ' ', $type)) }}</option>
+                            @foreach (\App\Models\SheetSource::availableTypes() as $type)
+                                <option value="{{ $type }}">{{ \App\Models\SheetSource::typeLabel($type) }}</option>
                             @endforeach
                         </select>
-                        <select wire:model="sourceForm.source_kind" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
-                            <option value="{{ \App\Models\SheetSource::SOURCE_KIND_GOOGLE_SHEET_CSV }}">Public Google Sheet / CSV URL</option>
+                        <select wire:model.live="sourceForm.source_kind" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            @foreach (\App\Models\SheetSource::SOURCE_KINDS as $sourceKind)
+                                <option value="{{ $sourceKind }}">{{ \App\Models\SheetSource::sourceKindLabel($sourceKind) }}</option>
+                            @endforeach
                         </select>
                         <input wire:model="sourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                        <input wire:model="sourceForm.url" type="url" placeholder="Public Google Sheet or CSV URL" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Public Google Sheet or CSV URL' }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
+                            <select wire:model.live="sourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
+                                    <option value="{{ $mode }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <select wire:model="sourceForm.cargo_format" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                @foreach (\App\Models\SheetSource::cargoWiseFormats() as $format => $label)
+                                    <option value="{{ $format }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @if (($sourceForm['cargo_auth_mode'] ?? 'basic') === 'basic')
+                                <input wire:model="sourceForm.cargo_username" type="text" placeholder="CargoWise username" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                <input wire:model="sourceForm.cargo_password" type="password" placeholder="CargoWise password" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                            @elseif (($sourceForm['cargo_auth_mode'] ?? '') === 'bearer')
+                                <input wire:model="sourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                            @endif
+                            <input wire:model="sourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        @endif
                         <input wire:model="sourceForm.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         <button type="submit" class="rounded-xl bg-sky-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-800">
                             Add Source

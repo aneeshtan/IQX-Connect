@@ -106,6 +106,50 @@ class AdminDashboard extends Component
         $this->resetPage('sourcesPage');
     }
 
+    public function updatedSourceFormSourceKind(string $value): void
+    {
+        $this->sourceForm = [
+            ...$this->sourceForm,
+            ...$this->defaultSourceConnectionFields(),
+            'source_kind' => $value,
+            'url' => $value === SheetSource::SOURCE_KIND_CARGOWISE_API ? '' : ($this->sourceForm['url'] ?? ''),
+        ];
+    }
+
+    public function updatedSourceFormCargoAuthMode(string $value): void
+    {
+        if ($value === 'bearer') {
+            $this->sourceForm['cargo_username'] = '';
+            $this->sourceForm['cargo_password'] = '';
+        }
+
+        if ($value === 'basic') {
+            $this->sourceForm['cargo_token'] = '';
+        }
+    }
+
+    public function updatedEditingSourceFormSourceKind(string $value): void
+    {
+        $this->editingSourceForm = [
+            ...$this->editingSourceForm,
+            ...$this->defaultSourceConnectionFields(),
+            'source_kind' => $value,
+            'url' => $value === SheetSource::SOURCE_KIND_CARGOWISE_API ? '' : ($this->editingSourceForm['url'] ?? ''),
+        ];
+    }
+
+    public function updatedEditingSourceFormCargoAuthMode(string $value): void
+    {
+        if ($value === 'bearer') {
+            $this->editingSourceForm['cargo_username'] = '';
+            $this->editingSourceForm['cargo_password'] = '';
+        }
+
+        if ($value === 'basic') {
+            $this->editingSourceForm['cargo_token'] = '';
+        }
+    }
+
     public function updatedWorkspaceUserSort(): void
     {
         $this->resetPage('workspaceUsersPage');
@@ -181,12 +225,18 @@ class AdminDashboard extends Component
     {
         $validated = validator($this->sourceForm, [
             'workspace_id' => ['required', 'exists:workspaces,id'],
-            'type' => ['required', Rule::in(SheetSource::TYPES)],
+            'type' => ['required', Rule::in(SheetSource::availableTypes())],
             'name' => ['required', 'string', 'max:255'],
             'url' => ['required', 'url'],
             'description' => ['nullable', 'string', 'max:255'],
             'source_kind' => ['required', Rule::in(SheetSource::SOURCE_KINDS)],
             'is_active' => ['boolean'],
+            'cargo_auth_mode' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseAuthModes()))],
+            'cargo_username' => ['nullable', 'string', 'max:255'],
+            'cargo_password' => ['nullable', 'string', 'max:2048'],
+            'cargo_token' => ['nullable', 'string', 'max:4096'],
+            'cargo_format' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseFormats()))],
+            'cargo_data_path' => ['nullable', 'string', 'max:255'],
         ])->validate();
 
         $workspace = Workspace::query()->with('company')->findOrFail($validated['workspace_id']);
@@ -201,11 +251,16 @@ class AdminDashboard extends Component
             'company_id' => $workspace->company_id,
             'source_kind' => $sourceKind,
             'sync_status' => 'idle',
+            'mapping' => $this->sourceMappingFromForm($validated),
         ]);
 
-        $this->sourceForm['name'] = '';
-        $this->sourceForm['url'] = '';
-        $this->sourceForm['description'] = '';
+        $this->sourceForm = [
+            ...$this->sourceForm,
+            ...$this->defaultSourceConnectionFields(),
+            'name' => '',
+            'url' => '',
+            'description' => '',
+        ];
 
         $this->flash('Sheet source added.');
     }
@@ -588,6 +643,7 @@ class AdminDashboard extends Component
             'source_kind' => $source->source_kind,
             'description' => $source->description ?? '',
             'is_active' => $source->is_active,
+            ...$this->sourceConnectionFieldsFromSource($source),
         ];
     }
 
@@ -603,12 +659,18 @@ class AdminDashboard extends Component
 
         $validated = validator($this->editingSourceForm, [
             'workspace_id' => ['nullable', 'exists:workspaces,id'],
-            'type' => ['required', Rule::in(SheetSource::TYPES)],
+            'type' => ['required', Rule::in(SheetSource::availableTypes())],
             'name' => ['required', 'string', 'max:255'],
             'url' => ['required', 'string'],
             'source_kind' => ['required', Rule::in(SheetSource::SOURCE_KINDS)],
             'description' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
+            'cargo_auth_mode' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseAuthModes()))],
+            'cargo_username' => ['nullable', 'string', 'max:255'],
+            'cargo_password' => ['nullable', 'string', 'max:2048'],
+            'cargo_token' => ['nullable', 'string', 'max:4096'],
+            'cargo_format' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseFormats()))],
+            'cargo_data_path' => ['nullable', 'string', 'max:255'],
         ])->validate();
 
         $workspace = isset($validated['workspace_id'])
@@ -631,6 +693,7 @@ class AdminDashboard extends Component
             'source_kind' => $sourceKind,
             'description' => $validated['description'],
             'is_active' => (bool) ($validated['is_active'] ?? false),
+            'mapping' => $this->sourceMappingFromForm($validated, $source),
         ])->save();
 
         $this->cancelEditingSource();
@@ -788,6 +851,7 @@ class AdminDashboard extends Component
             'description' => '',
             'source_kind' => SheetSource::SOURCE_KIND_GOOGLE_SHEET_CSV,
             'is_active' => true,
+            ...$this->defaultSourceConnectionFields(),
         ];
 
         $this->editingSourceForm = [
@@ -798,6 +862,7 @@ class AdminDashboard extends Component
             'source_kind' => SheetSource::SOURCE_KIND_GOOGLE_SHEET_CSV,
             'description' => '',
             'is_active' => true,
+            ...$this->defaultSourceConnectionFields(),
         ];
 
         $this->csvUploadForm = [
@@ -836,6 +901,53 @@ class AdminDashboard extends Component
             'description' => '',
             'level' => 3,
         ];
+    }
+
+    protected function defaultSourceConnectionFields(): array
+    {
+        return [
+            'cargo_auth_mode' => 'basic',
+            'cargo_username' => '',
+            'cargo_password' => '',
+            'cargo_token' => '',
+            'cargo_format' => 'json',
+            'cargo_data_path' => '',
+        ];
+    }
+
+    protected function sourceConnectionFieldsFromSource(SheetSource $source): array
+    {
+        return [
+            'cargo_auth_mode' => data_get($source->mapping, 'cargowise.auth_mode', 'basic'),
+            'cargo_username' => data_get($source->mapping, 'cargowise.username', ''),
+            'cargo_password' => data_get($source->mapping, 'cargowise.password', ''),
+            'cargo_token' => data_get($source->mapping, 'cargowise.token', ''),
+            'cargo_format' => data_get($source->mapping, 'cargowise.format', 'json'),
+            'cargo_data_path' => data_get($source->mapping, 'cargowise.data_path', ''),
+        ];
+    }
+
+    protected function sourceMappingFromForm(array $validated, ?SheetSource $source = null): ?array
+    {
+        $mapping = $source?->mapping ?? [];
+
+        if (($validated['source_kind'] ?? null) !== SheetSource::SOURCE_KIND_CARGOWISE_API) {
+            unset($mapping['cargowise']);
+
+            return $mapping === [] ? null : $mapping;
+        }
+
+        $mapping['cargowise'] = [
+            'endpoint' => $validated['url'],
+            'auth_mode' => $validated['cargo_auth_mode'] ?: 'basic',
+            'username' => $validated['cargo_username'] ?: '',
+            'password' => $validated['cargo_password'] ?: '',
+            'token' => $validated['cargo_token'] ?: '',
+            'format' => $validated['cargo_format'] ?: 'json',
+            'data_path' => $validated['cargo_data_path'] ?: '',
+        ];
+
+        return $mapping;
     }
 
     protected function primeForms(?Workspace $workspace): void

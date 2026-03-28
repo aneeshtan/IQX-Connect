@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Booking;
+use App\Models\Carrier;
 use App\Models\Lead;
 use App\Models\MonthlyReport;
 use App\Models\Opportunity;
+use App\Models\Quote;
 use App\Models\SheetSource;
+use App\Models\ShipmentJob;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -33,8 +37,15 @@ class SheetSourceSyncService
             $count = DB::transaction(fn () => match ($source->type) {
                 SheetSource::TYPE_LEADS => $this->syncLeads($source, $rows),
                 SheetSource::TYPE_OPPORTUNITIES => $this->syncOpportunities($source, $rows),
+                SheetSource::TYPE_CONTACTS => $this->syncLeads($source, $rows),
+                SheetSource::TYPE_CUSTOMERS => $this->syncOpportunities($source, $rows),
+                SheetSource::TYPE_QUOTES => $this->syncQuotes($source, $rows),
+                SheetSource::TYPE_SHIPMENTS => $this->syncShipmentJobs($source, $rows),
+                SheetSource::TYPE_CARRIERS => $this->syncCarriers($source, $rows),
+                SheetSource::TYPE_BOOKINGS => $this->syncBookings($source, $rows),
                 SheetSource::TYPE_REPORTS => $this->syncMonthlyReports($source, $rows),
-                default => throw new RuntimeException("Unsupported uploaded CSV source type [{$source->type}]."),
+                SheetSource::TYPE_GOOGLE_ADS => 0,
+                default => throw new RuntimeException('Sync is not available for '.SheetSource::typeLabel($source->type).' sources yet.'),
             });
 
             $source->forceFill([
@@ -69,9 +80,15 @@ class SheetSourceSyncService
             $count = DB::transaction(fn () => match ($source->type) {
                 SheetSource::TYPE_LEADS => $this->syncLeads($source, $rows),
                 SheetSource::TYPE_OPPORTUNITIES => $this->syncOpportunities($source, $rows),
+                SheetSource::TYPE_CONTACTS => $this->syncLeads($source, $rows),
+                SheetSource::TYPE_CUSTOMERS => $this->syncOpportunities($source, $rows),
+                SheetSource::TYPE_QUOTES => $this->syncQuotes($source, $rows),
+                SheetSource::TYPE_SHIPMENTS => $this->syncShipmentJobs($source, $rows),
+                SheetSource::TYPE_CARRIERS => $this->syncCarriers($source, $rows),
+                SheetSource::TYPE_BOOKINGS => $this->syncBookings($source, $rows),
                 SheetSource::TYPE_REPORTS => $this->syncMonthlyReports($source, $rows),
                 SheetSource::TYPE_GOOGLE_ADS => 0,
-                default => throw new RuntimeException("Unsupported sheet source type [{$source->type}]."),
+                default => throw new RuntimeException('Sync is not available for '.SheetSource::typeLabel($source->type).' sources yet.'),
             });
 
             $source->forceFill([
@@ -277,6 +294,299 @@ class SheetSourceSyncService
         return $count;
     }
 
+    protected function syncQuotes(SheetSource $source, array $rows): int
+    {
+        if (! $source->workspace_id) {
+            throw new RuntimeException('Quote sources must be attached to a workspace.');
+        }
+
+        $count = 0;
+
+        foreach ($rows as $row) {
+            $quoteNumber = $this->value($row, ['Quote Number', 'Quote ID', 'Quote Ref', 'Quote Reference']);
+
+            if (! $quoteNumber) {
+                $quoteNumber = 'SRC-'.strtoupper(substr(sha1(json_encode([
+                    $this->value($row, ['Company Name', 'Company']),
+                    $this->value($row, ['Contact Email', 'Email']),
+                    $this->value($row, ['Quoted At', 'Quote Date']),
+                    $this->value($row, ['Origin']),
+                    $this->value($row, ['Destination']),
+                ])), 0, 10));
+            }
+
+            $quote = Quote::firstOrNew([
+                'workspace_id' => $source->workspace_id,
+                'quote_number' => $quoteNumber,
+            ]);
+
+            $incomingStatus = $this->normalizeQuoteStatus($this->value($row, ['Status', 'Quote Status']));
+
+            $payload = [
+                'company_id' => $source->company_id,
+                'workspace_id' => $source->workspace_id,
+                'sheet_source_id' => $source->id,
+                'lead_id' => $this->resolveLeadId(
+                    $source,
+                    $this->value($row, ['Lead ID']),
+                    $this->value($row, ['RFID']),
+                ),
+                'opportunity_id' => $this->resolveOpportunityId(
+                    $source,
+                    $this->value($row, ['Opportunity ID', 'Opportunity Key']),
+                    $this->value($row, ['Lead ID']),
+                    $this->value($row, ['RFID']),
+                ),
+                'quote_number' => $quoteNumber,
+                'company_name' => $this->value($row, ['Company Name', 'Company']),
+                'contact_name' => $this->value($row, ['Contact Name', 'Name', 'Full Name']),
+                'contact_email' => $this->value($row, ['Contact Email', 'Email']),
+                'service_mode' => $this->normalizeService($this->value($row, ['Service Mode', 'Required Service', 'Service'])),
+                'origin' => $this->value($row, ['Origin']),
+                'destination' => $this->value($row, ['Destination']),
+                'incoterm' => $this->value($row, ['Incoterm']),
+                'commodity' => $this->value($row, ['Commodity']),
+                'equipment_type' => $this->value($row, ['Equipment Type', 'Container Type']),
+                'weight_kg' => $this->parseMoney($this->value($row, ['Weight Kg', 'Weight (Kg)', 'Weight'])),
+                'volume_cbm' => $this->parseMoney($this->value($row, ['Volume Cbm', 'Volume (CBM)', 'Volume'])),
+                'buy_amount' => $this->parseMoney($this->value($row, ['Buy Amount', 'Buy Rate', 'Buy'])),
+                'sell_amount' => $this->parseMoney($this->value($row, ['Sell Amount', 'Sell Rate', 'Sell'])),
+                'currency' => $this->value($row, ['Currency']) ?: 'AED',
+                'status' => $quote->exists ? $quote->status : $incomingStatus,
+                'valid_until' => $this->parseDate($this->value($row, ['Valid Until', 'Validity Date'])),
+                'quoted_at' => $this->parseDate($this->value($row, ['Quoted At', 'Quote Date', 'Submission Date'])),
+                'notes' => $quote->notes ?: $this->value($row, ['Notes', 'Note']),
+                'source_payload' => $row,
+            ];
+
+            $payload['margin_amount'] = $this->resolveMarginAmount($row, $payload);
+
+            $quote->fill($payload);
+            $quote->save();
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    protected function syncShipmentJobs(SheetSource $source, array $rows): int
+    {
+        if (! $source->workspace_id) {
+            throw new RuntimeException('Shipment sources must be attached to a workspace.');
+        }
+
+        $count = 0;
+
+        foreach ($rows as $row) {
+            $jobNumber = $this->value($row, ['Job Number', 'Shipment Number', 'Shipment Job Number', 'Shipment Job']);
+
+            if (! $jobNumber) {
+                $jobNumber = 'SJ-'.strtoupper(substr(sha1(json_encode([
+                    $this->value($row, ['Company Name', 'Company']),
+                    $this->value($row, ['Contact Email', 'Email']),
+                    $this->value($row, ['Origin']),
+                    $this->value($row, ['Destination']),
+                    $this->value($row, ['ETD', 'Estimated Departure', 'Estimated Departure At']),
+                ])), 0, 10));
+            }
+
+            $shipment = ShipmentJob::firstOrNew([
+                'workspace_id' => $source->workspace_id,
+                'job_number' => $jobNumber,
+            ]);
+
+            $incomingStatus = $this->normalizeShipmentStatus($this->value($row, ['Status', 'Shipment Status', 'Job Status']));
+
+            $payload = [
+                'company_id' => $source->company_id,
+                'workspace_id' => $source->workspace_id,
+                'sheet_source_id' => $source->id,
+                'lead_id' => $this->resolveLeadId(
+                    $source,
+                    $this->value($row, ['Lead ID']),
+                    $this->value($row, ['RFID']),
+                ),
+                'opportunity_id' => $this->resolveOpportunityId(
+                    $source,
+                    $this->value($row, ['Opportunity ID', 'Opportunity Key']),
+                    $this->value($row, ['Lead ID']),
+                    $this->value($row, ['RFID']),
+                ),
+                'quote_id' => $this->resolveQuoteId(
+                    $source,
+                    $this->value($row, ['Quote Number', 'Quote ID', 'Quote Ref']),
+                ),
+                'job_number' => $jobNumber,
+                'external_reference' => $this->value($row, ['External Reference', 'Shipment Reference', 'CW Ref']),
+                'company_name' => $this->value($row, ['Company Name', 'Company']),
+                'contact_name' => $this->value($row, ['Contact Name', 'Name', 'Full Name']),
+                'contact_email' => $this->value($row, ['Contact Email', 'Email']),
+                'service_mode' => $this->normalizeService($this->value($row, ['Service Mode', 'Mode', 'Shipment Mode', 'Required Service', 'Service'])),
+                'origin' => $this->value($row, ['Origin']),
+                'destination' => $this->value($row, ['Destination']),
+                'incoterm' => $this->value($row, ['Incoterm']),
+                'commodity' => $this->value($row, ['Commodity']),
+                'equipment_type' => $this->value($row, ['Equipment Type', 'Container Type']),
+                'container_count' => $this->parseInteger($this->value($row, ['Container Count', 'Containers'])),
+                'weight_kg' => $this->parseMoney($this->value($row, ['Weight Kg', 'Weight (Kg)', 'Weight'])),
+                'volume_cbm' => $this->parseMoney($this->value($row, ['Volume Cbm', 'Volume (CBM)', 'Volume'])),
+                'carrier_name' => $this->value($row, ['Carrier Name', 'Carrier']),
+                'vessel_name' => $this->value($row, ['Vessel Name', 'Vessel']),
+                'voyage_number' => $this->value($row, ['Voyage Number', 'Voyage']),
+                'house_bill_no' => $this->value($row, ['House Bill No', 'HBL', 'HAWB']),
+                'master_bill_no' => $this->value($row, ['Master Bill No', 'MBL', 'MAWB']),
+                'estimated_departure_at' => $this->parseDate($this->value($row, ['ETD', 'Estimated Departure', 'Estimated Departure At'])),
+                'estimated_arrival_at' => $this->parseDate($this->value($row, ['ETA', 'Estimated Arrival', 'Estimated Arrival At'])),
+                'actual_departure_at' => $this->parseDate($this->value($row, ['ATD', 'Actual Departure', 'Actual Departure At'])),
+                'actual_arrival_at' => $this->parseDate($this->value($row, ['ATA', 'Actual Arrival', 'Actual Arrival At'])),
+                'status' => $shipment->exists ? $shipment->status : $incomingStatus,
+                'buy_amount' => $this->parseMoney($this->value($row, ['Buy Amount', 'Buy Rate', 'Buy'])),
+                'sell_amount' => $this->parseMoney($this->value($row, ['Sell Amount', 'Sell Rate', 'Sell'])),
+                'currency' => $this->value($row, ['Currency']) ?: 'AED',
+                'notes' => $shipment->notes ?: $this->value($row, ['Notes', 'Note']),
+                'source_payload' => $row,
+            ];
+
+            $payload['margin_amount'] = $this->resolveMarginAmount($row, $payload);
+
+            $shipment->fill($payload);
+            $shipment->save();
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    protected function syncCarriers(SheetSource $source, array $rows): int
+    {
+        if (! $source->workspace_id) {
+            throw new RuntimeException('Carrier sources must be attached to a workspace.');
+        }
+
+        $count = 0;
+
+        foreach ($rows as $row) {
+            $name = $this->value($row, ['Carrier Name', 'Carrier', 'Name']);
+
+            if (! $name) {
+                continue;
+            }
+
+            $carrier = Carrier::firstOrNew([
+                'workspace_id' => $source->workspace_id,
+                'name' => $name,
+            ]);
+
+            $carrier->fill([
+                'company_id' => $source->company_id,
+                'workspace_id' => $source->workspace_id,
+                'sheet_source_id' => $source->id,
+                'name' => $name,
+                'mode' => $this->normalizeCarrierMode($this->value($row, ['Mode', 'Service Mode', 'Carrier Mode'])),
+                'code' => $this->value($row, ['Carrier Code', 'Code']),
+                'scac_code' => $this->value($row, ['SCAC', 'SCAC Code']),
+                'iata_code' => $this->value($row, ['IATA', 'IATA Code']),
+                'contact_name' => $this->value($row, ['Contact Name', 'Name']),
+                'contact_email' => $this->value($row, ['Contact Email', 'Email']),
+                'contact_phone' => $this->value($row, ['Contact Phone', 'Phone']),
+                'website' => $this->value($row, ['Website']),
+                'service_lanes' => $this->value($row, ['Service Lanes', 'Lanes', 'Coverage']),
+                'notes' => $carrier->notes ?: $this->value($row, ['Notes', 'Note']),
+                'is_active' => $this->parseBoolean($this->value($row, ['Is Active', 'Active'])),
+                'source_payload' => $row,
+            ]);
+
+            if (! filled($this->value($row, ['Is Active', 'Active']))) {
+                $carrier->is_active = true;
+            }
+
+            $carrier->save();
+            $count++;
+        }
+
+        return $count;
+    }
+
+    protected function syncBookings(SheetSource $source, array $rows): int
+    {
+        if (! $source->workspace_id) {
+            throw new RuntimeException('Booking sources must be attached to a workspace.');
+        }
+
+        $count = 0;
+
+        foreach ($rows as $row) {
+            $bookingNumber = $this->value($row, ['Booking Number', 'Booking Ref', 'Booking Reference']);
+
+            if (! $bookingNumber) {
+                $bookingNumber = 'BK-'.strtoupper(substr(sha1(json_encode([
+                    $this->value($row, ['Customer Name', 'Company Name', 'Company']),
+                    $this->value($row, ['Carrier Name', 'Carrier']),
+                    $this->value($row, ['Requested ETD', 'ETD']),
+                    $this->value($row, ['Origin']),
+                    $this->value($row, ['Destination']),
+                ])), 0, 10));
+            }
+
+            $booking = Booking::firstOrNew([
+                'workspace_id' => $source->workspace_id,
+                'booking_number' => $bookingNumber,
+            ]);
+
+            $booking->fill([
+                'company_id' => $source->company_id,
+                'workspace_id' => $source->workspace_id,
+                'sheet_source_id' => $source->id,
+                'carrier_id' => $this->resolveCarrierId($source, $this->value($row, ['Carrier Name', 'Carrier'])),
+                'shipment_job_id' => $this->resolveShipmentId($source, $this->value($row, ['Shipment Job', 'Job Number', 'Shipment Number'])),
+                'quote_id' => $this->resolveQuoteId($source, $this->value($row, ['Quote Number', 'Quote ID', 'Quote Ref'])),
+                'opportunity_id' => $this->resolveOpportunityId(
+                    $source,
+                    $this->value($row, ['Opportunity ID', 'Opportunity Key']),
+                    $this->value($row, ['Lead ID']),
+                    $this->value($row, ['RFID']),
+                ),
+                'lead_id' => $this->resolveLeadId(
+                    $source,
+                    $this->value($row, ['Lead ID']),
+                    $this->value($row, ['RFID']),
+                ),
+                'booking_number' => $bookingNumber,
+                'external_reference' => $this->value($row, ['External Reference', 'Booking External Ref']),
+                'carrier_confirmation_ref' => $this->value($row, ['Carrier Confirmation Ref', 'Carrier Booking Ref', 'Confirmation Number']),
+                'customer_name' => $this->value($row, ['Customer Name', 'Company Name', 'Company']) ?: 'Unknown customer',
+                'contact_name' => $this->value($row, ['Contact Name', 'Name']),
+                'contact_email' => $this->value($row, ['Contact Email', 'Email']),
+                'service_mode' => $this->normalizeService($this->value($row, ['Service Mode', 'Mode', 'Shipment Mode', 'Required Service', 'Service'])),
+                'origin' => $this->value($row, ['Origin']),
+                'destination' => $this->value($row, ['Destination']),
+                'incoterm' => $this->value($row, ['Incoterm']),
+                'commodity' => $this->value($row, ['Commodity']),
+                'equipment_type' => $this->value($row, ['Equipment Type', 'Container Type']),
+                'container_count' => $this->parseInteger($this->value($row, ['Container Count', 'Containers'])),
+                'weight_kg' => $this->parseMoney($this->value($row, ['Weight Kg', 'Weight (Kg)', 'Weight'])),
+                'volume_cbm' => $this->parseMoney($this->value($row, ['Volume Cbm', 'Volume (CBM)', 'Volume'])),
+                'requested_etd' => $this->parseDate($this->value($row, ['Requested ETD', 'ETD'])),
+                'requested_eta' => $this->parseDate($this->value($row, ['Requested ETA', 'ETA'])),
+                'confirmed_etd' => $this->parseDate($this->value($row, ['Confirmed ETD', 'Booked ETD'])),
+                'confirmed_eta' => $this->parseDate($this->value($row, ['Confirmed ETA', 'Booked ETA'])),
+                'status' => $booking->exists
+                    ? $booking->status
+                    : $this->normalizeBookingStatus($this->value($row, ['Status', 'Booking Status'])),
+                'notes' => $booking->notes ?: $this->value($row, ['Notes', 'Note']),
+                'source_payload' => $row,
+            ]);
+
+            $booking->save();
+            $this->applyBookingShipmentConnection($booking->fresh(['carrier']));
+            $count++;
+        }
+
+        return $count;
+    }
+
     protected function downloadRows(string $url): array
     {
         $response = Http::timeout(30)
@@ -290,6 +600,10 @@ class SheetSourceSyncService
 
     protected function downloadRowsForSource(SheetSource $source): array
     {
+        if ($source->source_kind === SheetSource::SOURCE_KIND_CARGOWISE_API) {
+            return app(CargoWiseSourceService::class)->readRows($source);
+        }
+
         $googleSheets = app(GoogleSheetsService::class);
 
         if ($source->source_kind === SheetSource::SOURCE_KIND_GOOGLE_SHEETS_API) {
@@ -405,6 +719,94 @@ class SheetSourceSyncService
             ->value('id');
     }
 
+    protected function resolveOpportunityId(SheetSource $source, ?string $opportunityReference, ?string $leadReference, ?string $rfid): ?int
+    {
+        return Opportunity::query()
+            ->where('workspace_id', $source->workspace_id)
+            ->where(function ($query) use ($opportunityReference, $leadReference, $rfid) {
+                if ($opportunityReference) {
+                    $query->orWhere('external_key', $opportunityReference);
+                }
+
+                if ($leadReference) {
+                    $query->orWhere('lead_reference', $leadReference);
+                }
+
+                if ($rfid) {
+                    $query->orWhere('rfid', $rfid);
+                }
+            })
+            ->value('id');
+    }
+
+    protected function resolveQuoteId(SheetSource $source, ?string $quoteNumber): ?int
+    {
+        if (! $quoteNumber) {
+            return null;
+        }
+
+        return Quote::query()
+            ->where('workspace_id', $source->workspace_id)
+            ->where('quote_number', $quoteNumber)
+            ->value('id');
+    }
+
+    protected function resolveShipmentId(SheetSource $source, ?string $jobNumber): ?int
+    {
+        if (! $jobNumber) {
+            return null;
+        }
+
+        return ShipmentJob::query()
+            ->where('workspace_id', $source->workspace_id)
+            ->where('job_number', $jobNumber)
+            ->value('id');
+    }
+
+    protected function resolveCarrierId(SheetSource $source, ?string $carrierName): ?int
+    {
+        if (! $carrierName) {
+            return null;
+        }
+
+        return Carrier::query()
+            ->where('workspace_id', $source->workspace_id)
+            ->where('name', $carrierName)
+            ->value('id');
+    }
+
+    protected function applyBookingShipmentConnection(Booking $booking): void
+    {
+        if (! $booking->shipment_job_id) {
+            return;
+        }
+
+        $shipment = ShipmentJob::query()
+            ->where('workspace_id', $booking->workspace_id)
+            ->find($booking->shipment_job_id);
+
+        if (! $shipment) {
+            return;
+        }
+
+        $booking->loadMissing('carrier');
+
+        $shipment->forceFill([
+            'carrier_name' => $booking->carrier?->name ?: $shipment->carrier_name,
+            'estimated_departure_at' => $booking->confirmed_etd ?: $booking->requested_etd ?: $shipment->estimated_departure_at,
+            'estimated_arrival_at' => $booking->confirmed_eta ?: $booking->requested_eta ?: $shipment->estimated_arrival_at,
+            'status' => match ($booking->status) {
+                Booking::STATUS_REQUESTED => ShipmentJob::STATUS_BOOKING_REQUESTED,
+                Booking::STATUS_CONFIRMED => ShipmentJob::STATUS_BOOKED,
+                Booking::STATUS_ROLLED => ShipmentJob::STATUS_BOOKING_REQUESTED,
+                Booking::STATUS_IN_TRANSIT => ShipmentJob::STATUS_IN_TRANSIT,
+                Booking::STATUS_COMPLETED => ShipmentJob::STATUS_DELIVERED,
+                Booking::STATUS_CANCELLED => ShipmentJob::STATUS_CANCELLED,
+                default => $shipment->status ?: ShipmentJob::STATUS_DRAFT,
+            },
+        ])->save();
+    }
+
     protected function normalizeLeadStatus(?string $status): string
     {
         return in_array($status, Lead::STATUSES, true)
@@ -417,6 +819,63 @@ class SheetSourceSyncService
         return in_array($stage, Opportunity::STAGES, true)
             ? $stage
             : Opportunity::STAGE_INITIAL_CONTACT;
+    }
+
+    protected function normalizeQuoteStatus(?string $status): string
+    {
+        return in_array($status, Quote::STATUSES, true)
+            ? $status
+            : Quote::STATUS_DRAFT;
+    }
+
+    protected function normalizeShipmentStatus(?string $status): string
+    {
+        return in_array($status, ShipmentJob::STATUSES, true)
+            ? $status
+            : ShipmentJob::STATUS_DRAFT;
+    }
+
+    protected function normalizeCarrierMode(?string $mode): ?string
+    {
+        return match (Str::lower(trim((string) $mode))) {
+            'ocean', 'sea' => Carrier::MODE_OCEAN,
+            'air' => Carrier::MODE_AIR,
+            'road', 'truck', 'trucking' => Carrier::MODE_ROAD,
+            'rail' => Carrier::MODE_RAIL,
+            'multimodal', 'multi-modal' => Carrier::MODE_MULTIMODAL,
+            default => filled($mode) ? trim((string) $mode) : null,
+        };
+    }
+
+    protected function normalizeBookingStatus(?string $status): string
+    {
+        return match (Str::lower(trim((string) $status))) {
+            'requested', 'request sent' => Booking::STATUS_REQUESTED,
+            'confirmed', 'booked', 'booking confirmed' => Booking::STATUS_CONFIRMED,
+            'rolled' => Booking::STATUS_ROLLED,
+            'in transit', 'shipped' => Booking::STATUS_IN_TRANSIT,
+            'completed', 'delivered' => Booking::STATUS_COMPLETED,
+            'cancelled', 'canceled' => Booking::STATUS_CANCELLED,
+            default => Booking::STATUS_DRAFT,
+        };
+    }
+
+    protected function resolveMarginAmount(array $row, array $payload): ?float
+    {
+        $margin = $this->parseMoney($this->value($row, ['Margin', 'Margin Amount']));
+
+        if ($margin !== null) {
+            return $margin;
+        }
+
+        $buy = data_get($payload, 'buy_amount');
+        $sell = data_get($payload, 'sell_amount');
+
+        if ($buy === null || $sell === null) {
+            return null;
+        }
+
+        return (float) $sell - (float) $buy;
     }
 
     protected function normalizeService(?string $service): ?string

@@ -2,12 +2,15 @@
 
 namespace App\Livewire;
 
+use App\Models\Booking;
+use App\Models\Carrier;
 use App\Models\Company;
 use App\Models\Lead;
 use App\Models\LeadStatusLog;
 use App\Models\Opportunity;
 use App\Models\Quote;
 use App\Models\SheetSource;
+use App\Models\ShipmentJob;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\GoogleSheetsService;
@@ -48,9 +51,21 @@ class CrmDashboard extends Component
 
     public ?int $selectedQuoteId = null;
 
+    public ?int $selectedShipmentId = null;
+
+    public ?int $selectedCarrierId = null;
+
+    public ?int $selectedBookingId = null;
+
     public ?int $editingOpportunityId = null;
 
     public ?int $editingQuoteId = null;
+
+    public ?int $editingShipmentId = null;
+
+    public ?int $editingCarrierId = null;
+
+    public ?int $editingBookingId = null;
 
     public ?int $pendingDisqualificationLeadId = null;
 
@@ -70,6 +85,12 @@ class CrmDashboard extends Component
 
     public string $quoteSearch = '';
 
+    public string $shipmentSearch = '';
+
+    public string $carrierSearch = '';
+
+    public string $bookingSearch = '';
+
     public string $leadSort = 'newest';
 
     public string $opportunitySort = 'newest';
@@ -80,7 +101,19 @@ class CrmDashboard extends Component
 
     public string $quoteSort = 'newest';
 
+    public string $shipmentSort = 'newest';
+
+    public string $carrierSort = 'name_asc';
+
+    public string $bookingSort = 'newest';
+
     public string $quoteStatusFilter = '';
+
+    public string $shipmentStatusFilter = '';
+
+    public string $carrierModeFilter = '';
+
+    public string $bookingStatusFilter = '';
 
     public string $analyticsRange = 'last_month';
 
@@ -97,6 +130,12 @@ class CrmDashboard extends Component
     public int $customerPerPage = 12;
 
     public int $quotePerPage = 15;
+
+    public int $shipmentPerPage = 15;
+
+    public int $carrierPerPage = 15;
+
+    public int $bookingPerPage = 15;
 
     public array $companyForm = [];
 
@@ -122,9 +161,21 @@ class CrmDashboard extends Component
 
     public array $manualQuoteForm = [];
 
+    public array $manualShipmentForm = [];
+
+    public array $manualCarrierForm = [];
+
+    public array $manualBookingForm = [];
+
     public array $opportunityEditForm = [];
 
     public array $quoteEditForm = [];
+
+    public array $shipmentEditForm = [];
+
+    public array $carrierEditForm = [];
+
+    public array $bookingEditForm = [];
 
     public function mount(): void
     {
@@ -150,19 +201,32 @@ class CrmDashboard extends Component
         $this->resetPage('contactsPage');
         $this->resetPage('customersPage');
         $this->resetPage('quotesPage');
+        $this->resetPage('shipmentsPage');
         $this->selectedLeadId = null;
         $this->pendingDisqualificationLeadId = null;
         $this->selectedContactId = null;
         $this->selectedCustomerId = null;
         $this->selectedOpportunityId = null;
         $this->selectedQuoteId = null;
+        $this->selectedShipmentId = null;
+        $this->selectedCarrierId = null;
+        $this->selectedBookingId = null;
         $this->editingWorkspaceUserId = null;
         $this->editingOpportunityId = null;
         $this->editingQuoteId = null;
+        $this->editingShipmentId = null;
+        $this->editingCarrierId = null;
+        $this->editingBookingId = null;
         $this->resetManualOpportunityForm();
         $this->resetManualQuoteForm();
+        $this->resetManualShipmentForm();
+        $this->resetManualCarrierForm();
+        $this->resetManualBookingForm();
         $this->opportunityEditForm = [];
         $this->quoteEditForm = [];
+        $this->shipmentEditForm = [];
+        $this->carrierEditForm = [];
+        $this->bookingEditForm = [];
         $this->editingWorkspaceUserForm = [];
     }
 
@@ -193,6 +257,24 @@ class CrmDashboard extends Component
         $this->selectedQuoteId = null;
     }
 
+    public function updatedShipmentSearch(): void
+    {
+        $this->resetPage('shipmentsPage');
+        $this->selectedShipmentId = null;
+    }
+
+    public function updatedCarrierSearch(): void
+    {
+        $this->resetPage('carriersPage');
+        $this->selectedCarrierId = null;
+    }
+
+    public function updatedBookingSearch(): void
+    {
+        $this->resetPage('bookingsPage');
+        $this->selectedBookingId = null;
+    }
+
     public function updatedLeadStatusFilter(): void
     {
         $this->resetPage('leadsPage');
@@ -217,6 +299,258 @@ class CrmDashboard extends Component
     {
         $this->resetPage('quotesPage');
         $this->selectedQuoteId = null;
+    }
+
+    public function updatedManualQuoteFormCustomerRecordId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualQuoteForm = [
+                ...$this->manualQuoteForm,
+                'customer_record_id' => '',
+                'opportunity_id' => '',
+                'lead_id' => '',
+            ];
+
+            return;
+        }
+
+        $customer = Opportunity::query()
+            ->with('lead')
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualQuoteFromCustomer($customer);
+    }
+
+    public function updatedManualQuoteFormOpportunityId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $customer = $this->selectedManualQuoteCustomer($workspace);
+
+            $this->manualQuoteForm = [
+                ...$this->manualQuoteForm,
+                'opportunity_id' => '',
+                'lead_id' => $customer?->lead_id ? (string) $customer->lead_id : '',
+            ];
+
+            return;
+        }
+
+        $opportunity = Opportunity::query()
+            ->with('lead')
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualQuoteFromOpportunity($opportunity);
+    }
+
+    public function updatedManualBookingFormShipmentJobId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualBookingForm = [
+                ...$this->manualBookingForm,
+                'shipment_job_id' => '',
+                'quote_id' => '',
+                'opportunity_id' => '',
+                'lead_id' => '',
+            ];
+
+            return;
+        }
+
+        $shipment = ShipmentJob::query()
+            ->with(['quote', 'opportunity', 'lead'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualBookingFromShipment($shipment);
+    }
+
+    public function updatedManualBookingFormCarrierId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualBookingForm['carrier_id'] = '';
+
+            return;
+        }
+
+        $carrier = Carrier::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        if (blank($this->manualBookingForm['notes'] ?? '')) {
+            $lane = $carrier->service_lanes ? "Carrier lanes: {$carrier->service_lanes}" : null;
+            $this->manualBookingForm['notes'] = $lane ?: ($carrier->notes ?: '');
+        }
+    }
+
+    public function updatedShipmentSort(): void
+    {
+        $this->resetPage('shipmentsPage');
+        $this->selectedShipmentId = null;
+    }
+
+    public function updatedShipmentStatusFilter(): void
+    {
+        $this->resetPage('shipmentsPage');
+        $this->selectedShipmentId = null;
+    }
+
+    public function updatedCarrierModeFilter(): void
+    {
+        $this->resetPage('carriersPage');
+        $this->selectedCarrierId = null;
+    }
+
+    public function updatedBookingStatusFilter(): void
+    {
+        $this->resetPage('bookingsPage');
+        $this->selectedBookingId = null;
+    }
+
+    public function updatedManualShipmentFormCustomerRecordId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualShipmentForm = [
+                ...$this->manualShipmentForm,
+                'customer_record_id' => '',
+                'opportunity_id' => '',
+                'quote_id' => '',
+                'lead_id' => '',
+            ];
+
+            return;
+        }
+
+        $customer = Opportunity::query()
+            ->with('lead')
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->manualShipmentForm = [
+            ...$this->manualShipmentForm,
+            'customer_record_id' => (string) $customer->id,
+            'opportunity_id' => '',
+            'quote_id' => '',
+            'lead_id' => '',
+            'company_name' => $customer->company_name ?: '',
+            'contact_name' => $customer->lead?->contact_name ?: '',
+            'contact_email' => $customer->contact_email ?: ($customer->lead?->email ?: ''),
+            'service_mode' => $customer->required_service ?: ($customer->lead?->service ?: 'Ocean Freight'),
+            'origin' => '',
+            'destination' => '',
+            'incoterm' => '',
+            'commodity' => '',
+            'equipment_type' => '',
+            'weight_kg' => '',
+            'volume_cbm' => '',
+            'buy_amount' => '',
+            'sell_amount' => '',
+            'notes' => $customer->notes ?: '',
+        ];
+    }
+
+    public function updatedManualShipmentFormOpportunityId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $customer = $this->selectedManualShipmentCustomer($workspace);
+
+            $this->manualShipmentForm = [
+                ...$this->manualShipmentForm,
+                'opportunity_id' => '',
+                'quote_id' => '',
+                'lead_id' => $customer?->lead_id ? (string) $customer->lead_id : '',
+            ];
+
+            return;
+        }
+
+        $opportunity = Opportunity::query()
+            ->with([
+                'lead',
+                'quotes' => fn ($query) => $query->orderByDesc('quoted_at')->orderByDesc('created_at'),
+            ])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualShipmentFromOpportunity($opportunity);
+    }
+
+    public function updatedManualShipmentFormQuoteId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualShipmentForm = [
+                ...$this->manualShipmentForm,
+                'quote_id' => '',
+            ];
+
+            return;
+        }
+
+        $quote = Quote::query()
+            ->with(['lead', 'opportunity'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualShipmentFromQuote($quote);
+    }
+
+    public function updatedSourceFormSourceKind(string $value): void
+    {
+        $this->sourceForm = [
+            ...$this->sourceForm,
+            ...$this->defaultSourceConnectionFields(),
+            'source_kind' => $value,
+            'url' => $value === SheetSource::SOURCE_KIND_CARGOWISE_API ? '' : ($this->sourceForm['url'] ?? ''),
+        ];
+    }
+
+    public function updatedSourceFormCargoAuthMode(string $value): void
+    {
+        if ($value === 'bearer') {
+            $this->sourceForm['cargo_username'] = '';
+            $this->sourceForm['cargo_password'] = '';
+        }
+
+        if ($value === 'basic') {
+            $this->sourceForm['cargo_token'] = '';
+        }
+    }
+
+    public function updatedEditingSourceFormSourceKind(string $value): void
+    {
+        $this->editingSourceForm = [
+            ...$this->editingSourceForm,
+            ...$this->defaultSourceConnectionFields(),
+            'source_kind' => $value,
+            'url' => $value === SheetSource::SOURCE_KIND_CARGOWISE_API ? '' : ($this->editingSourceForm['url'] ?? ''),
+        ];
+    }
+
+    public function updatedEditingSourceFormCargoAuthMode(string $value): void
+    {
+        if ($value === 'bearer') {
+            $this->editingSourceForm['cargo_username'] = '';
+            $this->editingSourceForm['cargo_password'] = '';
+        }
+
+        if ($value === 'basic') {
+            $this->editingSourceForm['cargo_token'] = '';
+        }
     }
 
     public function updatedLeadSort(): void
@@ -269,6 +603,21 @@ class CrmDashboard extends Component
             $this->quoteEditForm = [];
         }
 
+        if (! in_array($value, ['shipments', 'manual-shipment'], true)) {
+            $this->selectedShipmentId = null;
+            $this->shipmentEditForm = [];
+        }
+
+        if (! in_array($value, ['carriers', 'manual-carrier'], true)) {
+            $this->selectedCarrierId = null;
+            $this->carrierEditForm = [];
+        }
+
+        if (! in_array($value, ['bookings', 'manual-booking'], true)) {
+            $this->selectedBookingId = null;
+            $this->bookingEditForm = [];
+        }
+
         if ($value !== 'access') {
             $this->editingWorkspaceUserId = null;
             $this->editingWorkspaceUserForm = [];
@@ -310,6 +659,36 @@ class CrmDashboard extends Component
     {
         $this->resetPage('quotesPage');
         $this->selectedQuoteId = null;
+    }
+
+    public function updatedShipmentPerPage(): void
+    {
+        $this->resetPage('shipmentsPage');
+        $this->selectedShipmentId = null;
+    }
+
+    public function updatedCarrierSort(): void
+    {
+        $this->resetPage('carriersPage');
+        $this->selectedCarrierId = null;
+    }
+
+    public function updatedBookingSort(): void
+    {
+        $this->resetPage('bookingsPage');
+        $this->selectedBookingId = null;
+    }
+
+    public function updatedCarrierPerPage(): void
+    {
+        $this->resetPage('carriersPage');
+        $this->selectedCarrierId = null;
+    }
+
+    public function updatedBookingPerPage(): void
+    {
+        $this->resetPage('bookingsPage');
+        $this->selectedBookingId = null;
     }
 
     public function updatedContactSort(): void
@@ -481,19 +860,29 @@ class CrmDashboard extends Component
     {
         $this->ensureWorkspaceManager();
 
+        $workspaceValidation = validator($this->sourceForm, [
+            'workspace_id' => ['required', 'exists:workspaces,id'],
+        ])->validate();
+
+        $workspace = Workspace::query()->with('company')->findOrFail($workspaceValidation['workspace_id']);
+
+        $this->ensureWorkspaceVisible($workspace->id);
+
         $validated = validator($this->sourceForm, [
             'workspace_id' => ['required', 'exists:workspaces,id'],
-            'type' => ['required', Rule::in(SheetSource::TYPES)],
+            'type' => ['required', Rule::in(array_keys(SheetSource::availableTypesForWorkspace($workspace)))],
             'name' => ['required', 'string', 'max:255'],
             'url' => ['required', 'url'],
             'description' => ['nullable', 'string', 'max:255'],
             'source_kind' => ['required', Rule::in(SheetSource::SOURCE_KINDS)],
             'is_active' => ['boolean'],
+            'cargo_auth_mode' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseAuthModes()))],
+            'cargo_username' => ['nullable', 'string', 'max:255'],
+            'cargo_password' => ['nullable', 'string', 'max:2048'],
+            'cargo_token' => ['nullable', 'string', 'max:4096'],
+            'cargo_format' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseFormats()))],
+            'cargo_data_path' => ['nullable', 'string', 'max:255'],
         ])->validate();
-
-        $workspace = Workspace::query()->with('company')->findOrFail($validated['workspace_id']);
-
-        $this->ensureWorkspaceVisible($workspace->id);
 
         $sourceKind = SheetSource::normalizeSourceKind(
             $validated['source_kind'],
@@ -505,11 +894,16 @@ class CrmDashboard extends Component
             'company_id' => $workspace->company_id,
             'source_kind' => $sourceKind,
             'sync_status' => 'idle',
+            'mapping' => $this->sourceMappingFromForm($validated),
         ]);
 
-        $this->sourceForm['name'] = '';
-        $this->sourceForm['url'] = '';
-        $this->sourceForm['description'] = '';
+        $this->sourceForm = [
+            ...$this->sourceForm,
+            ...$this->defaultSourceConnectionFields(),
+            'name' => '',
+            'url' => '',
+            'description' => '',
+        ];
         $this->flash('Sheet source added.');
     }
 
@@ -1033,6 +1427,192 @@ class CrmDashboard extends Component
         $this->flash($message);
     }
 
+    public function addManualShipment(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualShipmentForm, [
+            'opportunity_id' => ['nullable', 'exists:opportunities,id'],
+            'quote_id' => ['nullable', 'exists:quotes,id'],
+            'lead_id' => ['nullable', 'exists:leads,id'],
+            'company_name' => ['required', 'string', 'max:255'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'service_mode' => ['required', 'string', 'max:255'],
+            'origin' => ['nullable', 'string', 'max:255'],
+            'destination' => ['nullable', 'string', 'max:255'],
+            'incoterm' => ['nullable', 'string', 'max:100'],
+            'commodity' => ['nullable', 'string', 'max:255'],
+            'equipment_type' => ['nullable', 'string', 'max:255'],
+            'container_count' => ['nullable', 'integer', 'min:0'],
+            'weight_kg' => ['nullable', 'numeric', 'min:0'],
+            'volume_cbm' => ['nullable', 'numeric', 'min:0'],
+            'carrier_name' => ['nullable', 'string', 'max:255'],
+            'vessel_name' => ['nullable', 'string', 'max:255'],
+            'voyage_number' => ['nullable', 'string', 'max:255'],
+            'house_bill_no' => ['nullable', 'string', 'max:255'],
+            'master_bill_no' => ['nullable', 'string', 'max:255'],
+            'estimated_departure_at' => ['nullable', 'date'],
+            'estimated_arrival_at' => ['nullable', 'date'],
+            'actual_departure_at' => ['nullable', 'date'],
+            'actual_arrival_at' => ['nullable', 'date'],
+            'buy_amount' => ['nullable', 'numeric', 'min:0'],
+            'sell_amount' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:10'],
+            'status' => ['required', Rule::in(ShipmentJob::STATUSES)],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $payload = [
+            ...$validated,
+            'opportunity_id' => $validated['opportunity_id'] ?: null,
+            'quote_id' => $validated['quote_id'] ?: null,
+            'lead_id' => $validated['lead_id'] ?: null,
+            'assigned_user_id' => auth()->id(),
+            'margin_amount' => $this->shipmentMarginFromPayload($validated),
+        ];
+
+        if ($this->editingShipmentId) {
+            $shipment = ShipmentJob::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingShipmentId);
+
+            $shipment->update($payload);
+            $message = 'Shipment job updated.';
+        } else {
+            ShipmentJob::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                'job_number' => $this->nextShipmentJobNumber($workspace),
+                ...$payload,
+            ]);
+
+            $message = 'Shipment job added.';
+        }
+
+        $this->editingShipmentId = null;
+        $this->resetManualShipmentForm();
+        $this->activeTab = 'shipments';
+
+        $this->flash($message);
+    }
+
+    public function addManualCarrier(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualCarrierForm, [
+            'name' => ['required', 'string', 'max:255'],
+            'mode' => ['nullable', Rule::in(Carrier::MODES)],
+            'code' => ['nullable', 'string', 'max:100'],
+            'scac_code' => ['nullable', 'string', 'max:20'],
+            'iata_code' => ['nullable', 'string', 'max:20'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'contact_phone' => ['nullable', 'string', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'service_lanes' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
+            'is_active' => ['boolean'],
+        ])->validate();
+
+        $payload = [
+            ...$validated,
+            'is_active' => (bool) ($validated['is_active'] ?? false),
+        ];
+
+        if ($this->editingCarrierId) {
+            $carrier = Carrier::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingCarrierId);
+
+            $carrier->update($payload);
+            $message = 'Carrier updated.';
+        } else {
+            Carrier::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                ...$payload,
+            ]);
+
+            $message = 'Carrier added.';
+        }
+
+        $this->editingCarrierId = null;
+        $this->resetManualCarrierForm();
+        $this->activeTab = 'carriers';
+
+        $this->flash($message);
+    }
+
+    public function addManualBooking(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualBookingForm, [
+            'shipment_job_id' => ['nullable', 'exists:shipment_jobs,id'],
+            'carrier_id' => ['nullable', 'exists:carriers,id'],
+            'quote_id' => ['nullable', 'exists:quotes,id'],
+            'opportunity_id' => ['nullable', 'exists:opportunities,id'],
+            'lead_id' => ['nullable', 'exists:leads,id'],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'service_mode' => ['required', 'string', 'max:255'],
+            'origin' => ['nullable', 'string', 'max:255'],
+            'destination' => ['nullable', 'string', 'max:255'],
+            'incoterm' => ['nullable', 'string', 'max:100'],
+            'commodity' => ['nullable', 'string', 'max:255'],
+            'equipment_type' => ['nullable', 'string', 'max:255'],
+            'container_count' => ['nullable', 'integer', 'min:0'],
+            'weight_kg' => ['nullable', 'numeric', 'min:0'],
+            'volume_cbm' => ['nullable', 'numeric', 'min:0'],
+            'requested_etd' => ['nullable', 'date'],
+            'requested_eta' => ['nullable', 'date'],
+            'confirmed_etd' => ['nullable', 'date'],
+            'confirmed_eta' => ['nullable', 'date'],
+            'carrier_confirmation_ref' => ['nullable', 'string', 'max:255'],
+            'status' => ['required', Rule::in(Booking::STATUSES)],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $payload = [
+            ...$validated,
+            'shipment_job_id' => $validated['shipment_job_id'] ?: null,
+            'carrier_id' => $validated['carrier_id'] ?: null,
+            'quote_id' => $validated['quote_id'] ?: null,
+            'opportunity_id' => $validated['opportunity_id'] ?: null,
+            'lead_id' => $validated['lead_id'] ?: null,
+            'assigned_user_id' => auth()->id(),
+        ];
+
+        if ($this->editingBookingId) {
+            $booking = Booking::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingBookingId);
+
+            $booking->update($payload);
+            $this->applyBookingShipmentConnection($booking->fresh(['carrier']));
+            $message = 'Booking updated.';
+        } else {
+            $booking = Booking::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                'booking_number' => $this->nextBookingNumber($workspace),
+                ...$payload,
+            ]);
+            $this->applyBookingShipmentConnection($booking->fresh(['carrier']));
+
+            $message = 'Booking added.';
+        }
+
+        $this->editingBookingId = null;
+        $this->resetManualBookingForm();
+        $this->activeTab = 'bookings';
+
+        $this->flash($message);
+    }
+
     public function selectLead(int $leadId): void
     {
         $workspace = $this->currentWorkspaceOrFail();
@@ -1111,6 +1691,45 @@ class CrmDashboard extends Component
         $this->activeTab = 'quotes';
     }
 
+    public function selectShipment(int $shipmentId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $shipment = ShipmentJob::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($shipmentId);
+
+        $this->selectedShipmentId = $shipment->id;
+        $this->fillShipmentEditForm($shipment);
+        $this->activeTab = 'shipments';
+    }
+
+    public function selectCarrier(int $carrierId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $carrier = Carrier::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($carrierId);
+
+        $this->selectedCarrierId = $carrier->id;
+        $this->fillCarrierEditForm($carrier);
+        $this->activeTab = 'carriers';
+    }
+
+    public function selectBooking(int $bookingId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $booking = Booking::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($bookingId);
+
+        $this->selectedBookingId = $booking->id;
+        $this->fillBookingEditForm($booking);
+        $this->activeTab = 'bookings';
+    }
+
     public function closeOpportunityDetails(): void
     {
         $this->selectedOpportunityId = null;
@@ -1121,6 +1740,24 @@ class CrmDashboard extends Component
     {
         $this->selectedQuoteId = null;
         $this->quoteEditForm = [];
+    }
+
+    public function closeShipmentDetails(): void
+    {
+        $this->selectedShipmentId = null;
+        $this->shipmentEditForm = [];
+    }
+
+    public function closeCarrierDetails(): void
+    {
+        $this->selectedCarrierId = null;
+        $this->carrierEditForm = [];
+    }
+
+    public function closeBookingDetails(): void
+    {
+        $this->selectedBookingId = null;
+        $this->bookingEditForm = [];
     }
 
     public function saveOpportunityDetails(): void
@@ -1189,6 +1826,135 @@ class CrmDashboard extends Component
         $this->fillQuoteEditForm($quote->fresh(['lead', 'opportunity', 'assignedUser']));
 
         $this->flash("Quote {$quote->quote_number} updated.");
+    }
+
+    public function saveShipmentDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedShipmentId, 404);
+
+        $validated = validator($this->shipmentEditForm, [
+            'company_name' => ['required', 'string', 'max:255'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'service_mode' => ['required', 'string', 'max:255'],
+            'origin' => ['nullable', 'string', 'max:255'],
+            'destination' => ['nullable', 'string', 'max:255'],
+            'incoterm' => ['nullable', 'string', 'max:100'],
+            'commodity' => ['nullable', 'string', 'max:255'],
+            'equipment_type' => ['nullable', 'string', 'max:255'],
+            'container_count' => ['nullable', 'integer', 'min:0'],
+            'weight_kg' => ['nullable', 'numeric', 'min:0'],
+            'volume_cbm' => ['nullable', 'numeric', 'min:0'],
+            'carrier_name' => ['nullable', 'string', 'max:255'],
+            'vessel_name' => ['nullable', 'string', 'max:255'],
+            'voyage_number' => ['nullable', 'string', 'max:255'],
+            'house_bill_no' => ['nullable', 'string', 'max:255'],
+            'master_bill_no' => ['nullable', 'string', 'max:255'],
+            'estimated_departure_at' => ['nullable', 'date'],
+            'estimated_arrival_at' => ['nullable', 'date'],
+            'actual_departure_at' => ['nullable', 'date'],
+            'actual_arrival_at' => ['nullable', 'date'],
+            'buy_amount' => ['nullable', 'numeric', 'min:0'],
+            'sell_amount' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:10'],
+            'status' => ['required', Rule::in(ShipmentJob::STATUSES)],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $shipment = ShipmentJob::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedShipmentId);
+
+        $shipment->update([
+            ...$validated,
+            'margin_amount' => $this->shipmentMarginFromPayload($validated),
+        ]);
+
+        $this->fillShipmentEditForm($shipment->fresh(['lead', 'opportunity', 'quote', 'assignedUser']));
+
+        $this->flash("Shipment {$shipment->job_number} updated.");
+    }
+
+    public function saveCarrierDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedCarrierId, 404);
+
+        $validated = validator($this->carrierEditForm, [
+            'name' => ['required', 'string', 'max:255'],
+            'mode' => ['nullable', Rule::in(Carrier::MODES)],
+            'code' => ['nullable', 'string', 'max:100'],
+            'scac_code' => ['nullable', 'string', 'max:20'],
+            'iata_code' => ['nullable', 'string', 'max:20'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'contact_phone' => ['nullable', 'string', 'max:255'],
+            'website' => ['nullable', 'string', 'max:255'],
+            'service_lanes' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
+            'is_active' => ['boolean'],
+        ])->validate();
+
+        $carrier = Carrier::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedCarrierId);
+
+        $carrier->update([
+            ...$validated,
+            'is_active' => (bool) ($validated['is_active'] ?? false),
+        ]);
+
+        $this->fillCarrierEditForm($carrier->fresh());
+
+        $this->flash("Carrier {$carrier->name} updated.");
+    }
+
+    public function saveBookingDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedBookingId, 404);
+
+        $validated = validator($this->bookingEditForm, [
+            'carrier_id' => ['nullable', 'exists:carriers,id'],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'service_mode' => ['required', 'string', 'max:255'],
+            'origin' => ['nullable', 'string', 'max:255'],
+            'destination' => ['nullable', 'string', 'max:255'],
+            'incoterm' => ['nullable', 'string', 'max:100'],
+            'commodity' => ['nullable', 'string', 'max:255'],
+            'equipment_type' => ['nullable', 'string', 'max:255'],
+            'container_count' => ['nullable', 'integer', 'min:0'],
+            'weight_kg' => ['nullable', 'numeric', 'min:0'],
+            'volume_cbm' => ['nullable', 'numeric', 'min:0'],
+            'requested_etd' => ['nullable', 'date'],
+            'requested_eta' => ['nullable', 'date'],
+            'confirmed_etd' => ['nullable', 'date'],
+            'confirmed_eta' => ['nullable', 'date'],
+            'carrier_confirmation_ref' => ['nullable', 'string', 'max:255'],
+            'status' => ['required', Rule::in(Booking::STATUSES)],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $booking = Booking::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedBookingId);
+
+        $booking->update([
+            ...$validated,
+            'carrier_id' => $validated['carrier_id'] ?: null,
+        ]);
+
+        $this->applyBookingShipmentConnection($booking->fresh(['carrier']));
+
+        $this->fillBookingEditForm($booking->fresh(['carrier', 'shipmentJob', 'quote', 'assignedUser']));
+
+        $this->flash("Booking {$booking->booking_number} updated.");
     }
 
     public function updateLeadStatus(int $leadId, string $status): void
@@ -1315,6 +2081,16 @@ class CrmDashboard extends Component
 
         $message = "Opportunity {$opportunity->external_key} moved to {$stage}.";
 
+        if ($stage === Opportunity::STAGE_CLOSED_WON) {
+            $shipment = $this->draftShipmentFromWonOpportunity($opportunity->fresh(['lead', 'quotes']));
+
+            $this->editingShipmentId = $shipment->id;
+            $this->fillManualShipmentFormFromShipment($shipment);
+            $this->activeTab = 'manual-shipment';
+
+            $message .= ' Shipment job draft is ready to complete.';
+        }
+
         try {
             if (app(GoogleSheetsService::class)->writeOpportunityStage($opportunity, $stage)) {
                 $message .= ' Synced to Google Sheets.';
@@ -1336,6 +2112,12 @@ class CrmDashboard extends Component
         $source = SheetSource::query()
             ->whereIn('workspace_id', $workspaceIds)
             ->findOrFail($sourceId);
+
+        if (! SheetSource::supportsSync($source->type)) {
+            $this->flash(SheetSource::typeLabel($source->type).' sources are saved as connections for now. Sync will be added when that module data model is ready.');
+
+            return;
+        }
 
         try {
             $rows = app(SheetSourceSyncService::class)->sync($source);
@@ -1364,6 +2146,7 @@ class CrmDashboard extends Component
             'source_kind' => $source->source_kind,
             'description' => $source->description ?? '',
             'is_active' => $source->is_active,
+            ...$this->sourceConnectionFieldsFromSource($source),
         ];
         $this->activeTab = 'sources';
     }
@@ -1384,15 +2167,22 @@ class CrmDashboard extends Component
 
         $source = SheetSource::query()
             ->whereIn('workspace_id', $workspaceIds)
+            ->with('workspace')
             ->findOrFail($this->editingSourceId);
 
         $validated = validator($this->editingSourceForm, [
-            'type' => ['required', Rule::in(SheetSource::TYPES)],
+            'type' => ['required', Rule::in(array_keys(SheetSource::availableTypesForWorkspace($source->workspace)))],
             'name' => ['required', 'string', 'max:255'],
             'url' => ['required', 'string'],
             'source_kind' => ['required', Rule::in(SheetSource::SOURCE_KINDS)],
             'description' => ['nullable', 'string', 'max:255'],
             'is_active' => ['boolean'],
+            'cargo_auth_mode' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseAuthModes()))],
+            'cargo_username' => ['nullable', 'string', 'max:255'],
+            'cargo_password' => ['nullable', 'string', 'max:2048'],
+            'cargo_token' => ['nullable', 'string', 'max:4096'],
+            'cargo_format' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseFormats()))],
+            'cargo_data_path' => ['nullable', 'string', 'max:255'],
         ])->validate();
 
         $sourceKind = SheetSource::normalizeSourceKind(
@@ -1407,6 +2197,7 @@ class CrmDashboard extends Component
             'source_kind' => $sourceKind,
             'description' => $validated['description'],
             'is_active' => (bool) ($validated['is_active'] ?? false),
+            'mapping' => $this->sourceMappingFromForm($validated, $source),
         ])->save();
 
         $this->cancelEditingSource();
@@ -1421,13 +2212,26 @@ class CrmDashboard extends Component
         $workspace = $this->currentWorkspaceOrFail();
 
         $totalRows = 0;
+        $skippedSources = 0;
 
         try {
             foreach ($workspace->sheetSources()->where('is_active', true)->get() as $source) {
+                if (! SheetSource::supportsSync($source->type)) {
+                    $skippedSources++;
+
+                    continue;
+                }
+
                 $totalRows += app(SheetSourceSyncService::class)->sync($source);
             }
 
-            $this->flash("Workspace synced. Imported {$totalRows} rows.");
+            $message = "Workspace synced. Imported {$totalRows} rows.";
+
+            if ($skippedSources > 0) {
+                $message .= " {$skippedSources} connection-only sources were skipped.";
+            }
+
+            $this->flash($message);
         } catch (Throwable $exception) {
             $this->flash($this->friendlySyncError($exception));
         }
@@ -1525,6 +2329,306 @@ class CrmDashboard extends Component
         ];
     }
 
+    protected function hydrateManualQuoteFromCustomer(Opportunity $customer): void
+    {
+        $lead = $customer->lead;
+
+        $this->manualQuoteForm = [
+            ...$this->manualQuoteForm,
+            'customer_record_id' => (string) $customer->id,
+            'opportunity_id' => '',
+            'lead_id' => $customer->lead_id ? (string) $customer->lead_id : '',
+            'company_name' => $customer->company_name ?: '',
+            'contact_name' => $lead?->contact_name ?: '',
+            'contact_email' => $customer->contact_email ?: ($lead?->email ?: ''),
+            'service_mode' => $customer->required_service ?: ($lead?->service ?: 'Ocean Freight'),
+            'notes' => $customer->notes ?: '',
+        ];
+    }
+
+    protected function hydrateManualQuoteFromOpportunity(Opportunity $opportunity): void
+    {
+        $lead = $opportunity->lead;
+
+        $this->manualQuoteForm = [
+            ...$this->manualQuoteForm,
+            'customer_record_id' => (string) $opportunity->id,
+            'opportunity_id' => (string) $opportunity->id,
+            'lead_id' => $opportunity->lead_id ? (string) $opportunity->lead_id : '',
+            'company_name' => $opportunity->company_name ?: ($lead?->company_name ?: ''),
+            'contact_name' => $lead?->contact_name ?: ($this->manualQuoteForm['contact_name'] ?? ''),
+            'contact_email' => $opportunity->contact_email ?: ($lead?->email ?: ''),
+            'service_mode' => $opportunity->required_service ?: ($lead?->service ?: 'Ocean Freight'),
+            'sell_amount' => $opportunity->revenue_potential !== null ? (string) $opportunity->revenue_potential : ($this->manualQuoteForm['sell_amount'] ?? ''),
+            'notes' => $opportunity->notes ?: ($this->manualQuoteForm['notes'] ?? ''),
+        ];
+    }
+
+    protected function fillCarrierEditForm(Carrier $carrier): void
+    {
+        $this->carrierEditForm = [
+            'name' => $carrier->name ?: '',
+            'mode' => $carrier->mode ?: '',
+            'code' => $carrier->code ?: '',
+            'scac_code' => $carrier->scac_code ?: '',
+            'iata_code' => $carrier->iata_code ?: '',
+            'contact_name' => $carrier->contact_name ?: '',
+            'contact_email' => $carrier->contact_email ?: '',
+            'contact_phone' => $carrier->contact_phone ?: '',
+            'website' => $carrier->website ?: '',
+            'service_lanes' => $carrier->service_lanes ?: '',
+            'notes' => $carrier->notes ?: '',
+            'is_active' => (bool) $carrier->is_active,
+        ];
+    }
+
+    protected function fillBookingEditForm(Booking $booking): void
+    {
+        $this->bookingEditForm = [
+            'carrier_id' => $booking->carrier_id ?: '',
+            'customer_name' => $booking->customer_name ?: '',
+            'contact_name' => $booking->contact_name ?: '',
+            'contact_email' => $booking->contact_email ?: '',
+            'service_mode' => $booking->service_mode ?: 'Ocean Freight',
+            'origin' => $booking->origin ?: '',
+            'destination' => $booking->destination ?: '',
+            'incoterm' => $booking->incoterm ?: '',
+            'commodity' => $booking->commodity ?: '',
+            'equipment_type' => $booking->equipment_type ?: '',
+            'container_count' => $booking->container_count !== null ? (string) $booking->container_count : '',
+            'weight_kg' => $booking->weight_kg !== null ? (string) $booking->weight_kg : '',
+            'volume_cbm' => $booking->volume_cbm !== null ? (string) $booking->volume_cbm : '',
+            'requested_etd' => $booking->requested_etd?->format('Y-m-d\TH:i') ?: '',
+            'requested_eta' => $booking->requested_eta?->format('Y-m-d\TH:i') ?: '',
+            'confirmed_etd' => $booking->confirmed_etd?->format('Y-m-d\TH:i') ?: '',
+            'confirmed_eta' => $booking->confirmed_eta?->format('Y-m-d\TH:i') ?: '',
+            'carrier_confirmation_ref' => $booking->carrier_confirmation_ref ?: '',
+            'status' => $booking->status ?: Booking::STATUS_DRAFT,
+            'notes' => $booking->notes ?: '',
+        ];
+    }
+
+    protected function hydrateManualBookingFromShipment(ShipmentJob $shipment): void
+    {
+        $this->manualBookingForm = [
+            ...$this->manualBookingForm,
+            'shipment_job_id' => (string) $shipment->id,
+            'carrier_id' => $this->manualBookingForm['carrier_id'] ?? '',
+            'quote_id' => $shipment->quote_id ? (string) $shipment->quote_id : '',
+            'opportunity_id' => $shipment->opportunity_id ? (string) $shipment->opportunity_id : '',
+            'lead_id' => $shipment->lead_id ? (string) $shipment->lead_id : '',
+            'customer_name' => $shipment->company_name ?: '',
+            'contact_name' => $shipment->contact_name ?: '',
+            'contact_email' => $shipment->contact_email ?: '',
+            'service_mode' => $shipment->service_mode ?: 'Ocean Freight',
+            'origin' => $shipment->origin ?: '',
+            'destination' => $shipment->destination ?: '',
+            'incoterm' => $shipment->incoterm ?: '',
+            'commodity' => $shipment->commodity ?: '',
+            'equipment_type' => $shipment->equipment_type ?: '',
+            'container_count' => $shipment->container_count !== null ? (string) $shipment->container_count : '',
+            'weight_kg' => $shipment->weight_kg !== null ? (string) $shipment->weight_kg : '',
+            'volume_cbm' => $shipment->volume_cbm !== null ? (string) $shipment->volume_cbm : '',
+            'requested_etd' => $shipment->estimated_departure_at?->format('Y-m-d\TH:i') ?: '',
+            'requested_eta' => $shipment->estimated_arrival_at?->format('Y-m-d\TH:i') ?: '',
+            'confirmed_etd' => '',
+            'confirmed_eta' => '',
+            'carrier_confirmation_ref' => '',
+            'status' => $this->manualBookingForm['status'] ?? Booking::STATUS_DRAFT,
+            'notes' => $shipment->notes ?: '',
+        ];
+    }
+
+    protected function fillManualShipmentFormFromShipment(ShipmentJob $shipment): void
+    {
+        $this->manualShipmentForm = [
+            'customer_record_id' => $shipment->opportunity_id ?: '',
+            'opportunity_id' => $shipment->opportunity_id ?: '',
+            'quote_id' => $shipment->quote_id ?: '',
+            'lead_id' => $shipment->lead_id ?: '',
+            'company_name' => $shipment->company_name ?: '',
+            'contact_name' => $shipment->contact_name ?: '',
+            'contact_email' => $shipment->contact_email ?: '',
+            'service_mode' => $shipment->service_mode ?: 'Ocean Freight',
+            'origin' => $shipment->origin ?: '',
+            'destination' => $shipment->destination ?: '',
+            'incoterm' => $shipment->incoterm ?: '',
+            'commodity' => $shipment->commodity ?: '',
+            'equipment_type' => $shipment->equipment_type ?: '',
+            'container_count' => $shipment->container_count !== null ? (string) $shipment->container_count : '',
+            'weight_kg' => $shipment->weight_kg !== null ? (string) $shipment->weight_kg : '',
+            'volume_cbm' => $shipment->volume_cbm !== null ? (string) $shipment->volume_cbm : '',
+            'carrier_name' => $shipment->carrier_name ?: '',
+            'vessel_name' => $shipment->vessel_name ?: '',
+            'voyage_number' => $shipment->voyage_number ?: '',
+            'house_bill_no' => $shipment->house_bill_no ?: '',
+            'master_bill_no' => $shipment->master_bill_no ?: '',
+            'estimated_departure_at' => $shipment->estimated_departure_at?->format('Y-m-d\TH:i') ?: '',
+            'estimated_arrival_at' => $shipment->estimated_arrival_at?->format('Y-m-d\TH:i') ?: '',
+            'actual_departure_at' => $shipment->actual_departure_at?->format('Y-m-d\TH:i') ?: '',
+            'actual_arrival_at' => $shipment->actual_arrival_at?->format('Y-m-d\TH:i') ?: '',
+            'buy_amount' => $shipment->buy_amount !== null ? (string) $shipment->buy_amount : '',
+            'sell_amount' => $shipment->sell_amount !== null ? (string) $shipment->sell_amount : '',
+            'currency' => $shipment->currency ?: 'AED',
+            'status' => $shipment->status ?: ShipmentJob::STATUS_DRAFT,
+            'notes' => $shipment->notes ?: '',
+        ];
+    }
+
+    protected function hydrateManualShipmentFromOpportunity(Opportunity $opportunity): void
+    {
+        $preferredQuote = $opportunity->quotes
+            ->sortByDesc(fn (Quote $quote) => ($quote->status === Quote::STATUS_ACCEPTED ? 1000000 : 0) + ($quote->quoted_at?->timestamp ?? 0) + $quote->id)
+            ->first();
+
+        $lead = $opportunity->lead;
+
+        $this->manualShipmentForm = [
+            ...$this->manualShipmentForm,
+            'customer_record_id' => (string) $opportunity->id,
+            'opportunity_id' => (string) $opportunity->id,
+            'quote_id' => $preferredQuote?->id ? (string) $preferredQuote->id : '',
+            'lead_id' => $opportunity->lead_id ? (string) $opportunity->lead_id : '',
+            'company_name' => $opportunity->company_name ?: $lead?->company_name ?: '',
+            'contact_name' => $lead?->contact_name ?: $preferredQuote?->contact_name ?: '',
+            'contact_email' => $opportunity->contact_email ?: $lead?->email ?: $preferredQuote?->contact_email ?: '',
+            'service_mode' => $preferredQuote?->service_mode ?: $opportunity->required_service ?: $lead?->service ?: 'Ocean Freight',
+            'origin' => $preferredQuote?->origin ?: ($this->manualShipmentForm['origin'] ?? ''),
+            'destination' => $preferredQuote?->destination ?: ($this->manualShipmentForm['destination'] ?? ''),
+            'incoterm' => $preferredQuote?->incoterm ?: '',
+            'commodity' => $preferredQuote?->commodity ?: '',
+            'equipment_type' => $preferredQuote?->equipment_type ?: '',
+            'container_count' => $this->manualShipmentForm['container_count'] ?? '',
+            'weight_kg' => $preferredQuote?->weight_kg !== null ? (string) $preferredQuote->weight_kg : '',
+            'volume_cbm' => $preferredQuote?->volume_cbm !== null ? (string) $preferredQuote->volume_cbm : '',
+            'carrier_name' => $this->manualShipmentForm['carrier_name'] ?? '',
+            'vessel_name' => $this->manualShipmentForm['vessel_name'] ?? '',
+            'voyage_number' => $this->manualShipmentForm['voyage_number'] ?? '',
+            'house_bill_no' => $this->manualShipmentForm['house_bill_no'] ?? '',
+            'master_bill_no' => $this->manualShipmentForm['master_bill_no'] ?? '',
+            'estimated_departure_at' => $this->manualShipmentForm['estimated_departure_at'] ?? '',
+            'estimated_arrival_at' => $this->manualShipmentForm['estimated_arrival_at'] ?? '',
+            'actual_departure_at' => $this->manualShipmentForm['actual_departure_at'] ?? '',
+            'actual_arrival_at' => $this->manualShipmentForm['actual_arrival_at'] ?? '',
+            'buy_amount' => $preferredQuote?->buy_amount !== null ? (string) $preferredQuote->buy_amount : '',
+            'sell_amount' => $preferredQuote?->sell_amount !== null ? (string) $preferredQuote->sell_amount : ($opportunity->revenue_potential !== null ? (string) $opportunity->revenue_potential : ''),
+            'currency' => $preferredQuote?->currency ?: ($this->manualShipmentForm['currency'] ?? 'AED'),
+            'status' => $this->manualShipmentForm['status'] ?? ShipmentJob::STATUS_DRAFT,
+            'notes' => $preferredQuote?->notes ?: ($opportunity->notes ?: ''),
+        ];
+    }
+
+    protected function hydrateManualShipmentFromQuote(Quote $quote): void
+    {
+        if ($quote->opportunity) {
+            $this->hydrateManualShipmentFromOpportunity($quote->opportunity->loadMissing('lead'));
+        }
+
+        $lead = $quote->lead ?: $quote->opportunity?->lead;
+
+        $this->manualShipmentForm = [
+            ...$this->manualShipmentForm,
+            'customer_record_id' => $quote->opportunity_id ? (string) $quote->opportunity_id : ($this->manualShipmentForm['customer_record_id'] ?? ''),
+            'opportunity_id' => $quote->opportunity_id ? (string) $quote->opportunity_id : ($this->manualShipmentForm['opportunity_id'] ?? ''),
+            'quote_id' => (string) $quote->id,
+            'lead_id' => $quote->lead_id ? (string) $quote->lead_id : ($lead?->id ? (string) $lead->id : ''),
+            'company_name' => $quote->company_name ?: ($this->manualShipmentForm['company_name'] ?? ''),
+            'contact_name' => $quote->contact_name ?: ($lead?->contact_name ?: ($this->manualShipmentForm['contact_name'] ?? '')),
+            'contact_email' => $quote->contact_email ?: ($quote->opportunity?->contact_email ?: ($lead?->email ?: ($this->manualShipmentForm['contact_email'] ?? ''))),
+            'service_mode' => $quote->service_mode ?: ($this->manualShipmentForm['service_mode'] ?? 'Ocean Freight'),
+            'origin' => $quote->origin ?: '',
+            'destination' => $quote->destination ?: '',
+            'incoterm' => $quote->incoterm ?: '',
+            'commodity' => $quote->commodity ?: '',
+            'equipment_type' => $quote->equipment_type ?: '',
+            'weight_kg' => $quote->weight_kg !== null ? (string) $quote->weight_kg : '',
+            'volume_cbm' => $quote->volume_cbm !== null ? (string) $quote->volume_cbm : '',
+            'buy_amount' => $quote->buy_amount !== null ? (string) $quote->buy_amount : '',
+            'sell_amount' => $quote->sell_amount !== null ? (string) $quote->sell_amount : '',
+            'currency' => $quote->currency ?: ($this->manualShipmentForm['currency'] ?? 'AED'),
+            'notes' => $quote->notes ?: ($this->manualShipmentForm['notes'] ?? ''),
+        ];
+    }
+
+    protected function fillShipmentEditForm(ShipmentJob $shipment): void
+    {
+        $this->shipmentEditForm = [
+            'company_name' => $shipment->company_name ?: '',
+            'contact_name' => $shipment->contact_name ?: '',
+            'contact_email' => $shipment->contact_email ?: '',
+            'service_mode' => $shipment->service_mode ?: 'Ocean Freight',
+            'origin' => $shipment->origin ?: '',
+            'destination' => $shipment->destination ?: '',
+            'incoterm' => $shipment->incoterm ?: '',
+            'commodity' => $shipment->commodity ?: '',
+            'equipment_type' => $shipment->equipment_type ?: '',
+            'container_count' => $shipment->container_count !== null ? (string) $shipment->container_count : '',
+            'weight_kg' => $shipment->weight_kg !== null ? (string) $shipment->weight_kg : '',
+            'volume_cbm' => $shipment->volume_cbm !== null ? (string) $shipment->volume_cbm : '',
+            'carrier_name' => $shipment->carrier_name ?: '',
+            'vessel_name' => $shipment->vessel_name ?: '',
+            'voyage_number' => $shipment->voyage_number ?: '',
+            'house_bill_no' => $shipment->house_bill_no ?: '',
+            'master_bill_no' => $shipment->master_bill_no ?: '',
+            'estimated_departure_at' => $shipment->estimated_departure_at?->format('Y-m-d\TH:i') ?: '',
+            'estimated_arrival_at' => $shipment->estimated_arrival_at?->format('Y-m-d\TH:i') ?: '',
+            'actual_departure_at' => $shipment->actual_departure_at?->format('Y-m-d\TH:i') ?: '',
+            'actual_arrival_at' => $shipment->actual_arrival_at?->format('Y-m-d\TH:i') ?: '',
+            'buy_amount' => $shipment->buy_amount !== null ? (string) $shipment->buy_amount : '',
+            'sell_amount' => $shipment->sell_amount !== null ? (string) $shipment->sell_amount : '',
+            'currency' => $shipment->currency ?: 'AED',
+            'status' => $shipment->status ?: ShipmentJob::STATUS_DRAFT,
+            'notes' => $shipment->notes ?: '',
+        ];
+    }
+
+    protected function draftShipmentFromWonOpportunity(Opportunity $opportunity): ShipmentJob
+    {
+        $existingShipment = ShipmentJob::query()
+            ->where('workspace_id', $opportunity->workspace_id)
+            ->where('opportunity_id', $opportunity->id)
+            ->latest('id')
+            ->first();
+
+        if ($existingShipment) {
+            return $existingShipment;
+        }
+
+        $quote = $opportunity->quotes
+            ->sortByDesc(fn (Quote $quote) => ($quote->status === Quote::STATUS_ACCEPTED ? 1000000 : 0) + ($quote->quoted_at?->timestamp ?? 0) + $quote->id)
+            ->first();
+
+        return ShipmentJob::create([
+            'company_id' => $opportunity->company_id,
+            'workspace_id' => $opportunity->workspace_id,
+            'opportunity_id' => $opportunity->id,
+            'quote_id' => $quote?->id,
+            'lead_id' => $opportunity->lead_id,
+            'assigned_user_id' => auth()->id() ?: $opportunity->assigned_user_id,
+            'job_number' => $this->nextShipmentJobNumber($opportunity->workspace),
+            'company_name' => $quote?->company_name ?: $opportunity->company_name ?: $opportunity->lead?->company_name,
+            'contact_name' => $quote?->contact_name ?: $opportunity->lead?->contact_name,
+            'contact_email' => $quote?->contact_email ?: $opportunity->contact_email ?: $opportunity->lead?->email,
+            'service_mode' => $quote?->service_mode ?: $opportunity->required_service ?: $opportunity->lead?->service,
+            'origin' => $quote?->origin,
+            'destination' => $quote?->destination,
+            'incoterm' => $quote?->incoterm,
+            'commodity' => $quote?->commodity,
+            'equipment_type' => $quote?->equipment_type,
+            'weight_kg' => $quote?->weight_kg,
+            'volume_cbm' => $quote?->volume_cbm,
+            'buy_amount' => $quote?->buy_amount,
+            'sell_amount' => $quote?->sell_amount ?: $opportunity->revenue_potential,
+            'margin_amount' => $this->shipmentMarginFromPayload([
+                'buy_amount' => $quote?->buy_amount,
+                'sell_amount' => $quote?->sell_amount ?: $opportunity->revenue_potential,
+            ]),
+            'currency' => $quote?->currency ?: 'AED',
+            'status' => ShipmentJob::STATUS_DRAFT,
+            'notes' => $quote?->notes ?: $opportunity->notes,
+        ]);
+    }
+
     protected function resetManualOpportunityForm(): void
     {
         $this->editingOpportunityId = null;
@@ -1546,6 +2650,7 @@ class CrmDashboard extends Component
     {
         $this->editingQuoteId = null;
         $this->manualQuoteForm = [
+            'customer_record_id' => '',
             'opportunity_id' => '',
             'lead_id' => '',
             'company_name' => '',
@@ -1564,6 +2669,135 @@ class CrmDashboard extends Component
             'currency' => 'AED',
             'status' => Quote::STATUS_DRAFT,
             'valid_until' => '',
+            'notes' => '',
+        ];
+    }
+
+    protected function resetManualShipmentForm(): void
+    {
+        $this->editingShipmentId = null;
+        $this->manualShipmentForm = [
+            'customer_record_id' => '',
+            'opportunity_id' => '',
+            'quote_id' => '',
+            'lead_id' => '',
+            'company_name' => '',
+            'contact_name' => '',
+            'contact_email' => '',
+            'service_mode' => 'Ocean Freight',
+            'origin' => '',
+            'destination' => '',
+            'incoterm' => '',
+            'commodity' => '',
+            'equipment_type' => '',
+            'container_count' => '',
+            'weight_kg' => '',
+            'volume_cbm' => '',
+            'carrier_name' => '',
+            'vessel_name' => '',
+            'voyage_number' => '',
+            'house_bill_no' => '',
+            'master_bill_no' => '',
+            'estimated_departure_at' => '',
+            'estimated_arrival_at' => '',
+            'actual_departure_at' => '',
+            'actual_arrival_at' => '',
+            'buy_amount' => '',
+            'sell_amount' => '',
+            'currency' => 'AED',
+            'status' => ShipmentJob::STATUS_DRAFT,
+            'notes' => '',
+        ];
+
+        $this->manualCarrierForm = [
+            'name' => '',
+            'mode' => '',
+            'code' => '',
+            'scac_code' => '',
+            'iata_code' => '',
+            'contact_name' => '',
+            'contact_email' => '',
+            'contact_phone' => '',
+            'website' => '',
+            'service_lanes' => '',
+            'notes' => '',
+            'is_active' => true,
+        ];
+
+        $this->manualBookingForm = [
+            'shipment_job_id' => '',
+            'carrier_id' => '',
+            'quote_id' => '',
+            'opportunity_id' => '',
+            'lead_id' => '',
+            'customer_name' => '',
+            'contact_name' => '',
+            'contact_email' => '',
+            'service_mode' => 'Ocean Freight',
+            'origin' => '',
+            'destination' => '',
+            'incoterm' => '',
+            'commodity' => '',
+            'equipment_type' => '',
+            'container_count' => '',
+            'weight_kg' => '',
+            'volume_cbm' => '',
+            'requested_etd' => '',
+            'requested_eta' => '',
+            'confirmed_etd' => '',
+            'confirmed_eta' => '',
+            'carrier_confirmation_ref' => '',
+            'status' => Booking::STATUS_DRAFT,
+            'notes' => '',
+        ];
+    }
+
+    protected function resetManualCarrierForm(): void
+    {
+        $this->editingCarrierId = null;
+        $this->manualCarrierForm = [
+            'name' => '',
+            'mode' => '',
+            'code' => '',
+            'scac_code' => '',
+            'iata_code' => '',
+            'contact_name' => '',
+            'contact_email' => '',
+            'contact_phone' => '',
+            'website' => '',
+            'service_lanes' => '',
+            'notes' => '',
+            'is_active' => true,
+        ];
+    }
+
+    protected function resetManualBookingForm(): void
+    {
+        $this->editingBookingId = null;
+        $this->manualBookingForm = [
+            'shipment_job_id' => '',
+            'carrier_id' => '',
+            'quote_id' => '',
+            'opportunity_id' => '',
+            'lead_id' => '',
+            'customer_name' => '',
+            'contact_name' => '',
+            'contact_email' => '',
+            'service_mode' => 'Ocean Freight',
+            'origin' => '',
+            'destination' => '',
+            'incoterm' => '',
+            'commodity' => '',
+            'equipment_type' => '',
+            'container_count' => '',
+            'weight_kg' => '',
+            'volume_cbm' => '',
+            'requested_etd' => '',
+            'requested_eta' => '',
+            'confirmed_etd' => '',
+            'confirmed_eta' => '',
+            'carrier_confirmation_ref' => '',
+            'status' => Booking::STATUS_DRAFT,
             'notes' => '',
         ];
     }
@@ -1607,12 +2841,30 @@ class CrmDashboard extends Component
             ['*'],
             'quotesPage',
         );
+        $shipments = ShipmentJob::query()->whereRaw('1 = 0')->paginate(
+            $this->shipmentPerPage,
+            ['*'],
+            'shipmentsPage',
+        );
+        $carriers = Carrier::query()->whereRaw('1 = 0')->paginate(
+            $this->carrierPerPage,
+            ['*'],
+            'carriersPage',
+        );
+        $bookings = Booking::query()->whereRaw('1 = 0')->paginate(
+            $this->bookingPerPage,
+            ['*'],
+            'bookingsPage',
+        );
         $sourceBreakdown = collect();
         $selectedLead = null;
         $selectedOpportunity = null;
         $selectedContact = null;
         $selectedCustomer = null;
         $selectedQuote = null;
+        $selectedShipment = null;
+        $selectedCarrier = null;
+        $selectedBooking = null;
         $leadInsights = [];
         $opportunityInsights = [];
         $contactInsights = [];
@@ -1621,6 +2873,14 @@ class CrmDashboard extends Component
         $monthlyReports = collect();
         $kpis = [];
         $leadOptions = collect();
+        $quoteOptions = collect();
+        $quoteCustomerOptions = collect();
+        $quoteOpportunityOptions = collect();
+        $shipmentCustomerOptions = collect();
+        $shipmentOpportunityOptions = collect();
+        $shipmentQuoteOptions = collect();
+        $carrierOptions = collect();
+        $bookingShipmentOptions = collect();
         $analyticsKpis = [];
         $analyticsBreakdownRows = collect();
         $analyticsMonthlyRows = collect();
@@ -1641,6 +2901,9 @@ class CrmDashboard extends Component
                 'manual-lead' => 'Add Lead',
                 'manual-opportunity' => 'Add Opportunity',
                 'manual-quote' => 'New Quote',
+                'manual-shipment' => 'New Shipment',
+                'manual-carrier' => 'New Carrier',
+                'manual-booking' => 'New Booking',
             ];
 
             if ($canViewWorkspaceTools) {
@@ -1677,6 +2940,12 @@ class CrmDashboard extends Component
 
             $quotes = $this->applyQuoteSorting($this->buildQuoteQuery($workspace))
                 ->paginate($this->quotePerPage, ['*'], 'quotesPage');
+            $shipments = $this->applyShipmentSorting($this->buildShipmentQuery($workspace))
+                ->paginate($this->shipmentPerPage, ['*'], 'shipmentsPage');
+            $carriers = $this->applyCarrierSorting($this->buildCarrierQuery($workspace))
+                ->paginate($this->carrierPerPage, ['*'], 'carriersPage');
+            $bookings = $this->applyBookingSorting($this->buildBookingQuery($workspace))
+                ->paginate($this->bookingPerPage, ['*'], 'bookingsPage');
 
             $sheetSources = $workspace->sheetSources()->latest()->get();
             $workspaceUsers = $workspace->users()->with(['roles.permissions', 'userPermissions'])->orderBy('name')->get();
@@ -1694,6 +2963,37 @@ class CrmDashboard extends Component
                 ->orderByDesc('created_at')
                 ->limit(100)
                 ->get(['id', 'company_name', 'external_key']);
+            $quoteOptions = Quote::query()
+                ->where('workspace_id', $workspace->id)
+                ->orderByDesc('quoted_at')
+                ->orderByDesc('created_at')
+                ->limit(100)
+                ->get(['id', 'quote_number', 'company_name']);
+            $quoteCustomerOptions = $this->quoteCustomerOptions($workspace);
+            $quoteOpportunityOptions = $this->quoteOpportunityOptions(
+                $workspace,
+                $this->selectedManualQuoteCustomer($workspace),
+            );
+            $shipmentCustomerOptions = $this->shipmentCustomerOptions($workspace);
+            $shipmentOpportunityOptions = $this->shipmentOpportunityOptions(
+                $workspace,
+                $this->selectedManualShipmentCustomer($workspace),
+            );
+            $shipmentQuoteOptions = $this->shipmentQuoteOptions(
+                $workspace,
+                $this->selectedManualShipmentCustomer($workspace),
+                $this->selectedManualShipmentOpportunity($workspace),
+            );
+            $carrierOptions = Carrier::query()
+                ->where('workspace_id', $workspace->id)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'mode']);
+            $bookingShipmentOptions = ShipmentJob::query()
+                ->where('workspace_id', $workspace->id)
+                ->orderByDesc('estimated_departure_at')
+                ->orderByDesc('created_at')
+                ->get(['id', 'job_number', 'company_name']);
 
             $liveLeadBase = Lead::query()->where('workspace_id', $workspace->id);
             $liveOpportunityBase = Opportunity::query()->where('workspace_id', $workspace->id);
@@ -1940,6 +3240,24 @@ class CrmDashboard extends Component
                     ->find($this->selectedQuoteId)
                 : null;
 
+            $selectedShipment = $this->selectedShipmentId
+                ? ShipmentJob::query()
+                    ->with(['lead', 'opportunity', 'quote', 'assignedUser'])
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedShipmentId)
+                : null;
+            $selectedCarrier = $this->selectedCarrierId
+                ? Carrier::query()
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedCarrierId)
+                : null;
+            $selectedBooking = $this->selectedBookingId
+                ? Booking::query()
+                    ->with(['carrier', 'shipmentJob', 'quote', 'assignedUser'])
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedBookingId)
+                : null;
+
             $enrichment = app(WorkspaceEnrichmentService::class);
 
             $leadInsights = $selectedLead
@@ -1970,8 +3288,16 @@ class CrmDashboard extends Component
             'analyticsSnapshot' => $analyticsSnapshot,
             'analyticsSqlChartRows' => $analyticsSqlChartRows,
             'analyticsWonCustomers' => $analyticsWonCustomers,
+            'availableSourceTypes' => SheetSource::availableTypesForWorkspace($workspace),
+            'bookingShipmentOptions' => $bookingShipmentOptions,
+            'bookingStatusOptions' => Booking::STATUSES,
+            'bookings' => $bookings,
             'canManageAccess' => $canManageAccess,
             'canViewWorkspaceTools' => $canViewWorkspaceTools,
+            'carrierModeOptions' => Carrier::MODES,
+            'carrierOptions' => $carrierOptions,
+            'carrierStatusOptions' => [true => 'Active', false => 'Inactive'],
+            'carriers' => $carriers,
             'leadInsights' => $leadInsights,
             'opportunityInsights' => $opportunityInsights,
             'contactInsights' => $contactInsights,
@@ -2003,14 +3329,25 @@ class CrmDashboard extends Component
             'permissions' => $permissions,
             'opportunityOptions' => $opportunityOptions ?? collect(),
             'quotes' => $quotes,
+            'quoteOptions' => $quoteOptions,
+            'quoteCustomerOptions' => $quoteCustomerOptions,
+            'quoteOpportunityOptions' => $quoteOpportunityOptions,
             'quoteStatusOptions' => Quote::STATUSES,
             'roles' => $roles,
             'selectedLead' => $selectedLead,
             'selectedOpportunity' => $selectedOpportunity,
             'selectedQuote' => $selectedQuote,
+            'selectedShipment' => $selectedShipment,
             'selectedContact' => $selectedContact,
             'selectedCustomer' => $selectedCustomer,
+            'selectedCarrier' => $selectedCarrier,
+            'selectedBooking' => $selectedBooking,
             'sheetSources' => $sheetSources,
+            'shipmentCustomerOptions' => $shipmentCustomerOptions,
+            'shipmentOpportunityOptions' => $shipmentOpportunityOptions,
+            'shipmentQuoteOptions' => $shipmentQuoteOptions,
+            'shipmentStatusOptions' => ShipmentJob::STATUSES,
+            'shipments' => $shipments,
             'sourceBreakdown' => $sourceBreakdown,
             'templateModuleMeta' => $this->templateModuleMeta(),
             'tabs' => $workspace
@@ -2049,6 +3386,7 @@ class CrmDashboard extends Component
             'description' => '',
             'source_kind' => SheetSource::SOURCE_KIND_GOOGLE_SHEET_CSV,
             'is_active' => true,
+            ...$this->defaultSourceConnectionFields(),
         ];
 
         $this->editingSourceForm = [];
@@ -2104,6 +3442,7 @@ class CrmDashboard extends Component
         ];
 
         $this->manualQuoteForm = [
+            'customer_record_id' => '',
             'opportunity_id' => '',
             'lead_id' => '',
             'company_name' => '',
@@ -2122,6 +3461,39 @@ class CrmDashboard extends Component
             'currency' => 'AED',
             'status' => Quote::STATUS_DRAFT,
             'valid_until' => '',
+            'notes' => '',
+        ];
+
+        $this->manualShipmentForm = [
+            'customer_record_id' => '',
+            'opportunity_id' => '',
+            'quote_id' => '',
+            'lead_id' => '',
+            'company_name' => '',
+            'contact_name' => '',
+            'contact_email' => '',
+            'service_mode' => 'Ocean Freight',
+            'origin' => '',
+            'destination' => '',
+            'incoterm' => '',
+            'commodity' => '',
+            'equipment_type' => '',
+            'container_count' => '',
+            'weight_kg' => '',
+            'volume_cbm' => '',
+            'carrier_name' => '',
+            'vessel_name' => '',
+            'voyage_number' => '',
+            'house_bill_no' => '',
+            'master_bill_no' => '',
+            'estimated_departure_at' => '',
+            'estimated_arrival_at' => '',
+            'actual_departure_at' => '',
+            'actual_arrival_at' => '',
+            'buy_amount' => '',
+            'sell_amount' => '',
+            'currency' => 'AED',
+            'status' => ShipmentJob::STATUS_DRAFT,
             'notes' => '',
         ];
     }
@@ -2279,6 +3651,39 @@ class CrmDashboard extends Component
         return $query;
     }
 
+    protected function quoteCustomerOptions(Workspace $workspace)
+    {
+        return Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereNotNull('company_name')
+            ->orderByDesc('submission_date')
+            ->orderByDesc('created_at')
+            ->get(['id', 'company_name', 'contact_email', 'required_service', 'lead_id'])
+            ->unique(fn (Opportunity $opportunity) => Str::lower(trim(($opportunity->company_name ?: '').'|'.($opportunity->contact_email ?: ''))))
+            ->values();
+    }
+
+    protected function quoteOpportunityOptions(Workspace $workspace, ?Opportunity $customer = null)
+    {
+        $query = Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderByDesc('submission_date')
+            ->orderByDesc('created_at');
+
+        if ($customer) {
+            $query->where('company_name', $customer->company_name);
+
+            if (filled($customer->contact_email)) {
+                $query->where(function ($builder) use ($customer) {
+                    $builder->where('contact_email', $customer->contact_email)
+                        ->orWhereNull('contact_email');
+                });
+            }
+        }
+
+        return $query->get(['id', 'company_name', 'contact_email', 'external_key', 'lead_id']);
+    }
+
     protected function buildOpportunityQuery(Workspace $workspace)
     {
         $query = Opportunity::query()
@@ -2323,6 +3728,178 @@ class CrmDashboard extends Component
 
         if ($this->quoteStatusFilter !== '') {
             $query->where('status', $this->quoteStatusFilter);
+        }
+
+        return $query;
+    }
+
+    protected function shipmentCustomerOptions(Workspace $workspace)
+    {
+        return Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->whereNotNull('company_name')
+            ->orderByDesc('submission_date')
+            ->orderByDesc('created_at')
+            ->get(['id', 'company_name', 'contact_email', 'required_service', 'lead_id'])
+            ->unique(fn (Opportunity $opportunity) => Str::lower(trim(($opportunity->company_name ?: '').'|'.($opportunity->contact_email ?: ''))))
+            ->values();
+    }
+
+    protected function selectedManualQuoteCustomer(Workspace $workspace): ?Opportunity
+    {
+        $customerId = (int) data_get($this->manualQuoteForm, 'customer_record_id');
+
+        if ($customerId < 1) {
+            return null;
+        }
+
+        return Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->find($customerId);
+    }
+
+    protected function shipmentOpportunityOptions(Workspace $workspace, ?Opportunity $customer = null)
+    {
+        $query = Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderByDesc('submission_date')
+            ->orderByDesc('created_at');
+
+        if ($customer) {
+            $query->where('company_name', $customer->company_name);
+
+            if (filled($customer->contact_email)) {
+                $query->where(function ($builder) use ($customer) {
+                    $builder->where('contact_email', $customer->contact_email)
+                        ->orWhereNull('contact_email');
+                });
+            }
+        }
+
+        return $query->get(['id', 'company_name', 'contact_email', 'external_key', 'lead_id']);
+    }
+
+    protected function shipmentQuoteOptions(Workspace $workspace, ?Opportunity $customer = null, ?Opportunity $opportunity = null)
+    {
+        $query = Quote::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderByDesc('quoted_at')
+            ->orderByDesc('created_at');
+
+        if ($opportunity) {
+            $query->where('opportunity_id', $opportunity->id);
+        } elseif ($customer) {
+            $query->where('company_name', $customer->company_name);
+        }
+
+        return $query->get(['id', 'quote_number', 'company_name', 'opportunity_id']);
+    }
+
+    protected function selectedManualShipmentCustomer(Workspace $workspace): ?Opportunity
+    {
+        $customerId = (int) data_get($this->manualShipmentForm, 'customer_record_id');
+
+        if ($customerId < 1) {
+            return null;
+        }
+
+        return Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->find($customerId);
+    }
+
+    protected function selectedManualShipmentOpportunity(Workspace $workspace): ?Opportunity
+    {
+        $opportunityId = (int) data_get($this->manualShipmentForm, 'opportunity_id');
+
+        if ($opportunityId < 1) {
+            return null;
+        }
+
+        return Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->find($opportunityId);
+    }
+
+    protected function buildShipmentQuery(Workspace $workspace)
+    {
+        $query = ShipmentJob::query()
+            ->with(['assignedUser', 'lead', 'opportunity', 'quote'])
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->shipmentSearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('job_number', 'like', "%{$search}%")
+                    ->orWhere('external_reference', 'like', "%{$search}%")
+                    ->orWhere('company_name', 'like', "%{$search}%")
+                    ->orWhere('contact_name', 'like', "%{$search}%")
+                    ->orWhere('contact_email', 'like', "%{$search}%")
+                    ->orWhere('origin', 'like', "%{$search}%")
+                    ->orWhere('destination', 'like', "%{$search}%")
+                    ->orWhere('carrier_name', 'like', "%{$search}%")
+                    ->orWhere('vessel_name', 'like', "%{$search}%")
+                    ->orWhere('house_bill_no', 'like', "%{$search}%")
+                    ->orWhere('master_bill_no', 'like', "%{$search}%");
+            });
+        }
+
+        if ($this->shipmentStatusFilter !== '') {
+            $query->where('status', $this->shipmentStatusFilter);
+        }
+
+        return $query;
+    }
+
+    protected function buildCarrierQuery(Workspace $workspace)
+    {
+        $query = Carrier::query()
+            ->withCount('bookings')
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->carrierSearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('scac_code', 'like', "%{$search}%")
+                    ->orWhere('iata_code', 'like', "%{$search}%")
+                    ->orWhere('contact_name', 'like', "%{$search}%")
+                    ->orWhere('contact_email', 'like', "%{$search}%")
+                    ->orWhere('service_lanes', 'like', "%{$search}%");
+            });
+        }
+
+        if ($this->carrierModeFilter !== '') {
+            $query->where('mode', $this->carrierModeFilter);
+        }
+
+        return $query;
+    }
+
+    protected function buildBookingQuery(Workspace $workspace)
+    {
+        $query = Booking::query()
+            ->with(['carrier', 'shipmentJob', 'quote'])
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->bookingSearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('booking_number', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('contact_email', 'like', "%{$search}%")
+                    ->orWhere('origin', 'like', "%{$search}%")
+                    ->orWhere('destination', 'like', "%{$search}%")
+                    ->orWhere('carrier_confirmation_ref', 'like', "%{$search}%");
+            });
+        }
+
+        if ($this->bookingStatusFilter !== '') {
+            $query->where('status', $this->bookingStatusFilter);
         }
 
         return $query;
@@ -2596,6 +4173,40 @@ class CrmDashboard extends Component
         };
     }
 
+    protected function applyShipmentSorting($query)
+    {
+        return match ($this->shipmentSort) {
+            'oldest' => $query->orderBy('estimated_departure_at')->orderBy('created_at'),
+            'company_asc' => $query->orderBy('company_name')->orderByDesc('estimated_departure_at'),
+            'company_desc' => $query->orderByDesc('company_name')->orderByDesc('estimated_departure_at'),
+            'eta_desc' => $query->orderByDesc('estimated_arrival_at')->orderByDesc('created_at'),
+            'eta_asc' => $query->orderBy('estimated_arrival_at')->orderByDesc('created_at'),
+            default => $query->orderByDesc('estimated_departure_at')->orderByDesc('created_at'),
+        };
+    }
+
+    protected function applyCarrierSorting($query)
+    {
+        return match ($this->carrierSort) {
+            'name_desc' => $query->orderByDesc('name'),
+            'mode_asc' => $query->orderBy('mode')->orderBy('name'),
+            'bookings_desc' => $query->orderByDesc('bookings_count')->orderBy('name'),
+            'newest' => $query->orderByDesc('created_at'),
+            default => $query->orderBy('name'),
+        };
+    }
+
+    protected function applyBookingSorting($query)
+    {
+        return match ($this->bookingSort) {
+            'oldest' => $query->orderBy('requested_etd')->orderBy('created_at'),
+            'customer_asc' => $query->orderBy('customer_name')->orderByDesc('requested_etd'),
+            'customer_desc' => $query->orderByDesc('customer_name')->orderByDesc('requested_etd'),
+            'status_asc' => $query->orderBy('status')->orderByDesc('requested_etd'),
+            default => $query->orderByDesc('requested_etd')->orderByDesc('created_at'),
+        };
+    }
+
     protected function applyAnalyticsRange($query, string $column)
     {
         [$start, $end] = $this->analyticsBounds();
@@ -2726,8 +4337,56 @@ class CrmDashboard extends Component
             str_contains($message, 'Google OAuth client ID and secret must be saved first.') => 'This Google Sheets source cannot sync yet. An admin must first save the Google OAuth client ID and secret in Admin > Data Sources.',
             str_contains($message, 'Google is not connected for this company.') => 'This Google Sheets source cannot sync yet. An admin must connect the company Google account in Admin > Data Sources first.',
             str_contains($message, 'Google access expired and no refresh token is available.') => 'Google access has expired for this company. An admin needs to reconnect Google in Admin > Data Sources.',
+            str_contains($message, 'CargoWise') => Str::limit($message, 220),
             default => Str::limit($message, 220),
         };
+    }
+
+    protected function defaultSourceConnectionFields(): array
+    {
+        return [
+            'cargo_auth_mode' => 'basic',
+            'cargo_username' => '',
+            'cargo_password' => '',
+            'cargo_token' => '',
+            'cargo_format' => 'json',
+            'cargo_data_path' => '',
+        ];
+    }
+
+    protected function sourceConnectionFieldsFromSource(SheetSource $source): array
+    {
+        return [
+            'cargo_auth_mode' => data_get($source->mapping, 'cargowise.auth_mode', 'basic'),
+            'cargo_username' => data_get($source->mapping, 'cargowise.username', ''),
+            'cargo_password' => data_get($source->mapping, 'cargowise.password', ''),
+            'cargo_token' => data_get($source->mapping, 'cargowise.token', ''),
+            'cargo_format' => data_get($source->mapping, 'cargowise.format', 'json'),
+            'cargo_data_path' => data_get($source->mapping, 'cargowise.data_path', ''),
+        ];
+    }
+
+    protected function sourceMappingFromForm(array $validated, ?SheetSource $source = null): ?array
+    {
+        $mapping = $source?->mapping ?? [];
+
+        if (($validated['source_kind'] ?? null) !== SheetSource::SOURCE_KIND_CARGOWISE_API) {
+            unset($mapping['cargowise']);
+
+            return $mapping === [] ? null : $mapping;
+        }
+
+        $mapping['cargowise'] = [
+            'endpoint' => $validated['url'],
+            'auth_mode' => $validated['cargo_auth_mode'] ?: 'basic',
+            'username' => $validated['cargo_username'] ?: '',
+            'password' => $validated['cargo_password'] ?: '',
+            'token' => $validated['cargo_token'] ?: '',
+            'format' => $validated['cargo_format'] ?: 'json',
+            'data_path' => $validated['cargo_data_path'] ?: '',
+        ];
+
+        return $mapping;
     }
 
     public function leadStatusClasses(string $status): string
@@ -2791,6 +4450,39 @@ class CrmDashboard extends Component
         };
     }
 
+    public function shipmentStatusClasses(string $status): string
+    {
+        return match ($status) {
+            ShipmentJob::STATUS_DELIVERED => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            ShipmentJob::STATUS_CANCELLED => 'border-rose-200 bg-rose-50 text-rose-700',
+            ShipmentJob::STATUS_BOOKED, ShipmentJob::STATUS_IN_TRANSIT => 'border-sky-200 bg-sky-50 text-sky-800',
+            default => 'border-amber-200 bg-amber-50 text-amber-800',
+        };
+    }
+
+    public function carrierModeClasses(?string $mode): string
+    {
+        return match ($mode) {
+            Carrier::MODE_OCEAN => 'border-sky-200 bg-sky-50 text-sky-800',
+            Carrier::MODE_AIR => 'border-violet-200 bg-violet-50 text-violet-800',
+            Carrier::MODE_ROAD => 'border-amber-200 bg-amber-50 text-amber-800',
+            Carrier::MODE_RAIL => 'border-zinc-200 bg-zinc-100 text-zinc-700',
+            Carrier::MODE_MULTIMODAL => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            default => 'border-zinc-200 bg-zinc-50 text-zinc-700',
+        };
+    }
+
+    public function bookingStatusClasses(string $status): string
+    {
+        return match ($status) {
+            Booking::STATUS_CONFIRMED, Booking::STATUS_COMPLETED => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            Booking::STATUS_CANCELLED => 'border-rose-200 bg-rose-50 text-rose-700',
+            Booking::STATUS_IN_TRANSIT => 'border-sky-200 bg-sky-50 text-sky-800',
+            Booking::STATUS_ROLLED => 'border-orange-200 bg-orange-50 text-orange-700',
+            default => 'border-amber-200 bg-amber-50 text-amber-800',
+        };
+    }
+
     public function sourceStatusClasses(?string $status): string
     {
         return match ($status) {
@@ -2808,7 +4500,65 @@ class CrmDashboard extends Component
         return 'QT-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
     }
 
+    protected function nextShipmentJobNumber(Workspace $workspace): string
+    {
+        $nextId = ((int) ShipmentJob::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
+
+        return 'SJ-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+    }
+
+    protected function nextBookingNumber(Workspace $workspace): string
+    {
+        $nextId = ((int) Booking::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
+
+        return 'BK-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+    }
+
+    protected function applyBookingShipmentConnection(Booking $booking): void
+    {
+        if (! $booking->shipment_job_id) {
+            return;
+        }
+
+        $shipment = ShipmentJob::query()
+            ->where('workspace_id', $booking->workspace_id)
+            ->find($booking->shipment_job_id);
+
+        if (! $shipment) {
+            return;
+        }
+
+        $booking->loadMissing('carrier');
+
+        $shipment->forceFill([
+            'carrier_name' => $booking->carrier?->name ?: $shipment->carrier_name,
+            'estimated_departure_at' => $booking->confirmed_etd ?: $booking->requested_etd ?: $shipment->estimated_departure_at,
+            'estimated_arrival_at' => $booking->confirmed_eta ?: $booking->requested_eta ?: $shipment->estimated_arrival_at,
+            'status' => match ($booking->status) {
+                Booking::STATUS_REQUESTED => ShipmentJob::STATUS_BOOKING_REQUESTED,
+                Booking::STATUS_CONFIRMED => ShipmentJob::STATUS_BOOKED,
+                Booking::STATUS_ROLLED => ShipmentJob::STATUS_BOOKING_REQUESTED,
+                Booking::STATUS_IN_TRANSIT => ShipmentJob::STATUS_IN_TRANSIT,
+                Booking::STATUS_COMPLETED => ShipmentJob::STATUS_DELIVERED,
+                Booking::STATUS_CANCELLED => ShipmentJob::STATUS_CANCELLED,
+                default => $shipment->status ?: ShipmentJob::STATUS_DRAFT,
+            },
+        ])->save();
+    }
+
     protected function quoteMarginFromPayload(array $payload): ?float
+    {
+        $buy = data_get($payload, 'buy_amount');
+        $sell = data_get($payload, 'sell_amount');
+
+        if ($buy === null || $buy === '' || $sell === null || $sell === '') {
+            return null;
+        }
+
+        return (float) $sell - (float) $buy;
+    }
+
+    protected function shipmentMarginFromPayload(array $payload): ?float
     {
         $buy = data_get($payload, 'buy_amount');
         $sell = data_get($payload, 'sell_amount');
