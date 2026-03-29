@@ -1,5 +1,9 @@
 # IQX Connect — Feature Guide
 
+Live guides:
+- Public marketing guide: `/product`
+- In-app documentation: `/documentation`
+
 ## Core Concepts
 - **Workspaces & Companies**: Multi-company support with one or more workspaces per company; default workspace per company; user assignment per workspace with job title and default workspace.
 - **Roles & Access**: Role system (admin, manager, sales, analyst) via `jeremykenedy/laravel-roles`; admin-only admin page; managers inherit workspace-level actions (sources, sync, inline edits); all authenticated users use the one-page CRM.

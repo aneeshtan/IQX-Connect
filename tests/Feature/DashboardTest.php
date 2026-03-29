@@ -3,10 +3,14 @@
 namespace Tests\Feature;
 
 use App\Livewire\CrmDashboard;
+use App\Mail\WorkspaceActivityMail;
+use App\Models\Account;
 use App\Models\Booking;
 use App\Models\Carrier;
 use App\Models\CollaborationEntry;
 use App\Models\Company;
+use App\Models\Contact;
+use App\Models\CustomerSegmentDefinition;
 use App\Models\Invoice;
 use App\Models\JobCosting;
 use App\Models\JobCostingLine;
@@ -20,9 +24,11 @@ use App\Models\ShipmentJob;
 use App\Models\ShipmentMilestone;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Models\WorkspaceMembership;
 use App\Models\WorkspaceNotification;
 use App\Services\GoogleSheetsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use jeremykenedy\LaravelRoles\Models\Permission;
 use jeremykenedy\LaravelRoles\Models\Role;
 use Livewire\Livewire;
@@ -215,6 +221,66 @@ class DashboardTest extends TestCase
             ->assertSee('Blue Tide Logistics');
     }
 
+    public function test_workspace_users_can_update_notification_preferences_from_settings(): void
+    {
+        $company = Company::create([
+            'name' => 'Notification Marine',
+            'slug' => 'notification-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Notification Workspace',
+            'slug' => 'notification-workspace',
+            'is_default' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, [
+            'job_title' => 'Sales',
+            'is_owner' => false,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('workspaceId', $workspace->id)
+            ->set('activeTab', 'settings')
+            ->set('settingsTab', 'notifications')
+            ->set('notificationSettingsForm.channels.in_app', false)
+            ->set('notificationSettingsForm.channels.email', true)
+            ->set('notificationSettingsForm.events.assignment', true)
+            ->set('notificationSettingsForm.events.note', false)
+            ->set('notificationSettingsForm.events.message', true)
+            ->call('saveNotificationSettings')
+            ->assertHasNoErrors()
+            ->assertSee('Notification channels');
+
+        $membership = WorkspaceMembership::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('user_id', $user->id)
+            ->firstOrFail();
+
+        $this->assertSame([
+            'channels' => [
+                'in_app' => false,
+                'email' => true,
+            ],
+            'events' => [
+                'assignment' => true,
+                'note' => false,
+                'message' => true,
+            ],
+        ], $membership->notificationPreferences());
+    }
+
     public function test_opportunity_moves_a_contact_into_customers_even_before_closed_won(): void
     {
         $company = Company::create([
@@ -399,6 +465,198 @@ class DashboardTest extends TestCase
             ->call('closeCustomerDetails')
             ->assertSet('selectedCustomerId', null)
             ->assertDontSee('AI Customer Brief');
+    }
+
+    public function test_freight_forwarder_customers_receive_segment_badges_and_can_be_filtered(): void
+    {
+        $company = Company::create([
+            'name' => 'Segment Marine',
+            'slug' => 'segment-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Segment Workspace',
+            'slug' => 'segment-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+
+        $activeAccount = Account::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'name' => 'Fresh Forwarding',
+            'slug' => 'fresh-forwarding',
+            'primary_email' => 'ops@fresh.test',
+            'latest_service' => 'Ocean Freight',
+            'last_activity_at' => now()->subDays(5),
+        ]);
+
+        $churnedAccount = Account::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'name' => 'Dormant Logistics',
+            'slug' => 'dormant-logistics',
+            'primary_email' => 'ops@dormant.test',
+            'latest_service' => 'Air Freight',
+            'last_activity_at' => now()->subDays(220),
+        ]);
+
+        Opportunity::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'account_id' => $activeAccount->id,
+            'external_key' => 'opp-active-segment',
+            'company_name' => 'Fresh Forwarding',
+            'contact_email' => 'ops@fresh.test',
+            'required_service' => 'Ocean Freight',
+            'sales_stage' => Opportunity::STAGE_CLOSED_WON,
+            'submission_date' => now()->subDays(10),
+            'revenue_potential' => 180000,
+        ]);
+
+        Opportunity::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'account_id' => $churnedAccount->id,
+            'external_key' => 'opp-churn-segment',
+            'company_name' => 'Dormant Logistics',
+            'contact_email' => 'ops@dormant.test',
+            'required_service' => 'Air Freight',
+            'sales_stage' => Opportunity::STAGE_CLOSED_WON,
+            'submission_date' => now()->subDays(240),
+            'revenue_potential' => 250000,
+        ]);
+
+        ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'account_id' => $activeAccount->id,
+            'job_number' => 'SJ-ACT-001',
+            'company_name' => 'Fresh Forwarding',
+            'service_mode' => 'Ocean Freight',
+            'origin' => 'Jebel Ali',
+            'destination' => 'Rotterdam',
+            'status' => ShipmentJob::STATUS_IN_TRANSIT,
+            'estimated_departure_at' => now()->subDays(5),
+            'sell_amount' => 32000,
+            'buy_amount' => 25000,
+            'margin_amount' => 7000,
+            'currency' => 'AED',
+        ]);
+
+        foreach (range(1, 6) as $index) {
+            ShipmentJob::create([
+                'company_id' => $company->id,
+                'workspace_id' => $workspace->id,
+                'account_id' => $churnedAccount->id,
+                'job_number' => 'SJ-OLD-00'.$index,
+                'company_name' => 'Dormant Logistics',
+                'service_mode' => 'Air Freight',
+                'origin' => 'DXB',
+                'destination' => 'LHR',
+                'status' => ShipmentJob::STATUS_DELIVERED,
+                'actual_departure_at' => now()->subDays(220 + $index),
+                'actual_arrival_at' => now()->subDays(218 + $index),
+                'sell_amount' => 18000,
+                'buy_amount' => 14000,
+                'margin_amount' => 4000,
+                'currency' => 'AED',
+            ]);
+        }
+
+        $this->actingAs($user);
+
+        $component = Livewire::test(CrmDashboard::class)
+            ->set('workspaceId', $workspace->id)
+            ->set('activeTab', 'customers')
+            ->assertSee('Fresh Forwarding')
+            ->assertSee('Dormant Logistics')
+            ->assertSee('Active Customer')
+            ->assertSee('Late Churned');
+
+        $activeSegmentId = CustomerSegmentDefinition::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('slug', 'active-customer')
+            ->value('id');
+
+        $component
+            ->set('customerSegmentFilter', (string) $activeSegmentId)
+            ->assertSee('Fresh Forwarding')
+            ->assertDontSee('Dormant Logistics');
+    }
+
+    public function test_workspace_owner_can_update_customer_segment_rules_from_settings(): void
+    {
+        $company = Company::create([
+            'name' => 'Segment Settings Marine',
+            'slug' => 'segment-settings-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Segment Settings Workspace',
+            'slug' => 'segment-settings-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('workspaceId', $workspace->id)
+            ->set('activeTab', 'settings')
+            ->set('settingsTab', 'segmentations')
+            ->set('workspaceSettingsForm.segment_definitions.0.name', 'Strategic Account')
+            ->set('workspaceSettingsForm.segment_definitions.0.description', 'High-value freight account')
+            ->set('workspaceSettingsForm.segment_definitions.0.color', 'violet')
+            ->set('workspaceSettingsForm.segment_definitions.0.priority', 120)
+            ->set('workspaceSettingsForm.segment_definitions.0.rules.0.metric_key', 'revenue_365d')
+            ->set('workspaceSettingsForm.segment_definitions.0.rules.0.operator', 'gte')
+            ->set('workspaceSettingsForm.segment_definitions.0.rules.0.threshold_value', '250000')
+            ->call('saveWorkspaceSettings')
+            ->assertHasNoErrors()
+            ->assertSee('Workspace settings updated');
+
+        $this->assertDatabaseHas('customer_segment_definitions', [
+            'workspace_id' => $workspace->id,
+            'name' => 'Strategic Account',
+            'slug' => 'strategic-account',
+            'color' => 'violet',
+            'priority' => 120,
+        ]);
+
+        $segmentId = CustomerSegmentDefinition::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('slug', 'strategic-account')
+            ->value('id');
+
+        $this->assertDatabaseHas('customer_segment_rules', [
+            'segment_definition_id' => $segmentId,
+            'metric_key' => 'revenue_365d',
+            'operator' => 'gte',
+            'threshold_value' => 250000.00,
+        ]);
     }
 
     public function test_workspace_users_can_open_lead_details_from_the_leads_table(): void
@@ -1730,6 +1988,7 @@ class DashboardTest extends TestCase
         Livewire::test(CrmDashboard::class)
             ->assertSee('Settings')
             ->set('activeTab', 'settings')
+            ->set('settingsTab', 'general')
             ->set('workspaceSettingsForm.lead_status_labels.'.Lead::STATUS_IN_PROGRESS, 'Working')
             ->set('workspaceSettingsForm.opportunity_stage_labels.'.Opportunity::STAGE_INITIAL_CONTACT, 'New Deal')
             ->set('workspaceSettingsForm.disqualification_reasons', ['Geo Limits', 'Duplicate Inquiry'])
@@ -2163,7 +2422,9 @@ class DashboardTest extends TestCase
             ->set('activeTab', 'access')
             ->assertSet('activeTab', 'leads')
             ->set('activeTab', 'settings')
-            ->assertSet('activeTab', 'leads');
+            ->assertSet('activeTab', 'settings')
+            ->assertSee('Notification channels')
+            ->assertDontSee('Add workspace user');
 
         Livewire::test(CrmDashboard::class)
             ->set('permissionForm.name', 'Manage Workspace')
@@ -2590,6 +2851,333 @@ class DashboardTest extends TestCase
             'notification_type' => WorkspaceNotification::TYPE_ASSIGNMENT,
             'notable_type' => Quote::class,
             'notable_id' => $quote->id,
+        ]);
+    }
+
+    public function test_notification_preferences_control_in_app_and_email_delivery(): void
+    {
+        Mail::fake();
+
+        $company = Company::create([
+            'name' => 'Delivery Preference Marine',
+            'slug' => 'delivery-preference-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Delivery Preference Workspace',
+            'slug' => 'delivery-preference-workspace',
+            'is_default' => true,
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $owner = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+            'name' => 'Owner User',
+        ]);
+        $owner->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $owner->attachRole($salesRole);
+
+        $teammate = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+            'name' => 'Teammate User',
+            'email' => 'teammate@example.test',
+        ]);
+        $teammate->workspaces()->attach($workspace->id, [
+            'job_title' => 'Sales',
+            'is_owner' => false,
+            'notification_preferences' => [
+                'channels' => [
+                    'in_app' => false,
+                    'email' => true,
+                ],
+                'events' => [
+                    'assignment' => true,
+                    'note' => false,
+                    'message' => false,
+                ],
+            ],
+        ]);
+        $teammate->attachRole($salesRole);
+
+        $lead = Lead::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'assigned_user_id' => $teammate->id,
+            'external_key' => 'lead-delivery-001',
+            'lead_id' => 'LD-DEL-001',
+            'contact_name' => 'Nour Salem',
+            'company_name' => 'Harbor Link',
+            'email' => 'nour@harborlink.test',
+            'service' => 'Ocean Freight',
+            'lead_source' => 'Email',
+            'status' => Lead::STATUS_IN_PROGRESS,
+            'submission_date' => now(),
+        ]);
+
+        $quote = Quote::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'quote_number' => 'QT-DEL-001',
+            'company_name' => 'Harbor Link',
+            'contact_name' => 'Nour Salem',
+            'contact_email' => 'nour@harborlink.test',
+            'service_mode' => 'Ocean Freight',
+            'origin' => 'Jebel Ali',
+            'destination' => 'Hamburg',
+            'currency' => 'AED',
+            'status' => Quote::STATUS_DRAFT,
+            'quoted_at' => now(),
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('workspaceId', $workspace->id)
+            ->set('collaborationForms.lead.type', CollaborationEntry::TYPE_NOTE)
+            ->set('collaborationForms.lead.body', 'Internal note should stay muted for teammate.')
+            ->call('addCollaborationEntry', 'lead', $lead->id)
+            ->call('updateRecordAssignment', 'quote', $quote->id, (string) $teammate->id)
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseMissing('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $teammate->id,
+            'notification_type' => WorkspaceNotification::TYPE_NOTE,
+            'notable_type' => Lead::class,
+            'notable_id' => $lead->id,
+        ]);
+
+        $this->assertDatabaseMissing('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $teammate->id,
+            'notification_type' => WorkspaceNotification::TYPE_ASSIGNMENT,
+            'notable_type' => Quote::class,
+            'notable_id' => $quote->id,
+        ]);
+
+        Mail::assertSent(WorkspaceActivityMail::class, function (WorkspaceActivityMail $mail) use ($teammate): bool {
+            return $mail->hasTo($teammate->email) && str_contains($mail->title, 'Assigned to quote');
+        });
+    }
+
+    public function test_workspace_users_can_collaborate_on_bookings_costings_invoices_contacts_and_customers(): void
+    {
+        $company = Company::create([
+            'name' => 'Extended Collab Marine',
+            'slug' => 'extended-collab-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Extended Collab Workspace',
+            'slug' => 'extended-collab-workspace',
+            'is_default' => true,
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $owner = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+            'name' => 'Owner User',
+        ]);
+        $owner->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $owner->attachRole($salesRole);
+
+        $teammate = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+            'name' => 'Ops Partner',
+        ]);
+        $teammate->workspaces()->attach($workspace->id, ['job_title' => 'Ops', 'is_owner' => false]);
+        $teammate->attachRole($salesRole);
+
+        $customer = Account::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'assigned_user_id' => $teammate->id,
+            'name' => 'Blue Harbor Freight',
+            'slug' => 'blue-harbor-freight',
+            'primary_email' => 'ops@blueharbor.test',
+            'primary_phone' => '971500000100',
+            'latest_service' => 'Ocean Freight',
+            'last_activity_at' => now()->subDays(2),
+        ]);
+
+        $contact = Contact::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'account_id' => $customer->id,
+            'assigned_user_id' => $teammate->id,
+            'full_name' => 'Hana Malik',
+            'email' => 'hana@blueharbor.test',
+            'phone' => '971500000101',
+            'job_title' => 'Procurement Lead',
+            'last_activity_at' => now()->subDay(),
+        ]);
+
+        $booking = Booking::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'account_id' => $customer->id,
+            'contact_id' => $contact->id,
+            'assigned_user_id' => $teammate->id,
+            'booking_number' => 'BK-EXT-001',
+            'customer_name' => $customer->name,
+            'contact_name' => $contact->full_name,
+            'contact_email' => $contact->email,
+            'service_mode' => 'Ocean Freight',
+            'origin' => 'Jebel Ali',
+            'destination' => 'Rotterdam',
+            'status' => Booking::STATUS_CONFIRMED,
+            'requested_etd' => now()->addDays(5),
+        ]);
+
+        $costing = JobCosting::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => null,
+            'assigned_user_id' => $teammate->id,
+            'costing_number' => 'JC-EXT-001',
+            'customer_name' => $customer->name,
+            'service_mode' => 'Ocean Freight',
+            'currency' => 'AED',
+            'status' => JobCosting::STATUS_IN_PROGRESS,
+        ]);
+
+        $invoice = Invoice::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'account_id' => $customer->id,
+            'contact_id' => $contact->id,
+            'booking_id' => $booking->id,
+            'job_costing_id' => $costing->id,
+            'assigned_user_id' => $teammate->id,
+            'invoice_number' => 'INV-EXT-001',
+            'invoice_type' => Invoice::TYPE_ACCOUNTS_RECEIVABLE,
+            'bill_to_name' => $customer->name,
+            'contact_email' => $contact->email,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(14)->toDateString(),
+            'currency' => 'AED',
+            'status' => Invoice::STATUS_SENT,
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('workspaceId', $workspace->id)
+            ->set('collaborationForms.contact.type', CollaborationEntry::TYPE_NOTE)
+            ->set('collaborationForms.contact.body', 'Contact wants a revised sailing update.')
+            ->call('addCollaborationEntry', 'contact', $contact->id)
+            ->set('collaborationForms.customer.type', CollaborationEntry::TYPE_NOTE)
+            ->set('collaborationForms.customer.body', 'Customer asked for a rate review.')
+            ->call('addCollaborationEntry', 'customer', $customer->id)
+            ->set('collaborationForms.booking.type', CollaborationEntry::TYPE_NOTE)
+            ->set('collaborationForms.booking.body', 'Booking confirmed with carrier.')
+            ->call('addCollaborationEntry', 'booking', $booking->id)
+            ->set('collaborationForms.costing.type', CollaborationEntry::TYPE_NOTE)
+            ->set('collaborationForms.costing.body', 'Costing finalized for margin review.')
+            ->call('addCollaborationEntry', 'costing', $costing->id)
+            ->set('collaborationForms.invoice.type', CollaborationEntry::TYPE_NOTE)
+            ->set('collaborationForms.invoice.body', 'Invoice has been shared with the customer.')
+            ->call('addCollaborationEntry', 'invoice', $invoice->id)
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('collaboration_entries', [
+            'workspace_id' => $workspace->id,
+            'notable_type' => Contact::class,
+            'notable_id' => $contact->id,
+            'entry_type' => CollaborationEntry::TYPE_NOTE,
+            'body' => 'Contact wants a revised sailing update.',
+        ]);
+
+        $this->assertDatabaseHas('collaboration_entries', [
+            'workspace_id' => $workspace->id,
+            'notable_type' => Account::class,
+            'notable_id' => $customer->id,
+            'entry_type' => CollaborationEntry::TYPE_NOTE,
+            'body' => 'Customer asked for a rate review.',
+        ]);
+
+        $this->assertDatabaseHas('collaboration_entries', [
+            'workspace_id' => $workspace->id,
+            'notable_type' => Booking::class,
+            'notable_id' => $booking->id,
+            'entry_type' => CollaborationEntry::TYPE_NOTE,
+            'body' => 'Booking confirmed with carrier.',
+        ]);
+
+        $this->assertDatabaseHas('collaboration_entries', [
+            'workspace_id' => $workspace->id,
+            'notable_type' => JobCosting::class,
+            'notable_id' => $costing->id,
+            'entry_type' => CollaborationEntry::TYPE_NOTE,
+            'body' => 'Costing finalized for margin review.',
+        ]);
+
+        $this->assertDatabaseHas('collaboration_entries', [
+            'workspace_id' => $workspace->id,
+            'notable_type' => Invoice::class,
+            'notable_id' => $invoice->id,
+            'entry_type' => CollaborationEntry::TYPE_NOTE,
+            'body' => 'Invoice has been shared with the customer.',
+        ]);
+
+        $this->assertDatabaseHas('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $teammate->id,
+            'notification_type' => WorkspaceNotification::TYPE_NOTE,
+            'notable_type' => Contact::class,
+            'notable_id' => $contact->id,
+        ]);
+
+        $this->assertDatabaseHas('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $teammate->id,
+            'notification_type' => WorkspaceNotification::TYPE_NOTE,
+            'notable_type' => Account::class,
+            'notable_id' => $customer->id,
+        ]);
+
+        $this->assertDatabaseHas('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $teammate->id,
+            'notification_type' => WorkspaceNotification::TYPE_NOTE,
+            'notable_type' => Booking::class,
+            'notable_id' => $booking->id,
+        ]);
+
+        $this->assertDatabaseHas('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $teammate->id,
+            'notification_type' => WorkspaceNotification::TYPE_NOTE,
+            'notable_type' => JobCosting::class,
+            'notable_id' => $costing->id,
+        ]);
+
+        $this->assertDatabaseHas('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $teammate->id,
+            'notification_type' => WorkspaceNotification::TYPE_NOTE,
+            'notable_type' => Invoice::class,
+            'notable_id' => $invoice->id,
         ]);
     }
 }

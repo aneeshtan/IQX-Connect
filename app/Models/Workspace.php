@@ -41,7 +41,8 @@ class Workspace extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'workspace_user')
-            ->withPivot(['job_title', 'is_owner'])
+            ->using(WorkspaceMembership::class)
+            ->withPivot(['job_title', 'is_owner', 'notification_preferences'])
             ->withTimestamps();
     }
 

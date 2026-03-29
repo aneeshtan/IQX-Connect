@@ -110,21 +110,21 @@
                     <h1 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
                         {{ $currentWorkspace ? $currentWorkspace->name.' Dashboard' : 'Workspace Dashboard' }}
                     </h1>
-                    @if ($canViewWorkspaceTools)
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            <button wire:click="$set('activeTab', 'settings')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
-                                Settings
-                            </button>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <button wire:click="$set('activeTab', 'settings')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
+                            Settings
+                        </button>
+                        @if ($canViewSources)
                             <button wire:click="$set('activeTab', 'sources')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
                                 Sources
                             </button>
-                            @if ($canManageAccess)
-                                <button wire:click="$set('activeTab', 'access')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
-                                    User Access
-                                </button>
-                            @endif
-                        </div>
-                    @endif
+                        @endif
+                        @if ($canManageAccess)
+                            <button wire:click="$set('activeTab', 'access')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
+                                User Access
+                            </button>
+                        @endif
+                    </div>
                 </div>
 
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -213,6 +213,7 @@
                         $orderedTabs = collect($tabs);
 
                         $orderedTabs->forget('settings');
+                        $orderedTabs->forget('sources');
 
                         if ($orderedTabs->has('analytics') && $orderedTabs->has('settings')) {
                             $analyticsLabel = $orderedTabs->pull('analytics');
@@ -2089,6 +2090,15 @@
                                             <button wire:click="closeBookingDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
                                         </div>
                                     </form>
+
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'record' => $selectedBooking,
+                                        'recordType' => 'booking',
+                                        'recordLabel' => 'booking',
+                                        'entries' => $selectedBookingCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
                                 </div>
                             </div>
                         </div>
@@ -2286,6 +2296,15 @@
                                             <button wire:click="closeCostingDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
                                         </div>
                                     </form>
+
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'record' => $selectedCosting,
+                                        'recordType' => 'costing',
+                                        'recordLabel' => 'job costing',
+                                        'entries' => $selectedCostingCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
                                 </div>
                             </div>
                         </div>
@@ -2526,6 +2545,15 @@
                                             <button wire:click="closeInvoiceDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Close</button>
                                         </div>
                                     </form>
+
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'record' => $selectedInvoice,
+                                        'recordType' => 'invoice',
+                                        'recordLabel' => 'invoice',
+                                        'entries' => $selectedInvoiceCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
                                 </div>
                             </div>
                         </div>
@@ -2815,6 +2843,15 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'record' => $selectedContact,
+                                        'recordType' => 'contact',
+                                        'recordLabel' => 'contact',
+                                        'entries' => $selectedContactCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
                                 </div>
                             </div>
                         </div>
@@ -2839,13 +2876,19 @@
                             <option value="value_desc">Highest value</option>
                             <option value="value_asc">Lowest value</option>
                         </select>
+                        <select wire:model.live="customerSegmentFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All segments</option>
+                            @foreach ($segmentDefinitions as $segmentDefinition)
+                                <option value="{{ $segmentDefinition->id }}">{{ $segmentDefinition->name }}</option>
+                            @endforeach
+                        </select>
                         <select wire:model.live="customerPerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                             <option value="10">10 rows</option>
                             <option value="12">12 rows</option>
                             <option value="25">25 rows</option>
                             <option value="50">50 rows</option>
                         </select>
-                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500 lg:col-span-4">
                             Customers created from opportunities
                         </div>
                     </div>
@@ -2869,6 +2912,17 @@
                                         <div class="mobile-record-card-label">Customer</div>
                                         <div class="mobile-record-card-value">{{ $customer->name ?: 'Unknown customer' }}</div>
                                         <div class="mt-1 text-xs text-zinc-400">{{ $customer->primary_email ?: 'No customer email' }}</div>
+                                        @if ($customer->segmentAssignments->isNotEmpty())
+                                            <div class="mt-2 flex flex-wrap gap-2">
+                                                @foreach ($customer->segmentAssignments->sortByDesc(fn ($assignment) => $assignment->segmentDefinition?->priority ?? 0)->take(2) as $assignment)
+                                                    @if ($assignment->segmentDefinition)
+                                                        <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset {{ $this->segmentBadgeClasses($assignment->segmentDefinition->color) }}">
+                                                            {{ $assignment->segmentDefinition->name }}
+                                                        </span>
+                                                    @endif
+                                                @endforeach
+                                            </div>
+                                        @endif
                                     </div>
                                     <div class="text-right text-xs text-zinc-500">{{ $customer->last_activity_at?->format('d M Y') ?: '-' }}</div>
                                 </div>
@@ -2918,6 +2972,17 @@
                                         <td class="border-b border-zinc-100 px-4 py-3">
                                             <div class="font-medium text-zinc-900">{{ $customer->name ?: 'Unknown customer' }}</div>
                                             <div class="text-xs text-zinc-400">{{ $customer->primary_email ?: 'No customer email' }}</div>
+                                            @if ($customer->segmentAssignments->isNotEmpty())
+                                                <div class="mt-2 flex flex-wrap gap-2">
+                                                    @foreach ($customer->segmentAssignments->sortByDesc(fn ($assignment) => $assignment->segmentDefinition?->priority ?? 0)->take(2) as $assignment)
+                                                        @if ($assignment->segmentDefinition)
+                                                            <span class="rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset {{ $this->segmentBadgeClasses($assignment->segmentDefinition->color) }}">
+                                                                {{ $assignment->segmentDefinition->name }}
+                                                            </span>
+                                                        @endif
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->contacts->first()?->full_name ?: 'No contact linked' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->latest_service ?: 'Not set' }}</td>
@@ -2951,6 +3016,17 @@
                                     <p class="text-xs uppercase tracking-[0.3em] text-sky-700">AI Customer Brief</p>
                                     <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedCustomer->name ?: 'Unknown customer' }}</h2>
                                     <p class="mt-1 text-sm text-zinc-500">{{ $selectedCustomer->primary_email ?: 'No customer email' }}</p>
+                                    @if ($selectedCustomer->segmentAssignments->isNotEmpty())
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            @foreach ($selectedCustomer->segmentAssignments->sortByDesc(fn ($assignment) => $assignment->segmentDefinition?->priority ?? 0) as $assignment)
+                                                @if ($assignment->segmentDefinition)
+                                                    <span class="rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset {{ $this->segmentBadgeClasses($assignment->segmentDefinition->color) }}">
+                                                        {{ $assignment->segmentDefinition->name }}
+                                                    </span>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </div>
                                 <button
                                     wire:click="closeCustomerDetails"
@@ -2988,6 +3064,49 @@
                                         <div class="text-sm font-semibold text-zinc-950">{{ $customerInsights['headline'] ?? 'No insight yet' }}</div>
                                         <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $customerInsights['summary'] ?? 'Select a customer to view enrichment.' }}</p>
                                     </div>
+
+                                    @if ($selectedCustomer->currentMetricSnapshot)
+                                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                            <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Inquiries 90d</div>
+                                                <div class="mt-2 text-lg font-semibold text-zinc-950">{{ number_format((int) $selectedCustomer->currentMetricSnapshot->inquiries_90d) }}</div>
+                                            </div>
+                                            <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Shipments 90d</div>
+                                                <div class="mt-2 text-lg font-semibold text-zinc-950">{{ number_format((int) $selectedCustomer->currentMetricSnapshot->shipments_90d) }}</div>
+                                            </div>
+                                            <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Revenue 365d</div>
+                                                <div class="mt-2 text-lg font-semibold text-zinc-950">AED {{ number_format((float) $selectedCustomer->currentMetricSnapshot->revenue_365d, 0) }}</div>
+                                            </div>
+                                            <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Days Since Last Shipment</div>
+                                                <div class="mt-2 text-lg font-semibold text-zinc-950">{{ $selectedCustomer->currentMetricSnapshot->days_since_last_shipment ?? 'N/A' }}</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Segmentation behavior</div>
+                                            <div class="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                                <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Last Inquiry</div>
+                                                    <div class="mt-2 font-medium text-zinc-900">{{ $selectedCustomer->currentMetricSnapshot->last_inquiry_at?->format('d M Y') ?: 'Unknown' }}</div>
+                                                </div>
+                                                <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Last Quote</div>
+                                                    <div class="mt-2 font-medium text-zinc-900">{{ $selectedCustomer->currentMetricSnapshot->last_quote_at?->format('d M Y') ?: 'Unknown' }}</div>
+                                                </div>
+                                                <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Last Shipment</div>
+                                                    <div class="mt-2 font-medium text-zinc-900">{{ $selectedCustomer->currentMetricSnapshot->last_shipment_at?->format('d M Y') ?: 'Unknown' }}</div>
+                                                </div>
+                                                <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Lifetime Shipments</div>
+                                                    <div class="mt-2 font-medium text-zinc-900">{{ number_format((int) $selectedCustomer->currentMetricSnapshot->lifetime_shipments) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
 
                                     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                         <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
@@ -3105,6 +3224,15 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'record' => $selectedCustomer,
+                                        'recordType' => 'customer',
+                                        'recordLabel' => 'customer',
+                                        'entries' => $selectedCustomerCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
                                 </div>
                             </div>
                         </div>
@@ -3112,7 +3240,7 @@
                 @endif
             @endif
 
-            @if ($activeTab === 'sources')
+            @if ($activeTab === 'sources' && $canViewSources)
                 <div class="space-y-6 p-4">
                     <div class="ios-tab-strip">
                         <button
@@ -3956,29 +4084,35 @@
                 </div>
             @endif
 
-            @if ($activeTab === 'settings' && $canViewWorkspaceTools)
+            @if ($activeTab === 'settings')
+                @php
+                    $currentSettingsTab = $canManageAccess ? ($settingsTab ?? 'general') : 'notifications';
+                @endphp
                 <div class="space-y-6 p-4">
                     <div class="ios-tab-strip">
+                        @if ($canManageAccess)
+                            <button
+                                type="button"
+                                wire:click="setSettingsTab('general')"
+                                class="ios-tab-pill {{ $currentSettingsTab === 'general' ? 'ios-tab-pill-active' : '' }}"
+                            >
+                                General
+                            </button>
+                        @endif
                         <button
                             type="button"
-                            class="ios-tab-pill ios-tab-pill-active"
+                            wire:click="setSettingsTab('notifications')"
+                            class="ios-tab-pill {{ $currentSettingsTab === 'notifications' ? 'ios-tab-pill-active' : '' }}"
                         >
-                            Workspace Settings
-                        </button>
-                        <button
-                            wire:click="$set('activeTab', 'sources')"
-                            type="button"
-                            class="ios-tab-pill"
-                        >
-                            Sources
+                            Notifications
                         </button>
                         @if ($canManageAccess)
                             <button
-                                wire:click="$set('activeTab', 'access')"
                                 type="button"
-                                class="ios-tab-pill"
+                                wire:click="setSettingsTab('segmentations')"
+                                class="ios-tab-pill {{ $currentSettingsTab === 'segmentations' ? 'ios-tab-pill-active' : '' }}"
                             >
-                                User Access
+                                Segmentations
                             </button>
                         @endif
                     </div>
@@ -3986,132 +4120,256 @@
                     <div class="flex flex-col gap-2">
                         <p class="text-xs font-medium uppercase tracking-[0.25em] text-zinc-400">Settings</p>
                         <h2 class="text-lg font-semibold text-zinc-950">Workspace settings</h2>
-                        <p class="text-sm text-zinc-500">Edit the CRM vocabulary for {{ $currentWorkspace->name }}. Status and stage logic stays stable internally, while labels and picklists remain workspace-specific.</p>
+                        <p class="text-sm text-zinc-500">
+                            Workspace owners manage shared CRM behavior. Everyone can manage personal notification preferences here.
+                        </p>
                     </div>
 
-                    @if (! $canManageAccess)
+                    @if ($currentSettingsTab === 'notifications')
+                        <form wire:submit="saveNotificationSettings" class="grid gap-4 xl:grid-cols-2">
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                                <h3 class="text-base font-semibold text-zinc-950">Notification channels</h3>
+                                <p class="mt-1 text-sm text-zinc-500">Choose how this workspace should notify you.</p>
+                                <div class="mt-4 space-y-3">
+                                    <label class="flex items-start justify-between gap-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50/60 px-4 py-4">
+                                        <div>
+                                            <div class="text-sm font-semibold text-zinc-950">In-app feed</div>
+                                            <div class="mt-1 text-sm text-zinc-500">Show notifications in the workspace notification drawer.</div>
+                                        </div>
+                                        <input wire:model="notificationSettingsForm.channels.in_app" type="checkbox" class="mt-1 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900" />
+                                    </label>
+                                    <label class="flex items-start justify-between gap-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50/60 px-4 py-4">
+                                        <div>
+                                            <div class="text-sm font-semibold text-zinc-950">Email alerts</div>
+                                            <div class="mt-1 text-sm text-zinc-500">Send email notifications to {{ auth()->user()->email }} when enabled events happen.</div>
+                                        </div>
+                                        <input wire:model="notificationSettingsForm.channels.email" type="checkbox" class="mt-1 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900" />
+                                    </label>
+                                </div>
+                            </section>
+
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                                <h3 class="text-base font-semibold text-zinc-950">Notification items</h3>
+                                <p class="mt-1 text-sm text-zinc-500">Enable only the workspace events you want to receive.</p>
+                                <div class="mt-4 space-y-3">
+                                    <label class="flex items-start justify-between gap-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50/60 px-4 py-4">
+                                        <div>
+                                            <div class="text-sm font-semibold text-zinc-950">Assignments</div>
+                                            <div class="mt-1 text-sm text-zinc-500">When a record is assigned to you.</div>
+                                        </div>
+                                        <input wire:model="notificationSettingsForm.events.assignment" type="checkbox" class="mt-1 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900" />
+                                    </label>
+                                    <label class="flex items-start justify-between gap-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50/60 px-4 py-4">
+                                        <div>
+                                            <div class="text-sm font-semibold text-zinc-950">Internal notes</div>
+                                            <div class="mt-1 text-sm text-zinc-500">When teammates add notes on records assigned to you or sent directly to you.</div>
+                                        </div>
+                                        <input wire:model="notificationSettingsForm.events.note" type="checkbox" class="mt-1 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900" />
+                                    </label>
+                                    <label class="flex items-start justify-between gap-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50/60 px-4 py-4">
+                                        <div>
+                                            <div class="text-sm font-semibold text-zinc-950">Direct messages</div>
+                                            <div class="mt-1 text-sm text-zinc-500">When a teammate sends you a record-level message.</div>
+                                        </div>
+                                        <input wire:model="notificationSettingsForm.events.message" type="checkbox" class="mt-1 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900" />
+                                    </label>
+                                </div>
+                            </section>
+
+                            <div class="xl:col-span-2">
+                                <button type="submit" class="rounded-xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                                    Save Notification Preferences
+                                </button>
+                            </div>
+                        </form>
+
                         <section class="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5">
-                            <h3 class="text-base font-semibold text-amber-900">Owner access required</h3>
+                            <h3 class="text-base font-semibold text-amber-900">Workspace settings are owner-led</h3>
                             <p class="mt-2 text-sm leading-7 text-amber-800">
-                                Only the workspace owner can change workspace mode, labels, and CRM settings. You can still use the Sources section from this workspace tools area.
+                                Only the workspace owner can change workspace mode, labels, and customer segmentation rules. Your notification preferences above are personal.
                             </p>
                         </section>
-                    @endif
+                    @elseif ($currentSettingsTab === 'segmentations' && $canManageAccess)
+                        <form wire:submit="saveWorkspaceSettings" class="grid gap-4 xl:grid-cols-2">
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 xl:col-span-2">
+                                <div class="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-zinc-950">Customer segmentation</h3>
+                                        <p class="mt-1 text-sm text-zinc-500">Define customer behavior segments using inquiries, shipments, revenue, and recency metrics.</p>
+                                    </div>
+                                    <button wire:click="addWorkspaceSegmentDefinition" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add Segment</button>
+                                </div>
 
-                    @if ($canManageAccess)
-                    <form wire:submit="saveWorkspaceSettings" class="grid gap-4 xl:grid-cols-2">
-                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 xl:col-span-2">
-                            <h3 class="text-base font-semibold text-zinc-950">Workspace mode</h3>
-                            <p class="mt-1 text-sm text-zinc-500">Choose the maritime business mode for this workspace. Changing the mode applies that template’s default labels, modules, and workflow wording.</p>
-                            <div class="mt-4 grid gap-4 xl:grid-cols-[320px_1fr]">
-                                <div class="space-y-3">
-                                    <select wire:model.live="workspaceSettingsForm.template_key" class="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
-                                        @foreach ($workspaceTemplates as $templateKey => $template)
-                                            <option value="{{ $templateKey }}">{{ $template['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                    <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
-                                        <div class="text-sm font-semibold text-zinc-950">{{ data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.name') }}</div>
-                                        <p class="mt-2 text-sm leading-7 text-zinc-600">{{ data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.description') }}</p>
+                                <div class="mt-4 space-y-4">
+                                    @foreach ($workspaceSettingsForm['segment_definitions'] as $segmentIndex => $segmentDefinition)
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-zinc-50/70 p-4">
+                                            <div class="grid gap-3 xl:grid-cols-[1.4fr_1fr_120px_120px_auto]">
+                                                <input wire:model="workspaceSettingsForm.segment_definitions.{{ $segmentIndex }}.name" type="text" placeholder="Segment name" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                <select wire:model="workspaceSettingsForm.segment_definitions.{{ $segmentIndex }}.color" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                                    @foreach ($segmentColorOptions as $color)
+                                                        <option value="{{ $color }}">{{ str($color)->title() }}</option>
+                                                    @endforeach
+                                                </select>
+                                                <input wire:model="workspaceSettingsForm.segment_definitions.{{ $segmentIndex }}.priority" type="number" min="0" max="999" placeholder="Priority" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                <label class="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700">
+                                                    <input wire:model="workspaceSettingsForm.segment_definitions.{{ $segmentIndex }}.is_active" type="checkbox" class="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900" />
+                                                    Active
+                                                </label>
+                                                <button wire:click="removeWorkspaceSegmentDefinition({{ $segmentIndex }})" type="button" class="rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
+                                            </div>
+
+                                            <textarea wire:model="workspaceSettingsForm.segment_definitions.{{ $segmentIndex }}.description" rows="2" placeholder="Short description for workspace users" class="mt-3 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none"></textarea>
+
+                                            <div class="mt-4 rounded-[1rem] border border-zinc-200 bg-white p-4">
+                                                <div class="flex items-center justify-between gap-3">
+                                                    <div class="text-sm font-semibold text-zinc-950">Rules</div>
+                                                    <button wire:click="addWorkspaceSegmentRule({{ $segmentIndex }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add Rule</button>
+                                                </div>
+
+                                                <div class="mt-3 space-y-3">
+                                                    @foreach ($segmentDefinition['rules'] as $ruleIndex => $rule)
+                                                        <div class="grid gap-3 xl:grid-cols-[1.4fr_160px_160px_auto]">
+                                                            <select wire:model="workspaceSettingsForm.segment_definitions.{{ $segmentIndex }}.rules.{{ $ruleIndex }}.metric_key" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                                @foreach ($segmentMetricCatalog as $metricKey => $metricLabel)
+                                                                    <option value="{{ $metricKey }}">{{ $metricLabel }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <select wire:model="workspaceSettingsForm.segment_definitions.{{ $segmentIndex }}.rules.{{ $ruleIndex }}.operator" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                                @foreach ($segmentOperatorCatalog as $operatorKey => $operatorLabel)
+                                                                    <option value="{{ $operatorKey }}">{{ $operatorLabel }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <input wire:model="workspaceSettingsForm.segment_definitions.{{ $segmentIndex }}.rules.{{ $ruleIndex }}.threshold_value" type="number" step="0.01" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                            <button wire:click="removeWorkspaceSegmentRule({{ $segmentIndex }}, {{ $ruleIndex }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-3 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </section>
+
+                            <div class="xl:col-span-2">
+                                <button type="submit" class="rounded-xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                                    Save Segmentation Rules
+                                </button>
+                            </div>
+                        </form>
+                    @else
+                        <form wire:submit="saveWorkspaceSettings" class="grid gap-4 xl:grid-cols-2">
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 xl:col-span-2">
+                                <h3 class="text-base font-semibold text-zinc-950">Workspace mode</h3>
+                                <p class="mt-1 text-sm text-zinc-500">Choose the maritime business mode for this workspace. Changing the mode applies that template’s default labels, modules, and workflow wording.</p>
+                                <div class="mt-4 grid gap-4 xl:grid-cols-[320px_1fr]">
+                                    <div class="space-y-3">
+                                        <select wire:model.live="workspaceSettingsForm.template_key" class="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            @foreach ($workspaceTemplates as $templateKey => $template)
+                                                <option value="{{ $templateKey }}">{{ $template['name'] }}</option>
+                                            @endforeach
+                                        </select>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">{{ data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.name') }}</div>
+                                            <p class="mt-2 text-sm leading-7 text-zinc-600">{{ data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.description') }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                                        <div class="text-sm font-semibold text-zinc-950">Activated modules</div>
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            @foreach (data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.modules', []) as $module)
+                                                <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700">{{ str($module)->replace('_', ' ')->title() }}</span>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
-                                    <div class="text-sm font-semibold text-zinc-950">Activated modules</div>
-                                    <div class="mt-3 flex flex-wrap gap-2">
-                                        @foreach (data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.modules', []) as $module)
-                                            <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700">{{ str($module)->replace('_', ' ')->title() }}</span>
-                                        @endforeach
-                                    </div>
+                            </section>
+
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                                <h3 class="text-base font-semibold text-zinc-950">Lead status labels</h3>
+                                <p class="mt-1 text-sm text-zinc-500">These labels are shown across the lead workflow.</p>
+                                <div class="mt-4 space-y-3">
+                                    @foreach ($workspaceSettingsForm['lead_status_labels'] as $statusKey => $label)
+                                        <div class="grid gap-2 md:grid-cols-[180px_1fr]">
+                                            <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-600">{{ $statusKey }}</div>
+                                            <input wire:model="workspaceSettingsForm.lead_status_labels.{{ $statusKey }}" type="text" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        </div>
+                                    @endforeach
                                 </div>
-                            </div>
-                        </section>
+                            </section>
 
-                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
-                            <h3 class="text-base font-semibold text-zinc-950">Lead status labels</h3>
-                            <p class="mt-1 text-sm text-zinc-500">These labels are shown across the lead workflow.</p>
-                            <div class="mt-4 space-y-3">
-                                @foreach ($workspaceSettingsForm['lead_status_labels'] as $statusKey => $label)
-                                    <div class="grid gap-2 md:grid-cols-[180px_1fr]">
-                                        <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-600">{{ $statusKey }}</div>
-                                        <input wire:model="workspaceSettingsForm.lead_status_labels.{{ $statusKey }}" type="text" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                    </div>
-                                @endforeach
-                            </div>
-                        </section>
-
-                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
-                            <h3 class="text-base font-semibold text-zinc-950">Opportunity stage labels</h3>
-                            <p class="mt-1 text-sm text-zinc-500">These labels are shown across the opportunity workflow.</p>
-                            <div class="mt-4 space-y-3">
-                                @foreach ($workspaceSettingsForm['opportunity_stage_labels'] as $stageKey => $label)
-                                    <div class="grid gap-2 md:grid-cols-[180px_1fr]">
-                                        <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-600">{{ $stageKey }}</div>
-                                        <input wire:model="workspaceSettingsForm.opportunity_stage_labels.{{ $stageKey }}" type="text" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                    </div>
-                                @endforeach
-                            </div>
-                        </section>
-
-                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
-                            <div class="flex items-center justify-between gap-3">
-                                <div>
-                                    <h3 class="text-base font-semibold text-zinc-950">Disqualification reasons</h3>
-                                    <p class="mt-1 text-sm text-zinc-500">Used in the inline lead disqualification selector.</p>
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                                <h3 class="text-base font-semibold text-zinc-950">Opportunity stage labels</h3>
+                                <p class="mt-1 text-sm text-zinc-500">These labels are shown across the opportunity workflow.</p>
+                                <div class="mt-4 space-y-3">
+                                    @foreach ($workspaceSettingsForm['opportunity_stage_labels'] as $stageKey => $label)
+                                        <div class="grid gap-2 md:grid-cols-[180px_1fr]">
+                                            <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-600">{{ $stageKey }}</div>
+                                            <input wire:model="workspaceSettingsForm.opportunity_stage_labels.{{ $stageKey }}" type="text" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        </div>
+                                    @endforeach
                                 </div>
-                                <button wire:click="addWorkspaceSettingItem('disqualification_reasons')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
-                            </div>
-                            <div class="mt-4 space-y-3">
-                                @foreach ($workspaceSettingsForm['disqualification_reasons'] as $index => $value)
-                                    <div class="flex gap-2">
-                                        <input wire:model="workspaceSettingsForm.disqualification_reasons.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                        <button wire:click="removeWorkspaceSettingItem('disqualification_reasons', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </section>
+                            </section>
 
-                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
-                            <div class="flex items-center justify-between gap-3">
-                                <div>
-                                    <h3 class="text-base font-semibold text-zinc-950">Lead sources</h3>
-                                    <p class="mt-1 text-sm text-zinc-500">Used as suggestions in lead and opportunity forms.</p>
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-zinc-950">Disqualification reasons</h3>
+                                        <p class="mt-1 text-sm text-zinc-500">Used in the inline lead disqualification selector.</p>
+                                    </div>
+                                    <button wire:click="addWorkspaceSettingItem('disqualification_reasons')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
                                 </div>
-                                <button wire:click="addWorkspaceSettingItem('lead_sources')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
-                            </div>
-                            <div class="mt-4 space-y-3">
-                                @foreach ($workspaceSettingsForm['lead_sources'] as $index => $value)
-                                    <div class="flex gap-2">
-                                        <input wire:model="workspaceSettingsForm.lead_sources.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                        <button wire:click="removeWorkspaceSettingItem('lead_sources', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </section>
-
-                        <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 xl:col-span-2">
-                            <div class="flex items-center justify-between gap-3">
-                                <div>
-                                    <h3 class="text-base font-semibold text-zinc-950">Lead services</h3>
-                                    <p class="mt-1 text-sm text-zinc-500">Used as suggestions in lead and opportunity forms.</p>
+                                <div class="mt-4 space-y-3">
+                                    @foreach ($workspaceSettingsForm['disqualification_reasons'] as $index => $value)
+                                        <div class="flex gap-2">
+                                            <input wire:model="workspaceSettingsForm.disqualification_reasons.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                            <button wire:click="removeWorkspaceSettingItem('disqualification_reasons', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
+                                        </div>
+                                    @endforeach
                                 </div>
-                                <button wire:click="addWorkspaceSettingItem('lead_services')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
-                            </div>
-                            <div class="mt-4 grid gap-3 md:grid-cols-2">
-                                @foreach ($workspaceSettingsForm['lead_services'] as $index => $value)
-                                    <div class="flex gap-2">
-                                        <input wire:model="workspaceSettingsForm.lead_services.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                        <button wire:click="removeWorkspaceSettingItem('lead_services', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
-                                    </div>
-                                @endforeach
-                            </div>
-                        </section>
+                            </section>
 
-                        <div class="xl:col-span-2">
-                            <button type="submit" class="rounded-xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
-                                Save Workspace Settings
-                            </button>
-                        </div>
-                    </form>
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-zinc-950">Lead sources</h3>
+                                        <p class="mt-1 text-sm text-zinc-500">Used as suggestions in lead and opportunity forms.</p>
+                                    </div>
+                                    <button wire:click="addWorkspaceSettingItem('lead_sources')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
+                                </div>
+                                <div class="mt-4 space-y-3">
+                                    @foreach ($workspaceSettingsForm['lead_sources'] as $index => $value)
+                                        <div class="flex gap-2">
+                                            <input wire:model="workspaceSettingsForm.lead_sources.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                            <button wire:click="removeWorkspaceSettingItem('lead_sources', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </section>
+
+                            <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 xl:col-span-2">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-base font-semibold text-zinc-950">Lead services</h3>
+                                        <p class="mt-1 text-sm text-zinc-500">Used as suggestions in lead and opportunity forms.</p>
+                                    </div>
+                                    <button wire:click="addWorkspaceSettingItem('lead_services')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add</button>
+                                </div>
+                                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                                    @foreach ($workspaceSettingsForm['lead_services'] as $index => $value)
+                                        <div class="flex gap-2">
+                                            <input wire:model="workspaceSettingsForm.lead_services.{{ $index }}" type="text" class="flex-1 rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                            <button wire:click="removeWorkspaceSettingItem('lead_services', {{ $index }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">Remove</button>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </section>
+
+                            <div class="xl:col-span-2">
+                                <button type="submit" class="rounded-xl bg-zinc-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                                    Save Workspace Settings
+                                </button>
+                            </div>
+                        </form>
                     @endif
                 </div>
             @endif

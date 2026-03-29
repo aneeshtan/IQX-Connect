@@ -17,5 +17,8 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('IQX Connect')
             ->assertSee('Try For Free');
+
+        $response->assertSee('Product Features');
+        $response->assertSee('Product Benefits');
     }
 }

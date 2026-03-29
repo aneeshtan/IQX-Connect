@@ -21,6 +21,9 @@
                     <nav class="flex flex-wrap items-center gap-3 text-sm">
                         <a href="#features" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Features</a>
                         <a href="#reporting" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Reporting</a>
+                        <a href="{{ route('presentation') }}" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Presentation</a>
+                        <a href="{{ route('product') }}" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Product Guide</a>
+                        <a href="{{ asset('marketing/IQX-Connect-Marketing-Presentation.pdf') }}" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950" target="_blank" rel="noreferrer">Download PDF</a>
                         <a href="{{ route('login') }}" class="rounded-full border border-zinc-200 px-4 py-2 font-medium text-zinc-700 transition hover:bg-zinc-50">Log In</a>
                         <a href="{{ route('register') }}" class="rounded-full bg-zinc-950 px-5 py-2 font-medium text-white transition hover:bg-zinc-800">Try For Free</a>
                     </nav>
@@ -48,21 +51,30 @@
                             <a href="{{ route('login') }}" class="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-6 py-4 text-base font-medium text-zinc-700 transition hover:bg-zinc-50">
                                 See The CRM
                             </a>
+                            <a href="{{ route('presentation') }}" class="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-6 py-4 text-base font-medium text-sky-800 transition hover:bg-sky-100">
+                                Open Presentation
+                            </a>
+                            <a href="{{ asset('marketing/IQX-Connect-Marketing-Presentation.pdf') }}" target="_blank" rel="noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-6 py-4 text-base font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                Download PDF
+                            </a>
+                            <a href="{{ route('product') }}" class="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 text-base font-medium text-emerald-800 transition hover:bg-emerald-100">
+                                Read Product Guide
+                            </a>
                         </div>
 
                         <div class="grid gap-4 sm:grid-cols-3">
+                            <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
+                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Product Features</div>
+                                <div class="mt-3 text-2xl font-semibold text-zinc-950">Lead To Job</div>
+                                <p class="mt-2 text-sm text-zinc-500">Move from lead to opportunity, quote, booking, shipment, costing, and invoice inside one connected workflow.</p>
+                            </article>
                             <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
                                 <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Workspace Modes</div>
                                 <div class="mt-3 text-2xl font-semibold text-zinc-950">7</div>
                                 <p class="mt-2 text-sm text-zinc-500">Freight forwarding, ship chandling, container conversion, liner, ship management, leasing, and general maritime.</p>
                             </article>
                             <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Freight Flow</div>
-                                <div class="mt-3 text-2xl font-semibold text-zinc-950">Lead To Job</div>
-                                <p class="mt-2 text-sm text-zinc-500">Move from lead to opportunity, quote, booking, shipment, costing, and invoice inside one connected workflow.</p>
-                            </article>
-                            <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Visibility</div>
+                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Business Benefits</div>
                                 <div class="mt-3 text-2xl font-semibold text-zinc-950">Live</div>
                                 <p class="mt-2 text-sm text-zinc-500">Track pipeline, shipment activity, booking-linked invoices, and margin signals from one mobile-friendly dashboard.</p>
                             </article>
@@ -87,6 +99,44 @@
                         </div>
                     </section>
                 </main>
+
+                <section class="mt-24 grid gap-6 lg:grid-cols-[1fr_1fr]">
+                    <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+                        <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Product Features</div>
+                        <h2 class="mt-5 text-3xl font-semibold tracking-tight">Everything maritime teams need to work from one simple surface.</h2>
+                        <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                            @foreach ([
+                                ['title' => 'CRM And Pipeline', 'desc' => 'Leads, opportunities, contacts, customers, notes, assignments, and messages.'],
+                                ['title' => 'Quotes And Rates', 'desc' => 'Lane-based freight quoting, carrier rates, revisions, and auto-fill from sources.'],
+                                ['title' => 'Shipment Jobs', 'desc' => 'Bookings, milestones, documents, shipment tracking, and operational timelines.'],
+                                ['title' => 'Job Finance', 'desc' => 'Costing, AP/AR posting, invoice lines, and booking-linked billing.'],
+                            ] as $card)
+                                <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                    <div class="text-sm font-semibold text-zinc-950">{{ $card['title'] }}</div>
+                                    <p class="mt-2 text-sm leading-6 text-zinc-500">{{ $card['desc'] }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </article>
+
+                    <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+                        <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Product Benefits</div>
+                        <h2 class="mt-5 text-3xl font-semibold tracking-tight">Benefits that help the team move faster and manage better.</h2>
+                        <div class="mt-6 space-y-4">
+                            @foreach ([
+                                ['title' => 'Faster qualification', 'desc' => 'Your team can see which leads are worth pursuing and which ones should be disqualified early.'],
+                                ['title' => 'Cleaner handoffs', 'desc' => 'Sales, operations, and finance all work off the same customer and shipment record.'],
+                                ['title' => 'Better customer memory', 'desc' => 'Account history, notes, and linked work stay visible across every deal.'],
+                                ['title' => 'Decision-ready reporting', 'desc' => 'Managers can read revenue, margin, funnel, and customer health from one dashboard.'],
+                            ] as $benefit)
+                                <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                    <div class="text-sm font-semibold text-zinc-950">{{ $benefit['title'] }}</div>
+                                    <p class="mt-2 text-sm leading-6 text-zinc-500">{{ $benefit['desc'] }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </article>
+                </section>
 
                 <section id="features" class="mt-24 grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
                     <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
@@ -146,7 +196,7 @@
                         </div>
                     </article>
                 </section>
-
+                
                 <section class="mt-24 grid gap-6 lg:grid-cols-3">
                     <article class="rounded-[1.9rem] border border-zinc-200 bg-white p-6 shadow-sm">
                         <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Live Integrations</div>

@@ -12,6 +12,7 @@ class Contact extends Model
         'company_id',
         'workspace_id',
         'account_id',
+        'assigned_user_id',
         'full_name',
         'email',
         'phone',
@@ -40,6 +41,11 @@ class Contact extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(Account::class);
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
     }
 
     public function leads(): HasMany

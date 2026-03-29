@@ -76,7 +76,8 @@ class User extends Authenticatable implements HasRoleAndPermissionContract // im
     public function workspaces(): BelongsToMany
     {
         return $this->belongsToMany(Workspace::class, 'workspace_user')
-            ->withPivot(['job_title', 'is_owner'])
+            ->using(WorkspaceMembership::class)
+            ->withPivot(['job_title', 'is_owner', 'notification_preferences'])
             ->withTimestamps();
     }
 

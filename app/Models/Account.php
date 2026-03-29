@@ -12,6 +12,7 @@ class Account extends Model
     protected $fillable = [
         'company_id',
         'workspace_id',
+        'assigned_user_id',
         'name',
         'slug',
         'primary_email',
@@ -36,6 +37,11 @@ class Account extends Model
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
     }
 
     public function contacts(): HasMany

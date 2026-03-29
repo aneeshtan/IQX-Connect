@@ -27,6 +27,7 @@
                             'opportunities' => 'Opportunities',
                             'contacts' => 'Contacts',
                             'customers' => 'Customers',
+                            'analytics' => 'Analytics',
                         ];
 
                         foreach ($sidebarWorkspace->templateModules() as $module) {
@@ -35,12 +36,13 @@
                             }
                         }
 
-                        $sidebarWorkspaceTabs['analytics'] = 'Analytics';
-
                         $sidebarWorkspaceTools = [
                             'settings' => 'Settings',
-                            'sources' => 'Sources',
                         ];
+
+                        if ($sidebarUser->isAdmin() || $sidebarUser->ownsWorkspace($sidebarWorkspace->id) || $sidebarUser->hasRole('manager')) {
+                            $sidebarWorkspaceTools['sources'] = 'Sources';
+                        }
 
                         if ($sidebarUser->isAdmin() || $sidebarUser->ownsWorkspace($sidebarWorkspace->id)) {
                             $sidebarWorkspaceTools['access'] = 'User Access';
@@ -56,6 +58,7 @@
             <flux:navlist variant="outline">
                 <flux:navlist.group heading="Platform" class="grid">
                     <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard') && ! request()->has('tab')" wire:navigate>Home</flux:navlist.item>
+                    <flux:navlist.item icon="book-open" :href="route('documentation')" :current="request()->routeIs('documentation')" wire:navigate>Product Guide</flux:navlist.item>
                 </flux:navlist.group>
             </flux:navlist>
 

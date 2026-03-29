@@ -25,9 +25,10 @@ use App\Models\ShipmentJob;
 use App\Models\ShipmentMilestone;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Models\WorkspaceMembership;
 use App\Models\WorkspaceNotification;
-use App\Services\GoogleSheetsService;
 use App\Services\CustomerSegmentationService;
+use App\Services\GoogleSheetsService;
 use App\Services\LeadScoringService;
 use App\Services\SheetSourceSyncService;
 use App\Services\WorkspaceCollaborationService;
@@ -79,6 +80,8 @@ class CrmDashboard extends Component
 
     public ?int $selectedInvoiceId = null;
 
+    public array $selectedCollaborationCollections = [];
+
     public ?int $editingOpportunityId = null;
 
     public ?int $editingQuoteId = null;
@@ -98,6 +101,8 @@ class CrmDashboard extends Component
     public ?int $pendingDisqualificationLeadId = null;
 
     public string $activeTab = 'leads';
+
+    public string $settingsTab = 'general';
 
     public bool $showNotifications = false;
 
@@ -201,6 +206,8 @@ class CrmDashboard extends Component
 
     public array $workspaceSettingsForm = [];
 
+    public array $notificationSettingsForm = [];
+
     public array $sourceForm = [];
 
     public array $editingSourceForm = [];
@@ -287,6 +294,7 @@ class CrmDashboard extends Component
         $this->pendingDisqualificationLeadId = null;
         $this->selectedContactId = null;
         $this->selectedCustomerId = null;
+        $this->customerSegmentFilter = '';
         $this->selectedRateId = null;
         $this->selectedOpportunityId = null;
         $this->selectedQuoteId = null;
@@ -341,6 +349,12 @@ class CrmDashboard extends Component
     }
 
     public function updatedCustomerSearch(): void
+    {
+        $this->resetPage('customersPage');
+        $this->selectedCustomerId = null;
+    }
+
+    public function updatedCustomerSegmentFilter(): void
     {
         $this->resetPage('customersPage');
         $this->selectedCustomerId = null;
@@ -1086,6 +1100,21 @@ class CrmDashboard extends Component
         }
     }
 
+    public function setSettingsTab(string $tab): void
+    {
+        $allowedTabs = ['notifications'];
+
+        if ($this->currentWorkspace() && $this->canManageWorkspaceAccess($this->currentWorkspace())) {
+            $allowedTabs = ['general', 'notifications', 'segmentations'];
+        }
+
+        if (! in_array($tab, $allowedTabs, true)) {
+            return;
+        }
+
+        $this->settingsTab = $tab;
+    }
+
     public function openTemplateModule(string $module): void
     {
         $workspace = $this->currentWorkspace();
@@ -1097,6 +1126,7 @@ class CrmDashboard extends Component
         $allowedTabs = array_keys($this->availableTabsForWorkspace(
             $workspace,
             $this->canManageWorkspaceAccess($workspace),
+            true,
             $this->canManageWorkspaceAccess($workspace) || auth()->user()->hasRole(['admin', 'manager']),
         ));
 
@@ -1205,6 +1235,7 @@ class CrmDashboard extends Component
             'disqualification_reasons' => Workspace::defaultDisqualificationReasons($value),
             'lead_sources' => Workspace::defaultLeadSources($value),
             'lead_services' => Workspace::defaultLeadServices($value),
+            'segment_definitions' => $this->defaultSegmentDefinitionsForTemplate($value),
         ];
     }
 
@@ -1498,6 +1529,16 @@ class CrmDashboard extends Component
             'lead_sources.*' => ['required', 'string', 'max:255'],
             'lead_services' => ['required', 'array', 'min:1'],
             'lead_services.*' => ['required', 'string', 'max:255'],
+            'segment_definitions' => ['required', 'array', 'min:1'],
+            'segment_definitions.*.name' => ['required', 'string', 'max:255'],
+            'segment_definitions.*.description' => ['nullable', 'string', 'max:1000'],
+            'segment_definitions.*.color' => ['required', Rule::in(CustomerSegmentDefinition::COLORS)],
+            'segment_definitions.*.priority' => ['required', 'integer', 'between:0,999'],
+            'segment_definitions.*.is_active' => ['nullable', 'boolean'],
+            'segment_definitions.*.rules' => ['required', 'array', 'min:1'],
+            'segment_definitions.*.rules.*.metric_key' => ['required', Rule::in(array_keys(CustomerSegmentationService::metricCatalog()))],
+            'segment_definitions.*.rules.*.operator' => ['required', Rule::in(array_keys(CustomerSegmentationService::operatorCatalog()))],
+            'segment_definitions.*.rules.*.threshold_value' => ['required', 'numeric'],
         ])->validate();
 
         $currentTemplateKey = $workspace->templateKey();
@@ -1525,10 +1566,67 @@ class CrmDashboard extends Component
             ]);
         }
 
-        $workspace->forceFill(['settings' => $settings])->save();
+        $segmentDefinitions = $this->normalizeSegmentDefinitions($validated['segment_definitions']);
+
+        DB::transaction(function () use ($workspace, $settings, $segmentDefinitions) {
+            $workspace->forceFill(['settings' => $settings])->save();
+
+            $workspace->segmentDefinitions()->delete();
+
+            foreach ($segmentDefinitions as $segmentDefinition) {
+                $segment = $workspace->segmentDefinitions()->create([
+                    'company_id' => $workspace->company_id,
+                    'name' => $segmentDefinition['name'],
+                    'slug' => $segmentDefinition['slug'],
+                    'description' => $segmentDefinition['description'],
+                    'color' => $segmentDefinition['color'],
+                    'priority' => $segmentDefinition['priority'],
+                    'is_active' => $segmentDefinition['is_active'],
+                ]);
+
+                foreach ($segmentDefinition['rules'] as $index => $rule) {
+                    $segment->rules()->create([
+                        'metric_key' => $rule['metric_key'],
+                        'operator' => $rule['operator'],
+                        'threshold_value' => $rule['threshold_value'],
+                        'sort_order' => $index,
+                    ]);
+                }
+            }
+        });
+
+        app(CustomerSegmentationService::class)->syncWorkspace($workspace->fresh());
 
         $this->primeForms($workspace->fresh('company'));
+        $this->customerSegmentFilter = '';
         $this->flash("Workspace settings updated for {$workspace->name}.");
+    }
+
+    public function saveNotificationSettings(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+        $membership = $this->currentWorkspaceMembership($workspace);
+
+        abort_if(! $membership, 403);
+
+        $validated = validator($this->notificationSettingsForm, [
+            'channels' => ['required', 'array'],
+            'channels.in_app' => ['nullable', 'boolean'],
+            'channels.email' => ['nullable', 'boolean'],
+            'events' => ['required', 'array'],
+            'events.assignment' => ['nullable', 'boolean'],
+            'events.note' => ['nullable', 'boolean'],
+            'events.message' => ['nullable', 'boolean'],
+        ])->validate();
+
+        $preferences = WorkspaceMembership::normalizeNotificationPreferences($validated);
+
+        $membership->forceFill([
+            'notification_preferences' => $preferences,
+        ])->save();
+
+        $this->notificationSettingsForm = $preferences;
+        $this->flash('Notification preferences updated.');
     }
 
     public function exportLeadsCsv(): StreamedResponse
@@ -1678,6 +1776,60 @@ class CrmDashboard extends Component
         }
 
         $this->workspaceSettingsForm[$field] = $items;
+    }
+
+    public function addWorkspaceSegmentDefinition(): void
+    {
+        $this->ensureWorkspaceOwner();
+
+        $this->workspaceSettingsForm['segment_definitions'][] = $this->emptySegmentDefinitionForm();
+    }
+
+    public function removeWorkspaceSegmentDefinition(int $index): void
+    {
+        $this->ensureWorkspaceOwner();
+
+        $definitions = $this->workspaceSettingsForm['segment_definitions'] ?? [];
+        unset($definitions[$index]);
+        $definitions = array_values($definitions);
+
+        if ($definitions === []) {
+            $definitions = $this->defaultSegmentDefinitionsForTemplate(
+                (string) ($this->workspaceSettingsForm['template_key'] ?? Workspace::defaultTemplateKey()),
+            );
+        }
+
+        $this->workspaceSettingsForm['segment_definitions'] = $definitions;
+    }
+
+    public function addWorkspaceSegmentRule(int $segmentIndex): void
+    {
+        $this->ensureWorkspaceOwner();
+
+        if (! isset($this->workspaceSettingsForm['segment_definitions'][$segmentIndex])) {
+            abort(404);
+        }
+
+        $this->workspaceSettingsForm['segment_definitions'][$segmentIndex]['rules'][] = $this->emptySegmentRuleForm();
+    }
+
+    public function removeWorkspaceSegmentRule(int $segmentIndex, int $ruleIndex): void
+    {
+        $this->ensureWorkspaceOwner();
+
+        if (! isset($this->workspaceSettingsForm['segment_definitions'][$segmentIndex])) {
+            abort(404);
+        }
+
+        $rules = $this->workspaceSettingsForm['segment_definitions'][$segmentIndex]['rules'] ?? [];
+        unset($rules[$ruleIndex]);
+        $rules = array_values($rules);
+
+        if ($rules === []) {
+            $rules = [$this->emptySegmentRuleForm()];
+        }
+
+        $this->workspaceSettingsForm['segment_definitions'][$segmentIndex]['rules'] = $rules;
     }
 
     public function startEditingWorkspaceUser(int $userId): void
@@ -2348,12 +2500,14 @@ class CrmDashboard extends Component
         }
 
         $this->selectedContactId = $contact->id;
+        $this->resetCollaborationForm('contact');
         $this->activeTab = 'contacts';
     }
 
     public function closeContactDetails(): void
     {
         $this->selectedContactId = null;
+        $this->resetCollaborationForm('contact');
     }
 
     public function selectCustomer(int $customerId): void
@@ -2375,12 +2529,14 @@ class CrmDashboard extends Component
         }
 
         $this->selectedCustomerId = $customer->id;
+        $this->resetCollaborationForm('customer');
         $this->activeTab = 'customers';
     }
 
     public function closeCustomerDetails(): void
     {
         $this->selectedCustomerId = null;
+        $this->resetCollaborationForm('customer');
     }
 
     public function selectOpportunity(int $opportunityId): void
@@ -2462,6 +2618,7 @@ class CrmDashboard extends Component
 
         $this->selectedBookingId = $booking->id;
         $this->fillBookingEditForm($booking);
+        $this->resetCollaborationForm('booking');
         $this->activeTab = 'bookings';
     }
 
@@ -2476,6 +2633,7 @@ class CrmDashboard extends Component
 
         $this->selectedCostingId = $costing->id;
         $this->fillCostingEditForm($costing);
+        $this->resetCollaborationForm('costing');
         $this->activeTab = 'costings';
     }
 
@@ -2490,6 +2648,7 @@ class CrmDashboard extends Component
 
         $this->selectedInvoiceId = $invoice->id;
         $this->fillInvoiceEditForm($invoice);
+        $this->resetCollaborationForm('invoice');
         $this->activeTab = 'invoices';
     }
 
@@ -2579,6 +2738,11 @@ class CrmDashboard extends Component
             Opportunity::class => $this->selectOpportunity($notification->notable_id),
             Quote::class => $this->selectQuote($notification->notable_id),
             ShipmentJob::class => $this->selectShipment($notification->notable_id),
+            Booking::class => $this->selectBooking($notification->notable_id),
+            JobCosting::class => $this->selectCosting($notification->notable_id),
+            Invoice::class => $this->selectInvoice($notification->notable_id),
+            Contact::class => $this->selectContact($notification->notable_id),
+            Account::class => $this->selectCustomer($notification->notable_id),
             default => null,
         };
     }
@@ -2638,7 +2802,7 @@ class CrmDashboard extends Component
         $workspace = $this->currentWorkspaceOrFail();
         $record = $this->collaborationRecordFor($recordType, $recordId, $workspace);
 
-        if (! in_array($recordType, ['lead', 'opportunity', 'quote', 'shipment'], true)) {
+        if (! in_array($recordType, ['lead', 'opportunity', 'quote', 'shipment', 'booking', 'costing', 'invoice', 'contact', 'customer'], true)) {
             return;
         }
 
@@ -2792,18 +2956,21 @@ class CrmDashboard extends Component
     {
         $this->selectedBookingId = null;
         $this->bookingEditForm = [];
+        $this->resetCollaborationForm('booking');
     }
 
     public function closeCostingDetails(): void
     {
         $this->selectedCostingId = null;
         $this->costingEditForm = [];
+        $this->resetCollaborationForm('costing');
     }
 
     public function closeInvoiceDetails(): void
     {
         $this->selectedInvoiceId = null;
         $this->invoiceEditForm = [];
+        $this->resetCollaborationForm('invoice');
     }
 
     public function saveOpportunityDetails(): void
@@ -4685,7 +4852,17 @@ class CrmDashboard extends Component
     protected function resetCollaborationForm(?string $recordType = null): void
     {
         if ($recordType === null) {
-            foreach (array_keys($this->collaborationForms ?: ['lead' => [], 'opportunity' => [], 'quote' => [], 'shipment' => []]) as $key) {
+            foreach (array_keys($this->collaborationForms ?: [
+                'lead' => [],
+                'opportunity' => [],
+                'quote' => [],
+                'shipment' => [],
+                'booking' => [],
+                'costing' => [],
+                'invoice' => [],
+                'contact' => [],
+                'customer' => [],
+            ]) as $key) {
                 $this->collaborationForms[$key] = $this->defaultCollaborationForm();
             }
 
@@ -4778,6 +4955,7 @@ class CrmDashboard extends Component
         $workspaceUsers = collect();
         $canManageAccess = false;
         $canViewWorkspaceTools = false;
+        $canViewSources = false;
         $leads = Lead::query()->whereRaw('1 = 0')->paginate(
             $this->leadPerPage,
             ['*'],
@@ -4849,6 +5027,11 @@ class CrmDashboard extends Component
         $selectedOpportunityCollaboration = collect();
         $selectedQuoteCollaboration = collect();
         $selectedShipmentCollaboration = collect();
+        $selectedBookingCollaboration = collect();
+        $selectedCostingCollaboration = collect();
+        $selectedInvoiceCollaboration = collect();
+        $selectedContactCollaboration = collect();
+        $selectedCustomerCollaboration = collect();
         $selectedShipmentTimeline = collect();
         $leadInsights = [];
         $opportunityInsights = [];
@@ -4884,13 +5067,19 @@ class CrmDashboard extends Component
         $analyticsDealSummary = [];
         $analyticsEfficiency = [];
         $analyticsAvailableMonths = collect();
+        $segmentDefinitions = collect();
+        $segmentMetricCatalog = CustomerSegmentationService::metricCatalog();
+        $segmentOperatorCatalog = CustomerSegmentationService::operatorCatalog();
+        $segmentColorOptions = CustomerSegmentDefinition::COLORS;
 
         if ($workspace) {
             $canManageAccess = $this->canManageWorkspaceAccess($workspace);
-            $canViewWorkspaceTools = $canManageAccess || auth()->user()->hasRole(['admin', 'manager']);
+            $canViewWorkspaceTools = true;
+            $canViewSources = $canManageAccess || auth()->user()->hasRole(['admin', 'manager']);
+            $segmentation = app(CustomerSegmentationService::class);
 
             $availableTabs = [
-                ...$this->availableTabsForWorkspace($workspace, $canManageAccess, $canViewWorkspaceTools),
+                ...$this->availableTabsForWorkspace($workspace, $canManageAccess, $canViewWorkspaceTools, $canViewSources),
                 'manual-lead' => 'Add Lead',
                 'manual-opportunity' => 'Add Opportunity',
                 'manual-rate' => 'New Rate',
@@ -4902,7 +5091,7 @@ class CrmDashboard extends Component
                 'manual-invoice' => 'New Invoice',
             ];
 
-            if ($canViewWorkspaceTools) {
+            if ($canViewSources) {
                 $availableTabs['sources'] = 'Sources';
             }
 
@@ -4913,6 +5102,18 @@ class CrmDashboard extends Component
             if (! array_key_exists($this->activeTab, $availableTabs)) {
                 $this->activeTab = 'leads';
             }
+
+            if (in_array($this->activeTab, ['customers', 'settings'], true) || $this->selectedCustomerId !== null || $this->customerSegmentFilter !== '') {
+                $segmentation->syncWorkspace($workspace);
+            } else {
+                $segmentation->ensureDefaultSegments($workspace);
+            }
+
+            $segmentDefinitions = $workspace->segmentDefinitions()
+                ->with('rules')
+                ->orderByDesc('priority')
+                ->orderBy('id')
+                ->get();
 
             $leadQuery = $this->buildLeadQuery($workspace);
 
@@ -5250,6 +5451,7 @@ class CrmDashboard extends Component
             $selectedContact = $this->selectedContactId
                 ? Contact::query()
                     ->with([
+                        'assignedUser',
                         'account',
                         'leads' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
                         'opportunities' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
@@ -5266,6 +5468,7 @@ class CrmDashboard extends Component
             $selectedCustomer = $this->selectedCustomerId
                 ? Account::query()
                     ->with([
+                        'assignedUser',
                         'contacts' => fn ($query) => $query->orderByDesc('last_activity_at')->orderBy('full_name')->limit(8),
                         'leads' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
                         'opportunities' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
@@ -5273,6 +5476,8 @@ class CrmDashboard extends Component
                         'shipmentJobs' => fn ($query) => $query->orderByDesc('estimated_departure_at')->orderByDesc('created_at')->limit(6),
                         'bookings' => fn ($query) => $query->orderByDesc('requested_etd')->orderByDesc('created_at')->limit(6),
                         'invoices' => fn ($query) => $query->orderByDesc('issue_date')->orderByDesc('created_at')->limit(6),
+                        'segmentAssignments.segmentDefinition',
+                        'currentMetricSnapshot',
                     ])
                     ->withCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
                     ->withSum('opportunities as opportunity_revenue_sum', 'revenue_potential')
@@ -5323,6 +5528,22 @@ class CrmDashboard extends Component
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedInvoiceId)
                 : null;
+
+            $selectedBookingCollaboration = $selectedBooking
+                ? $this->collaborationEntriesFor($selectedBooking)
+                : collect();
+            $selectedCostingCollaboration = $selectedCosting
+                ? $this->collaborationEntriesFor($selectedCosting)
+                : collect();
+            $selectedInvoiceCollaboration = $selectedInvoice
+                ? $this->collaborationEntriesFor($selectedInvoice)
+                : collect();
+            $selectedContactCollaboration = $selectedContact
+                ? $this->collaborationEntriesFor($selectedContact)
+                : collect();
+            $selectedCustomerCollaboration = $selectedCustomer
+                ? $this->collaborationEntriesFor($selectedCustomer)
+                : collect();
 
             $selectedBookingInvoices = $selectedBooking
                 ? Invoice::query()
@@ -5397,6 +5618,7 @@ class CrmDashboard extends Component
             'bookingStatusOptions' => Booking::STATUSES,
             'bookings' => $bookings,
             'canManageAccess' => $canManageAccess,
+            'canViewSources' => $canViewSources,
             'canViewWorkspaceTools' => $canViewWorkspaceTools,
             'carrierModeOptions' => Carrier::MODES,
             'carrierOptions' => $carrierOptions,
@@ -5461,12 +5683,17 @@ class CrmDashboard extends Component
             'selectedShipmentCollaboration' => $selectedShipmentCollaboration,
             'selectedShipmentTimeline' => $selectedShipmentTimeline,
             'selectedContact' => $selectedContact,
+            'selectedContactCollaboration' => $selectedContactCollaboration,
             'selectedCustomer' => $selectedCustomer,
+            'selectedCustomerCollaboration' => $selectedCustomerCollaboration,
             'selectedCarrier' => $selectedCarrier,
             'selectedBooking' => $selectedBooking,
             'selectedBookingInvoices' => $selectedBookingInvoices,
+            'selectedBookingCollaboration' => $selectedBookingCollaboration,
             'selectedCosting' => $selectedCosting,
+            'selectedCostingCollaboration' => $selectedCostingCollaboration,
             'selectedInvoice' => $selectedInvoice,
+            'selectedInvoiceCollaboration' => $selectedInvoiceCollaboration,
             'sheetSources' => $sheetSources,
             'shipmentCustomerOptions' => $shipmentCustomerOptions,
             'shipmentOpportunityOptions' => $shipmentOpportunityOptions,
@@ -5477,9 +5704,13 @@ class CrmDashboard extends Component
             'shipmentDocumentStatusOptions' => ShipmentDocument::STATUSES,
             'shipments' => $shipments,
             'sourceBreakdown' => $sourceBreakdown,
+            'segmentColorOptions' => $segmentColorOptions,
+            'segmentDefinitions' => $segmentDefinitions,
+            'segmentMetricCatalog' => $segmentMetricCatalog,
+            'segmentOperatorCatalog' => $segmentOperatorCatalog,
             'templateModuleMeta' => $this->templateModuleMeta(),
             'tabs' => $workspace
-                ? $this->availableTabsForWorkspace($workspace, $canManageAccess, $canViewWorkspaceTools)
+                ? $this->availableTabsForWorkspace($workspace, $canManageAccess, $canViewWorkspaceTools, $canViewSources)
                 : $this->coreTabDefinitions(),
             'workspaceNotifications' => $workspaceNotifications,
             'unreadWorkspaceNotificationCount' => $unreadWorkspaceNotificationCount,
@@ -5507,6 +5738,7 @@ class CrmDashboard extends Component
         ];
 
         $this->workspaceSettingsForm = $this->defaultWorkspaceSettingsForm();
+        $this->notificationSettingsForm = WorkspaceMembership::defaultNotificationPreferences();
 
         $this->sourceForm = [
             'workspace_id' => '',
@@ -5649,6 +5881,11 @@ class CrmDashboard extends Component
             'opportunity' => $this->defaultCollaborationForm(),
             'quote' => $this->defaultCollaborationForm(),
             'shipment' => $this->defaultCollaborationForm(),
+            'booking' => $this->defaultCollaborationForm(),
+            'costing' => $this->defaultCollaborationForm(),
+            'invoice' => $this->defaultCollaborationForm(),
+            'contact' => $this->defaultCollaborationForm(),
+            'customer' => $this->defaultCollaborationForm(),
         ];
     }
 
@@ -5656,6 +5893,7 @@ class CrmDashboard extends Component
     {
         if (! $workspace) {
             $this->workspaceSettingsForm = $this->defaultWorkspaceSettingsForm();
+            $this->notificationSettingsForm = WorkspaceMembership::defaultNotificationPreferences();
 
             return;
         }
@@ -5664,6 +5902,7 @@ class CrmDashboard extends Component
         $this->workspaceForm['template_key'] = $workspace->templateKey();
         $this->sourceForm['workspace_id'] = $workspace->id;
         $this->workspaceSettingsForm = $this->workspaceSettingsFormFor($workspace);
+        $this->notificationSettingsForm = $this->notificationSettingsFormFor($workspace);
     }
 
     protected function accessibleWorkspaces(): EloquentCollection
@@ -5696,6 +5935,20 @@ class CrmDashboard extends Component
         abort_if(! $workspace, 404);
 
         return $workspace;
+    }
+
+    protected function currentWorkspaceMembership(?Workspace $workspace = null): ?WorkspaceMembership
+    {
+        $workspace ??= $this->currentWorkspace();
+
+        if (! $workspace) {
+            return null;
+        }
+
+        return WorkspaceMembership::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('user_id', auth()->id())
+            ->first();
     }
 
     protected function resolveCurrentWorkspace(EloquentCollection $workspaces): ?Workspace
@@ -6237,7 +6490,11 @@ class CrmDashboard extends Component
     protected function buildCustomersQuery(Workspace $workspace)
     {
         $query = Account::query()
-            ->with('contacts')
+            ->with([
+                'contacts',
+                'segmentAssignments.segmentDefinition',
+                'currentMetricSnapshot',
+            ])
             ->withCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
             ->withSum('opportunities as opportunity_revenue_sum', 'revenue_potential')
             ->where('workspace_id', $workspace->id)
@@ -6254,6 +6511,13 @@ class CrmDashboard extends Component
                         ->where('full_name', 'like', "%{$customerSearch}%")
                         ->orWhere('email', 'like', "%{$customerSearch}%"));
             });
+        }
+
+        if ($this->customerSegmentFilter !== '') {
+            $segmentId = (int) $this->customerSegmentFilter;
+
+            $query->whereHas('segmentAssignments', fn ($assignmentQuery) => $assignmentQuery
+                ->where('segment_definition_id', $segmentId));
         }
 
         return $query;
@@ -6283,18 +6547,25 @@ class CrmDashboard extends Component
 
     protected function defaultWorkspaceSettingsForm(): array
     {
+        $templateKey = Workspace::defaultTemplateKey();
+
         return [
-            'template_key' => Workspace::defaultTemplateKey(),
-            'lead_status_labels' => Workspace::defaultLeadStatusLabels(Workspace::defaultTemplateKey()),
-            'opportunity_stage_labels' => Workspace::defaultOpportunityStageLabels(Workspace::defaultTemplateKey()),
-            'disqualification_reasons' => Workspace::defaultDisqualificationReasons(Workspace::defaultTemplateKey()),
-            'lead_sources' => Workspace::defaultLeadSources(Workspace::defaultTemplateKey()),
-            'lead_services' => Workspace::defaultLeadServices(Workspace::defaultTemplateKey()),
+            'template_key' => $templateKey,
+            'lead_status_labels' => Workspace::defaultLeadStatusLabels($templateKey),
+            'opportunity_stage_labels' => Workspace::defaultOpportunityStageLabels($templateKey),
+            'disqualification_reasons' => Workspace::defaultDisqualificationReasons($templateKey),
+            'lead_sources' => Workspace::defaultLeadSources($templateKey),
+            'lead_services' => Workspace::defaultLeadServices($templateKey),
+            'segment_definitions' => $this->defaultSegmentDefinitionsForTemplate($templateKey),
         ];
     }
 
     protected function workspaceSettingsFormFor(Workspace $workspace): array
     {
+        $segmentation = app(CustomerSegmentationService::class);
+        $segmentation->ensureDefaultSegments($workspace);
+        $segmentDefinitions = $workspace->segmentDefinitions()->with('rules')->orderByDesc('priority')->orderBy('id')->get();
+
         return [
             'template_key' => $workspace->templateKey(),
             'lead_status_labels' => $workspace->leadStatusLabels(),
@@ -6302,7 +6573,124 @@ class CrmDashboard extends Component
             'disqualification_reasons' => $workspace->disqualificationReasons(),
             'lead_sources' => $workspace->leadSourcesCatalog(),
             'lead_services' => $workspace->leadServicesCatalog(),
+            'segment_definitions' => $segmentDefinitions
+                ->map(fn (CustomerSegmentDefinition $segmentDefinition) => $this->segmentDefinitionFormData($segmentDefinition))
+                ->all(),
         ];
+    }
+
+    protected function notificationSettingsFormFor(Workspace $workspace): array
+    {
+        return $this->currentWorkspaceMembership($workspace)?->notificationPreferences()
+            ?? WorkspaceMembership::defaultNotificationPreferences();
+    }
+
+    protected function defaultSegmentDefinitionsForTemplate(string $templateKey): array
+    {
+        return collect(CustomerSegmentationService::presetDefinitionsForTemplate($templateKey))
+            ->map(function (array $definition): array {
+                return [
+                    'id' => null,
+                    'name' => (string) ($definition['name'] ?? 'New Segment'),
+                    'description' => (string) ($definition['description'] ?? ''),
+                    'color' => (string) ($definition['color'] ?? CustomerSegmentDefinition::COLOR_SKY),
+                    'priority' => (int) ($definition['priority'] ?? 0),
+                    'is_active' => true,
+                    'rules' => collect($definition['rules'] ?? [])
+                        ->map(fn (array $rule) => [
+                            'metric_key' => (string) ($rule['metric_key'] ?? 'inquiries_90d'),
+                            'operator' => (string) ($rule['operator'] ?? CustomerSegmentRule::OPERATOR_GREATER_THAN_OR_EQUAL),
+                            'threshold_value' => (string) ($rule['threshold_value'] ?? '1'),
+                        ])
+                        ->values()
+                        ->all() ?: [$this->emptySegmentRuleForm()],
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    protected function segmentDefinitionFormData(CustomerSegmentDefinition $segmentDefinition): array
+    {
+        return [
+            'id' => $segmentDefinition->id,
+            'name' => $segmentDefinition->name,
+            'description' => $segmentDefinition->description ?? '',
+            'color' => $segmentDefinition->color,
+            'priority' => $segmentDefinition->priority,
+            'is_active' => $segmentDefinition->is_active,
+            'rules' => $segmentDefinition->rules
+                ->map(fn (CustomerSegmentRule $rule) => [
+                    'metric_key' => $rule->metric_key,
+                    'operator' => $rule->operator,
+                    'threshold_value' => (string) $rule->threshold_value,
+                ])
+                ->values()
+                ->all() ?: [$this->emptySegmentRuleForm()],
+        ];
+    }
+
+    protected function emptySegmentDefinitionForm(): array
+    {
+        return [
+            'id' => null,
+            'name' => '',
+            'description' => '',
+            'color' => CustomerSegmentDefinition::COLOR_SKY,
+            'priority' => 50,
+            'is_active' => true,
+            'rules' => [$this->emptySegmentRuleForm()],
+        ];
+    }
+
+    protected function emptySegmentRuleForm(): array
+    {
+        return [
+            'metric_key' => 'inquiries_90d',
+            'operator' => CustomerSegmentRule::OPERATOR_GREATER_THAN_OR_EQUAL,
+            'threshold_value' => '1',
+        ];
+    }
+
+    protected function normalizeSegmentDefinitions(array $definitions): array
+    {
+        $usedSlugs = [];
+
+        return collect($definitions)
+            ->map(function (array $definition) use (&$usedSlugs): array {
+                $baseSlug = Str::slug((string) ($definition['name'] ?? 'segment'));
+                $baseSlug = $baseSlug !== '' ? $baseSlug : 'segment';
+                $slug = $baseSlug;
+                $suffix = 2;
+
+                while (in_array($slug, $usedSlugs, true)) {
+                    $slug = $baseSlug.'-'.$suffix;
+                    $suffix++;
+                }
+
+                $usedSlugs[] = $slug;
+
+                return [
+                    'name' => trim((string) $definition['name']),
+                    'slug' => $slug,
+                    'description' => trim((string) ($definition['description'] ?? '')) ?: null,
+                    'color' => in_array($definition['color'] ?? '', CustomerSegmentDefinition::COLORS, true)
+                        ? $definition['color']
+                        : CustomerSegmentDefinition::COLOR_SKY,
+                    'priority' => max(0, (int) ($definition['priority'] ?? 0)),
+                    'is_active' => (bool) ($definition['is_active'] ?? false),
+                    'rules' => collect($definition['rules'] ?? [])
+                        ->map(fn (array $rule) => [
+                            'metric_key' => (string) $rule['metric_key'],
+                            'operator' => (string) $rule['operator'],
+                            'threshold_value' => (float) $rule['threshold_value'],
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     protected function sanitizeList(array $values): array
@@ -6334,6 +6722,17 @@ class CrmDashboard extends Component
     {
         return ($workspace ?? $this->currentWorkspace())?->opportunityStageLabels()
             ?? Workspace::defaultOpportunityStageLabels(Workspace::defaultTemplateKey());
+    }
+
+    public function segmentBadgeClasses(?string $color): string
+    {
+        return match ($color) {
+            CustomerSegmentDefinition::COLOR_EMERALD => 'bg-emerald-100 text-emerald-800 ring-emerald-200',
+            CustomerSegmentDefinition::COLOR_AMBER => 'bg-amber-100 text-amber-800 ring-amber-200',
+            CustomerSegmentDefinition::COLOR_ROSE => 'bg-rose-100 text-rose-800 ring-rose-200',
+            CustomerSegmentDefinition::COLOR_VIOLET => 'bg-violet-100 text-violet-800 ring-violet-200',
+            default => 'bg-sky-100 text-sky-800 ring-sky-200',
+        };
     }
 
     public function disqualificationReasonOptions(?Workspace $workspace = null): array
@@ -7141,6 +7540,11 @@ class CrmDashboard extends Component
             'opportunity' => Opportunity::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
             'quote' => Quote::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
             'shipment' => ShipmentJob::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'booking' => Booking::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'costing' => JobCosting::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'invoice' => Invoice::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'contact' => Contact::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'customer' => Account::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
             default => abort(404),
         };
     }
@@ -7152,6 +7556,11 @@ class CrmDashboard extends Component
             'opportunity' => 'opportunity',
             'quote' => 'quote',
             'shipment' => 'shipment',
+            'booking' => 'booking',
+            'costing' => 'job costing',
+            'invoice' => 'invoice',
+            'contact' => 'contact',
+            'customer' => 'customer',
             default => 'record',
         };
     }
@@ -7268,7 +7677,7 @@ class CrmDashboard extends Component
         ];
     }
 
-    protected function availableTabsForWorkspace(Workspace $workspace, bool $canManageAccess, bool $canViewWorkspaceTools): array
+    protected function availableTabsForWorkspace(Workspace $workspace, bool $canManageAccess, bool $canViewWorkspaceTools, bool $canViewSources): array
     {
         $tabs = $this->coreTabDefinitions();
 
