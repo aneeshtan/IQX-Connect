@@ -3,124 +3,122 @@
     <head>
         @include('partials.head', ['title' => 'IQX Connect | Maritime CRM For Freight And Project Teams', 'forceLight' => true])
     </head>
-    <body class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.12),_transparent_24%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.12),_transparent_24%),linear-gradient(180deg,_#f4fbf8,_#f7fafc_42%,_#ffffff)] text-zinc-950">
+    <body class="min-h-screen bg-[linear-gradient(180deg,_#040816_0,_#0b1432_34rem,_#f7fafc_34rem,_#ffffff_100%)] text-zinc-950">
         <div class="relative overflow-hidden">
-            <div class="absolute inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(circle_at_center,_rgba(15,118,110,0.14),_transparent_58%)]"></div>
+            <div class="absolute inset-x-0 top-0 -z-10 h-[44rem] bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.2),_transparent_34%),radial-gradient(circle_at_18%_18%,_rgba(16,185,129,0.16),_transparent_22%),radial-gradient(circle_at_82%_10%,_rgba(251,191,36,0.12),_transparent_18%),linear-gradient(180deg,_#040816,_rgba(11,20,50,0.92)_75%,_transparent)]"></div>
 
-            <div class="mx-auto max-w-7xl px-6 pb-20 pt-6 lg:px-8">
-                <header class="flex flex-col gap-5 rounded-[2rem] border border-emerald-100 bg-white/90 px-6 py-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-                    <a href="{{ route('home') }}" class="flex items-center gap-3">
-                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,_#0f766e,_#16a34a)] text-white shadow-lg shadow-emerald-950/15">
-                            <x-app-logo-icon class="size-7" />
-                        </div>
-                        <div>
-                            <div class="text-lg font-semibold tracking-tight">IQX Connect</div>
-                            <div class="text-sm text-zinc-500">Maritime CRM for operators, sales, and management</div>
-                        </div>
-                    </a>
+            <div class="w-full pb-20 pt-0">
+                <section class="iqx-hero-shell relative isolate overflow-hidden px-5 pb-12 pt-5 shadow-[0_30px_120px_rgba(2,6,23,0.52)] sm:px-8 lg:px-10">
+                    <div class="absolute inset-x-12 top-0 h-44 rounded-b-full bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.18),_transparent_70%)] blur-3xl"></div>
+                    <div class="absolute -left-16 top-24 h-48 w-48 rounded-full bg-emerald-400/14 blur-3xl"></div>
+                    <div class="absolute -right-10 top-16 h-56 w-56 rounded-full bg-sky-400/18 blur-3xl"></div>
 
-                    <nav class="flex flex-wrap items-center gap-3 text-sm">
-                        <a href="#features" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Features</a>
-                        <a href="#pricing" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Pricing</a>
-                        <a href="{{ route('product') }}" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Resources</a>
-                        <a href="{{ route('login') }}" class="rounded-full border border-zinc-200 px-4 py-2 font-medium text-zinc-700 transition hover:bg-zinc-50">Log In</a>
-                    </nav>
-                </header>
-
-                <main class="mt-10 grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
-                    <section class="space-y-8">
-                        <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">
-                            Freemium plan: free for the first 100 operational records
-                        </div>
-
-                        <div class="space-y-5">
-                            <h1 class="max-w-4xl text-5xl font-semibold tracking-tight text-zinc-950 sm:text-6xl lg:text-7xl">
-                                Maritime CRM built for freight, projects, customers, and execution.
-                            </h1>
-                            <p class="max-w-2xl text-lg leading-8 text-zinc-600">
-                                IQX Connect gives maritime businesses one clean workspace for leads, accounts, quotes, bookings, shipment jobs, project delivery, costing, invoices, collaboration, and reporting.
-                            </p>
-                        </div>
-
-                        <div class="grid gap-4 sm:grid-cols-3">
-                            <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Workspace Modes</div>
-                                <div class="mt-3 text-3xl font-semibold text-zinc-950">7</div>
-                                <p class="mt-2 text-sm leading-6 text-zinc-500">Freight forwarding, container conversion, ship chandling, liner, ship management, leasing, and general maritime.</p>
-                            </article>
-                            <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Operating Flow</div>
-                                <div class="mt-3 text-3xl font-semibold text-zinc-950">Lead To Job</div>
-                                <p class="mt-2 text-sm leading-6 text-zinc-500">Move from lead to opportunity, quote, booking, shipment, project, costing, and invoice without leaving the workspace.</p>
-                            </article>
-                            <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Visibility</div>
-                                <div class="mt-3 text-3xl font-semibold text-zinc-950">Live</div>
-                                <p class="mt-2 text-sm leading-6 text-zinc-500">See customer history, team notes, costs, delivery status, and analytics from one mobile-friendly CRM surface.</p>
-                            </article>
-                        </div>
-                    </section>
-
-                    <section class="rounded-[2rem] border border-emerald-100 bg-white p-6 shadow-xl shadow-emerald-950/10">
-                        <div class="flex items-center justify-between">
+                    <header class="relative z-10 mx-auto flex max-w-7xl flex-col gap-5 rounded-[1.85rem] border border-white/10 bg-white/6 px-5 py-4 backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
+                        <a href="{{ route('home') }}" class="flex items-center gap-3">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,_#34d399,_#60a5fa)] text-slate-950 shadow-lg shadow-sky-950/30">
+                                <x-app-logo-icon class="size-7" />
+                            </div>
                             <div>
-                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Get Started</div>
-                                <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">Start your journey</h2>
+                                <div class="text-lg font-semibold tracking-tight text-white">IQX Connect</div>
+                                <div class="text-sm text-slate-300">Maritime CRM for operators, sales, and management</div>
                             </div>
-                            <div class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">First 100 operational records free</div>
-                        </div>
+                        </a>
 
-                        <form action="{{ route('register') }}" method="GET" class="mt-6 space-y-4">
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <label class="block">
-                                    <span class="text-sm font-medium text-zinc-700">Full name</span>
-                                    <input type="text" name="name" placeholder="Ava Marine Team" class="mt-2 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100">
-                                </label>
-                                <label class="block">
-                                    <span class="text-sm font-medium text-zinc-700">Work email</span>
-                                    <input type="email" name="email" placeholder="ops@company.com" class="mt-2 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100">
-                                </label>
-                            </div>
+                        <nav class="flex flex-wrap items-center gap-3 text-sm">
+                            <a href="#features" class="rounded-full px-4 py-2 text-slate-300 transition hover:bg-white/10 hover:text-white">Features</a>
+                            <a href="#pricing" class="rounded-full px-4 py-2 text-slate-300 transition hover:bg-white/10 hover:text-white">Pricing</a>
+                            <a href="{{ route('product') }}" class="rounded-full px-4 py-2 text-slate-300 transition hover:bg-white/10 hover:text-white">Resources</a>
+                            <a href="{{ route('login') }}" class="rounded-full border border-white/12 bg-white/6 px-4 py-2 font-medium text-white transition hover:bg-white/12">Log In</a>
+                        </nav>
+                    </header>
 
-                            <div class="grid gap-4 sm:grid-cols-2">
-                                <label class="block">
-                                    <span class="text-sm font-medium text-zinc-700">Company</span>
-                                    <input type="text" name="company" placeholder="Bluewater Logistics" class="mt-2 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100">
-                                </label>
-                                <label class="block">
-                                    <span class="text-sm font-medium text-zinc-700">Workspace mode</span>
-                                    <select name="mode" class="mt-2 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-900 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100">
-                                        <option>Freight Forwarder</option>
-                                        <option>Container Conversion</option>
-                                        <option>Ship Chandling</option>
-                                        <option>Shipping Liner</option>
-                                        <option>Ship Management</option>
-                                        <option>Container Trading / Leasing</option>
-                                        <option>General Maritime</option>
-                                    </select>
-                                </label>
+                    <main class="relative z-10 mx-auto max-w-7xl pb-4 pt-14">
+                        <section class="mx-auto max-w-4xl text-center">
+                            <div class="inline-flex items-center gap-2 rounded-full border border-sky-200/20 bg-white/8 px-4 py-2 text-sm font-medium text-sky-100 shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
+                                <span class="text-base">✨</span>
+                                Free for your first 100 operational records
                             </div>
 
-                            <div class="rounded-[1.4rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
-                                <div class="text-sm font-semibold text-zinc-900">What you get in the free start</div>
-                                <ul class="mt-3 grid gap-2 text-sm text-zinc-600 sm:grid-cols-2">
-                                    <li>1 workspace and 3 users included</li>
-                                    <li>First 100 operational records included</li>
-                                    <li>Leads, opportunities, contacts, and customers</li>
-                                    <li>Quotes, shipment jobs, or projects by mode</li>
-                                    <li>CSV, Google Sheets, and API source options</li>
-                                    <li>Reporting, notes, assignments, and notifications</li>
-                                </ul>
+                            <div class="mt-8 space-y-6">
+                                <h1 class="text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
+                                    One maritime CRM where sales, ops, and delivery move together.
+                                </h1>
+                                <p class="mx-auto max-w-2xl text-lg leading-8 text-slate-300">
+                                    Keep leads, quotes, bookings, shipment jobs, project delivery, costing, invoices, and team updates in one clear workflow built for modern maritime teams.
+                                </p>
                             </div>
 
-                            <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,_#0f766e,_#16a34a)] px-6 py-4 text-base font-medium text-white shadow-lg shadow-emerald-950/20 transition hover:scale-[1.01]">
-                                Start your journey
-                            </button>
-                        </form>
-                    </section>
-                </main>
+                            <form action="{{ route('register') }}" method="GET" class="mx-auto mt-8 max-w-4xl">
+                                <div class="flex flex-col gap-3 rounded-[1.8rem] border border-white/10 bg-white/8 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.35)] backdrop-blur-xl lg:flex-row">
+                                    <label class="block flex-1">
+                                        <span class="sr-only">Work email</span>
+                                        <div class="flex min-h-[3.75rem] items-center gap-3 rounded-[1.2rem] border border-white/10 bg-white/92 px-4 py-4 text-left shadow-inner shadow-white/10">
+                                            <span class="text-xl">📬</span>
+                                            <input type="email" name="email" placeholder="Enter your work email" class="w-full bg-transparent text-base text-slate-950 outline-none placeholder:text-slate-500">
+                                        </div>
+                                    </label>
 
-                <section class="mt-20">
+                                    <button type="submit" class="inline-flex min-h-[3.75rem] items-center justify-center rounded-[1.2rem] bg-[linear-gradient(135deg,_#34d399,_#60a5fa)] px-6 text-base font-semibold text-slate-950 shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5">
+                                        Start free
+                                    </button>
+
+                                    <a href="#features" class="inline-flex min-h-[3.75rem] items-center justify-center rounded-[1.2rem] border border-white/15 bg-slate-950/25 px-6 text-base font-semibold text-white transition hover:bg-white/10">
+                                        Explore features
+                                    </a>
+                                </div>
+                            </form>
+
+                            <div class="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-slate-300">
+                                <span>3 users included</span>
+                                <span class="hidden text-white/25 sm:inline">•</span>
+                                <span>CRM + operations in one workspace</span>
+                                <span class="hidden text-white/25 sm:inline">•</span>
+                                <span>No long setup required</span>
+                            </div>
+                        </section>
+
+                        <section class="relative mx-auto mt-16 max-w-5xl">
+                            <div class="iqx-hero-galaxy relative h-[20rem] overflow-hidden rounded-[2.5rem] sm:h-[24rem]">
+                                <div class="absolute inset-x-10 top-12 h-32 rounded-full bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.12),_transparent_72%)] blur-2xl"></div>
+                                <div class="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,_rgba(196,181,253,0.95),_rgba(96,165,250,0.36)_42%,_transparent_75%)] blur-2xl"></div>
+                                <div class="iqx-hero-ring absolute left-[18%] top-[20%] h-52 w-52 rounded-full"></div>
+                                <div class="iqx-hero-ring absolute right-[16%] top-[14%] h-40 w-40 rounded-full" style="animation-direction: reverse; animation-duration: 20s;"></div>
+                                <div class="iqx-hero-ring absolute left-1/2 top-[18%] h-64 w-64 -translate-x-1/2 rounded-full" style="animation-duration: 24s;"></div>
+
+                                @foreach ([
+                                    ['emoji' => '🚢', 'classes' => 'left-[14%] top-[54%] sm:left-[18%] sm:top-[50%]', 'delay' => '-1s', 'duration' => '8.5s'],
+                                    ['emoji' => '✨', 'classes' => 'left-1/2 top-[24%] -translate-x-1/2 sm:top-[20%]', 'delay' => '-3s', 'duration' => '10.5s'],
+                                    ['emoji' => '⚓', 'classes' => 'right-[14%] top-[50%] sm:right-[18%] sm:top-[46%]', 'delay' => '-2s', 'duration' => '9.25s'],
+                                ] as $orbitEmoji)
+                                    <span
+                                        class="iqx-hero-emoji iqx-hero-float absolute {{ $orbitEmoji['classes'] }}"
+                                        style="--float-delay: {{ $orbitEmoji['delay'] }}; --float-duration: {{ $orbitEmoji['duration'] }};"
+                                    >
+                                        {{ $orbitEmoji['emoji'] }}
+                                    </span>
+                                @endforeach
+
+                                @foreach ([
+                                    'left-[10%] top-[24%]',
+                                    'left-[18%] top-[72%]',
+                                    'left-[36%] top-[18%]',
+                                    'left-[46%] top-[68%]',
+                                    'left-[58%] top-[34%]',
+                                    'left-[70%] top-[18%]',
+                                    'left-[78%] top-[62%]',
+                                    'left-[88%] top-[28%]',
+                                ] as $index => $starPosition)
+                                    <span class="iqx-hero-star absolute {{ $starPosition }}" style="--twinkle-delay: -{{ $index + 1 }}s;"></span>
+                                @endforeach
+
+                                <div class="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,_transparent,_rgba(4,8,22,0.58))]"></div>
+                            </div>
+                        </section>
+                    </main>
+                </section>
+
+                <div class="mx-auto max-w-7xl px-6 lg:px-8">
+                <section class="mt-16">
                     <div class="text-center text-xs font-medium uppercase tracking-[0.32em] text-zinc-400">Trusted by modern maritime businesses</div>
                     <div class="mt-8 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
                         @foreach (['HarborGrid', 'OceanAxis', 'Portline Co.', 'Nauticore', 'BlueRidge Marine', 'ContainerCraft'] as $brand)
@@ -338,6 +336,7 @@
                 @include('partials.site-footer', [
                     'class' => 'mt-10 border-t border-zinc-200/80 px-2 py-6 text-center',
                 ])
+                </div>
             </div>
         </div>
 
