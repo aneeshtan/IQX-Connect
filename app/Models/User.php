@@ -90,6 +90,21 @@ class User extends Authenticatable implements HasRoleAndPermissionContract // im
         return $this->hasMany(Opportunity::class, 'assigned_user_id');
     }
 
+    public function collaborationEntries(): HasMany
+    {
+        return $this->hasMany(CollaborationEntry::class);
+    }
+
+    public function workspaceNotifications(): HasMany
+    {
+        return $this->hasMany(WorkspaceNotification::class)->latest();
+    }
+
+    public function unreadWorkspaceNotifications(): HasMany
+    {
+        return $this->hasMany(WorkspaceNotification::class)->where('is_read', false)->latest();
+    }
+
     public function isAdmin(): bool
     {
         return $this->hasRole('admin');

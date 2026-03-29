@@ -5,8 +5,11 @@ namespace App\Livewire;
 use App\Models\Account;
 use App\Models\Booking;
 use App\Models\Carrier;
+use App\Models\CollaborationEntry;
 use App\Models\Company;
 use App\Models\Contact;
+use App\Models\CustomerSegmentDefinition;
+use App\Models\CustomerSegmentRule;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\JobCosting;
@@ -22,12 +25,16 @@ use App\Models\ShipmentJob;
 use App\Models\ShipmentMilestone;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Models\WorkspaceNotification;
 use App\Services\GoogleSheetsService;
+use App\Services\CustomerSegmentationService;
 use App\Services\LeadScoringService;
 use App\Services\SheetSourceSyncService;
+use App\Services\WorkspaceCollaborationService;
 use App\Services\WorkspaceEnrichmentService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -92,6 +99,8 @@ class CrmDashboard extends Component
 
     public string $activeTab = 'leads';
 
+    public bool $showNotifications = false;
+
     public string $search = '';
 
     public string $leadStatusFilter = '';
@@ -103,6 +112,8 @@ class CrmDashboard extends Component
     public string $contactSearch = '';
 
     public string $customerSearch = '';
+
+    public string $customerSegmentFilter = '';
 
     public string $quoteSearch = '';
 
@@ -239,6 +250,8 @@ class CrmDashboard extends Component
     public array $costingEditForm = [];
 
     public array $invoiceEditForm = [];
+
+    public array $collaborationForms = [];
 
     public function mount(): void
     {
@@ -2305,6 +2318,7 @@ class CrmDashboard extends Component
             ->findOrFail($leadId);
 
         $this->selectedLeadId = $lead->id;
+        $this->resetCollaborationForm('lead');
         $this->activeTab = 'leads';
     }
 
@@ -2312,6 +2326,7 @@ class CrmDashboard extends Component
     {
         $this->selectedLeadId = null;
         $this->pendingDisqualificationLeadId = null;
+        $this->resetCollaborationForm('lead');
     }
 
     public function selectContact(int $contactId): void
@@ -2378,6 +2393,7 @@ class CrmDashboard extends Component
 
         $this->selectedOpportunityId = $opportunity->id;
         $this->fillOpportunityEditForm($opportunity);
+        $this->resetCollaborationForm('opportunity');
         $this->activeTab = 'opportunities';
     }
 
@@ -2391,6 +2407,7 @@ class CrmDashboard extends Component
 
         $this->selectedQuoteId = $quote->id;
         $this->fillQuoteEditForm($quote);
+        $this->resetCollaborationForm('quote');
         $this->activeTab = 'quotes';
     }
 
@@ -2418,6 +2435,7 @@ class CrmDashboard extends Component
         $this->ensureShipmentExecutionDefaults($shipment->fresh());
         $this->selectedShipmentId = $shipment->id;
         $this->fillShipmentEditForm($shipment->fresh());
+        $this->resetCollaborationForm('shipment');
         $this->activeTab = 'shipments';
     }
 
@@ -2479,12 +2497,14 @@ class CrmDashboard extends Component
     {
         $this->selectedOpportunityId = null;
         $this->opportunityEditForm = [];
+        $this->resetCollaborationForm('opportunity');
     }
 
     public function closeQuoteDetails(): void
     {
         $this->selectedQuoteId = null;
         $this->quoteEditForm = [];
+        $this->resetCollaborationForm('quote');
     }
 
     public function closeRateDetails(): void
@@ -2499,6 +2519,156 @@ class CrmDashboard extends Component
         $this->shipmentEditForm = [];
         $this->resetShipmentMilestoneForm();
         $this->resetShipmentDocumentForm();
+        $this->resetCollaborationForm('shipment');
+    }
+
+    public function toggleNotifications(): void
+    {
+        $this->showNotifications = ! $this->showNotifications;
+    }
+
+    public function markWorkspaceNotificationRead(int $notificationId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        WorkspaceNotification::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('user_id', auth()->id())
+            ->whereKey($notificationId)
+            ->where('is_read', false)
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
+    }
+
+    public function markAllWorkspaceNotificationsRead(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        WorkspaceNotification::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('user_id', auth()->id())
+            ->where('is_read', false)
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
+    }
+
+    public function openWorkspaceNotification(int $notificationId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $notification = WorkspaceNotification::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('user_id', auth()->id())
+            ->findOrFail($notificationId);
+
+        if (! $notification->is_read) {
+            $notification->forceFill([
+                'is_read' => true,
+                'read_at' => now(),
+            ])->save();
+        }
+
+        $this->showNotifications = false;
+
+        match ($notification->notable_type) {
+            Lead::class => $this->selectLead($notification->notable_id),
+            Opportunity::class => $this->selectOpportunity($notification->notable_id),
+            Quote::class => $this->selectQuote($notification->notable_id),
+            ShipmentJob::class => $this->selectShipment($notification->notable_id),
+            default => null,
+        };
+    }
+
+    public function addCollaborationEntry(string $recordType, int $recordId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+        $record = $this->collaborationRecordFor($recordType, $recordId, $workspace);
+        $form = data_get($this->collaborationForms, $recordType, []);
+        $entryType = data_get($form, 'type', CollaborationEntry::TYPE_NOTE);
+        $body = trim((string) data_get($form, 'body', ''));
+        $recipientId = data_get($form, 'recipient_user_id');
+
+        if (! in_array($entryType, CollaborationEntry::TYPES, true)) {
+            $entryType = CollaborationEntry::TYPE_NOTE;
+        }
+
+        if ($body === '') {
+            $this->addError("collaborationForms.{$recordType}.body", 'Enter a note or message.');
+
+            return;
+        }
+
+        $recipient = null;
+
+        if ($entryType === CollaborationEntry::TYPE_MESSAGE) {
+            if (blank($recipientId)) {
+                $this->addError("collaborationForms.{$recordType}.recipient_user_id", 'Choose a teammate for this message.');
+
+                return;
+            }
+
+            $recipient = User::query()
+                ->whereHas('workspaces', fn ($query) => $query->where('workspaces.id', $workspace->id))
+                ->findOrFail((int) $recipientId);
+        }
+
+        app(WorkspaceCollaborationService::class)->addEntry(
+            $record,
+            auth()->user(),
+            $entryType,
+            $body,
+            $recipient,
+        );
+
+        $this->resetCollaborationForm($recordType);
+        $this->resetErrorBag([
+            "collaborationForms.{$recordType}.body",
+            "collaborationForms.{$recordType}.recipient_user_id",
+        ]);
+
+        $this->flash(ucfirst($entryType).' added to '.$this->collaborationRecordLabel($recordType).'.');
+    }
+
+    public function updateRecordAssignment(string $recordType, int $recordId, $assignedUserId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+        $record = $this->collaborationRecordFor($recordType, $recordId, $workspace);
+
+        if (! in_array($recordType, ['lead', 'opportunity', 'quote', 'shipment'], true)) {
+            return;
+        }
+
+        $assignee = null;
+
+        if (filled($assignedUserId)) {
+            $assignee = User::query()
+                ->whereHas('workspaces', fn ($query) => $query->where('workspaces.id', $workspace->id))
+                ->findOrFail((int) $assignedUserId);
+        }
+
+        if ((int) ($record->assigned_user_id ?? 0) === (int) ($assignee?->id ?? 0)) {
+            return;
+        }
+
+        $record->forceFill([
+            'assigned_user_id' => $assignee?->id,
+        ])->save();
+
+        app(WorkspaceCollaborationService::class)->notifyAssignment(
+            $record->fresh(),
+            auth()->user(),
+            $assignee,
+        );
+
+        $label = $this->collaborationRecordLabel($recordType);
+
+        $this->flash($assignee
+            ? ucfirst($label).' assigned to '.$assignee->name.'.'
+            : ucfirst($label).' assignment cleared.');
     }
 
     public function addShipmentMilestone(): void
@@ -4503,6 +4673,28 @@ class CrmDashboard extends Component
         ];
     }
 
+    protected function defaultCollaborationForm(): array
+    {
+        return [
+            'type' => CollaborationEntry::TYPE_NOTE,
+            'body' => '',
+            'recipient_user_id' => '',
+        ];
+    }
+
+    protected function resetCollaborationForm(?string $recordType = null): void
+    {
+        if ($recordType === null) {
+            foreach (array_keys($this->collaborationForms ?: ['lead' => [], 'opportunity' => [], 'quote' => [], 'shipment' => []]) as $key) {
+                $this->collaborationForms[$key] = $this->defaultCollaborationForm();
+            }
+
+            return;
+        }
+
+        $this->collaborationForms[$recordType] = $this->defaultCollaborationForm();
+    }
+
     protected function blankCostingLine(): array
     {
         return [
@@ -4653,6 +4845,10 @@ class CrmDashboard extends Component
         $selectedBooking = null;
         $selectedCosting = null;
         $selectedInvoice = null;
+        $selectedLeadCollaboration = collect();
+        $selectedOpportunityCollaboration = collect();
+        $selectedQuoteCollaboration = collect();
+        $selectedShipmentCollaboration = collect();
         $selectedShipmentTimeline = collect();
         $leadInsights = [];
         $opportunityInsights = [];
@@ -4676,6 +4872,8 @@ class CrmDashboard extends Component
         $invoiceShipmentOptions = collect();
         $invoiceCostingOptions = collect();
         $selectedBookingInvoices = collect();
+        $workspaceNotifications = collect();
+        $unreadWorkspaceNotificationCount = 0;
         $analyticsKpis = [];
         $analyticsBreakdownRows = collect();
         $analyticsMonthlyRows = collect();
@@ -4753,6 +4951,18 @@ class CrmDashboard extends Component
 
             $sheetSources = $workspace->sheetSources()->latest()->get();
             $workspaceUsers = $workspace->users()->with(['roles.permissions', 'userPermissions'])->orderBy('name')->get();
+            $workspaceNotifications = WorkspaceNotification::query()
+                ->with('actor')
+                ->where('workspace_id', $workspace->id)
+                ->where('user_id', auth()->id())
+                ->latest()
+                ->limit(8)
+                ->get();
+            $unreadWorkspaceNotificationCount = WorkspaceNotification::query()
+                ->where('workspace_id', $workspace->id)
+                ->where('user_id', auth()->id())
+                ->where('is_read', false)
+                ->count();
             $monthlyReports = $workspace->monthlyReports()->orderByDesc('month_start')->limit(6)->get();
             $latestReport = $monthlyReports->first();
             $leadOptions = Lead::query()
@@ -5135,10 +5345,16 @@ class CrmDashboard extends Component
             $leadInsights = $selectedLead
                 ? $enrichment->contactInsights($selectedLead)
                 : [];
+            $selectedLeadCollaboration = $selectedLead
+                ? $this->collaborationEntriesFor($selectedLead)
+                : collect();
 
             $opportunityInsights = $selectedOpportunity && $selectedOpportunity->lead
                 ? $enrichment->customerInsights($selectedOpportunity)
                 : [];
+            $selectedOpportunityCollaboration = $selectedOpportunity
+                ? $this->collaborationEntriesFor($selectedOpportunity)
+                : collect();
 
             $contactInsights = $selectedContact
                 ? $enrichment->contactInsights($selectedContact)
@@ -5152,6 +5368,13 @@ class CrmDashboard extends Component
                 $this->ensureShipmentExecutionDefaults($selectedShipment);
                 $selectedShipment = $selectedShipment->fresh(['lead', 'opportunity', 'quote', 'assignedUser', 'milestones', 'documents', 'bookings.carrier', 'jobCostings', 'invoices']);
             }
+
+            $selectedQuoteCollaboration = $selectedQuote
+                ? $this->collaborationEntriesFor($selectedQuote)
+                : collect();
+            $selectedShipmentCollaboration = $selectedShipment
+                ? $this->collaborationEntriesFor($selectedShipment)
+                : collect();
 
             $selectedShipmentTimeline = $selectedShipment
                 ? $this->shipmentTimelineRows($selectedShipment)
@@ -5228,10 +5451,14 @@ class CrmDashboard extends Component
             'quoteStatusOptions' => Quote::STATUSES,
             'roles' => $roles,
             'selectedLead' => $selectedLead,
+            'selectedLeadCollaboration' => $selectedLeadCollaboration,
             'selectedOpportunity' => $selectedOpportunity,
+            'selectedOpportunityCollaboration' => $selectedOpportunityCollaboration,
             'selectedRate' => $selectedRate,
             'selectedQuote' => $selectedQuote,
+            'selectedQuoteCollaboration' => $selectedQuoteCollaboration,
             'selectedShipment' => $selectedShipment,
+            'selectedShipmentCollaboration' => $selectedShipmentCollaboration,
             'selectedShipmentTimeline' => $selectedShipmentTimeline,
             'selectedContact' => $selectedContact,
             'selectedCustomer' => $selectedCustomer,
@@ -5254,6 +5481,8 @@ class CrmDashboard extends Component
             'tabs' => $workspace
                 ? $this->availableTabsForWorkspace($workspace, $canManageAccess, $canViewWorkspaceTools)
                 : $this->coreTabDefinitions(),
+            'workspaceNotifications' => $workspaceNotifications,
+            'unreadWorkspaceNotificationCount' => $unreadWorkspaceNotificationCount,
             'workspaceUsers' => $workspaceUsers,
             'workspaces' => $workspaces,
             'workspaceTemplates' => Workspace::workspaceTemplates(),
@@ -5413,6 +5642,13 @@ class CrmDashboard extends Component
             'status' => ShipmentDocument::STATUS_RECEIVED,
             'uploaded_at' => now()->format('Y-m-d\TH:i'),
             'notes' => '',
+        ];
+
+        $this->collaborationForms = [
+            'lead' => $this->defaultCollaborationForm(),
+            'opportunity' => $this->defaultCollaborationForm(),
+            'quote' => $this->defaultCollaborationForm(),
+            'shipment' => $this->defaultCollaborationForm(),
         ];
     }
 
@@ -6896,6 +7132,40 @@ class CrmDashboard extends Component
     protected function flash(string $message): void
     {
         session()->flash('status', $message);
+    }
+
+    protected function collaborationRecordFor(string $recordType, int $recordId, Workspace $workspace): Model
+    {
+        return match ($recordType) {
+            'lead' => Lead::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'opportunity' => Opportunity::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'quote' => Quote::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'shipment' => ShipmentJob::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            default => abort(404),
+        };
+    }
+
+    protected function collaborationRecordLabel(string $recordType): string
+    {
+        return match ($recordType) {
+            'lead' => 'lead',
+            'opportunity' => 'opportunity',
+            'quote' => 'quote',
+            'shipment' => 'shipment',
+            default => 'record',
+        };
+    }
+
+    protected function collaborationEntriesFor(Model $record): EloquentCollection
+    {
+        return CollaborationEntry::query()
+            ->with(['user', 'recipientUser'])
+            ->where('workspace_id', $record->workspace_id)
+            ->where('notable_type', $record::class)
+            ->where('notable_id', $record->getKey())
+            ->latest()
+            ->limit(12)
+            ->get();
     }
 
     protected function coreTabDefinitions(): array

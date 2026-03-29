@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Lead extends Model
 {
@@ -141,5 +142,10 @@ class Lead extends Model
     public function statusLogs(): HasMany
     {
         return $this->hasMany(LeadStatusLog::class);
+    }
+
+    public function collaborationEntries(): MorphMany
+    {
+        return $this->morphMany(CollaborationEntry::class, 'notable')->latest();
     }
 }

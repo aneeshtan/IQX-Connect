@@ -95,6 +95,31 @@ class Workspace extends Model
         return $this->hasMany(MonthlyReport::class);
     }
 
+    public function segmentDefinitions(): HasMany
+    {
+        return $this->hasMany(CustomerSegmentDefinition::class);
+    }
+
+    public function metricSnapshots(): HasMany
+    {
+        return $this->hasMany(AccountMetricSnapshot::class);
+    }
+
+    public function segmentAssignments(): HasMany
+    {
+        return $this->hasMany(AccountSegmentAssignment::class);
+    }
+
+    public function collaborationEntries(): HasMany
+    {
+        return $this->hasMany(CollaborationEntry::class);
+    }
+
+    public function workspaceNotifications(): HasMany
+    {
+        return $this->hasMany(WorkspaceNotification::class);
+    }
+
     public static function workspaceTemplates(): array
     {
         return config('workspace_templates.templates', []);

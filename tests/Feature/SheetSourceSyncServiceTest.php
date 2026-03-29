@@ -41,7 +41,7 @@ class SheetSourceSyncServiceTest extends TestCase
             'workspace_id' => $workspace->id,
             'type' => SheetSource::TYPE_LEADS,
             'name' => 'Public Google Sheet',
-            'url' => 'https://docs.google.com/spreadsheets/d/10e7bFezWnxiVEOtTMsAn5bOS9-2Y33utDoMFFibS-dY/edit?gid=0#gid=0',
+            'url' => 'https://docs.google.com/spreadsheets/d/IQXCONNECTDEMO1234567890/edit?gid=0#gid=0',
             'source_kind' => SheetSource::SOURCE_KIND_GOOGLE_SHEETS_API,
             'is_active' => true,
             'sync_status' => 'idle',

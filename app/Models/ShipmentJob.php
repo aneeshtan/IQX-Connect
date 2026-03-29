@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class ShipmentJob extends Model
 {
@@ -159,5 +160,10 @@ class ShipmentJob extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(ShipmentDocument::class)->orderByDesc('uploaded_at')->orderByDesc('created_at');
+    }
+
+    public function collaborationEntries(): MorphMany
+    {
+        return $this->morphMany(CollaborationEntry::class, 'notable')->latest();
     }
 }

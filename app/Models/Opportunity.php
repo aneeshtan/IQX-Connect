@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Opportunity extends Model
 {
@@ -129,5 +130,10 @@ class Opportunity extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function collaborationEntries(): MorphMany
+    {
+        return $this->morphMany(CollaborationEntry::class, 'notable')->latest();
     }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\CrmDashboard;
 use App\Models\Booking;
 use App\Models\Carrier;
+use App\Models\CollaborationEntry;
 use App\Models\Company;
 use App\Models\Invoice;
 use App\Models\JobCosting;
@@ -19,6 +20,7 @@ use App\Models\ShipmentJob;
 use App\Models\ShipmentMilestone;
 use App\Models\User;
 use App\Models\Workspace;
+use App\Models\WorkspaceNotification;
 use App\Services\GoogleSheetsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use jeremykenedy\LaravelRoles\Models\Permission;
@@ -129,7 +131,7 @@ class DashboardTest extends TestCase
             ->set('sourceForm.workspace_id', $workspace->id)
             ->set('sourceForm.type', 'shipments')
             ->set('sourceForm.name', 'Shipment Source')
-            ->set('sourceForm.url', 'https://docs.google.com/spreadsheets/d/10e7bFezWnxiVEOtTMsAn5bOS9-2Y33utDoMFFibS-dY/edit?gid=0#gid=0')
+            ->set('sourceForm.url', 'https://docs.google.com/spreadsheets/d/IQXCONNECTDEMO1234567890/edit?gid=0#gid=0')
             ->set('sourceForm.source_kind', SheetSource::SOURCE_KIND_GOOGLE_SHEET_CSV)
             ->set('sourceForm.description', 'Freight shipment feed')
             ->call('saveSheetSource')
@@ -2421,6 +2423,173 @@ class DashboardTest extends TestCase
             'id' => $shipment->id,
             'carrier_name' => 'MSC',
             'status' => ShipmentJob::STATUS_BOOKED,
+        ]);
+    }
+
+    public function test_workspace_users_can_add_collaboration_notes_and_messages_on_a_lead(): void
+    {
+        $company = Company::create([
+            'name' => 'Collab Marine',
+            'slug' => 'collab-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Collab Workspace',
+            'slug' => 'collab-workspace',
+            'is_default' => true,
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $owner = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+            'name' => 'Owner User',
+        ]);
+        $owner->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $owner->attachRole($salesRole);
+
+        $teammate = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+            'name' => 'Nadia Saleh',
+        ]);
+        $teammate->workspaces()->attach($workspace->id, ['job_title' => 'Sales', 'is_owner' => false]);
+        $teammate->attachRole($salesRole);
+
+        $lead = Lead::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'assigned_user_id' => $teammate->id,
+            'external_key' => 'lead-collab-001',
+            'lead_id' => 'LD-COLLAB-001',
+            'contact_name' => 'Ali Noor',
+            'company_name' => 'Ocean Star',
+            'email' => 'ops@oceanstar.test',
+            'service' => 'Ocean Freight',
+            'lead_source' => 'Email',
+            'status' => Lead::STATUS_IN_PROGRESS,
+            'submission_date' => now(),
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('workspaceId', $workspace->id)
+            ->call('selectLead', $lead->id)
+            ->set('collaborationForms.lead.type', CollaborationEntry::TYPE_NOTE)
+            ->set('collaborationForms.lead.body', 'Customer wants an update before noon.')
+            ->call('addCollaborationEntry', 'lead', $lead->id)
+            ->set('collaborationForms.lead.type', CollaborationEntry::TYPE_MESSAGE)
+            ->set('collaborationForms.lead.recipient_user_id', (string) $teammate->id)
+            ->set('collaborationForms.lead.body', 'Please call this lead and confirm cargo dimensions.')
+            ->call('addCollaborationEntry', 'lead', $lead->id)
+            ->assertHasNoErrors()
+            ->assertSee('Team collaboration');
+
+        $this->assertDatabaseHas('collaboration_entries', [
+            'workspace_id' => $workspace->id,
+            'notable_type' => Lead::class,
+            'notable_id' => $lead->id,
+            'entry_type' => CollaborationEntry::TYPE_NOTE,
+            'body' => 'Customer wants an update before noon.',
+        ]);
+
+        $this->assertDatabaseHas('collaboration_entries', [
+            'workspace_id' => $workspace->id,
+            'notable_type' => Lead::class,
+            'notable_id' => $lead->id,
+            'entry_type' => CollaborationEntry::TYPE_MESSAGE,
+            'recipient_user_id' => $teammate->id,
+        ]);
+
+        $this->assertDatabaseHas('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $teammate->id,
+            'notification_type' => WorkspaceNotification::TYPE_MESSAGE,
+            'notable_type' => Lead::class,
+            'notable_id' => $lead->id,
+        ]);
+    }
+
+    public function test_workspace_users_can_reassign_a_quote_and_generate_assignment_notifications(): void
+    {
+        $company = Company::create([
+            'name' => 'Assignment Marine',
+            'slug' => 'assignment-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Assignment Workspace',
+            'slug' => 'assignment-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $owner = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+            'name' => 'Owner User',
+        ]);
+        $owner->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $owner->attachRole($salesRole);
+
+        $salesUser = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+            'name' => 'Mira Hassan',
+        ]);
+        $salesUser->workspaces()->attach($workspace->id, ['job_title' => 'Sales', 'is_owner' => false]);
+        $salesUser->attachRole($salesRole);
+
+        $quote = Quote::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'quote_number' => 'QT-ASN-001',
+            'company_name' => 'Blue Sea Traders',
+            'contact_name' => 'Amir Khan',
+            'contact_email' => 'amir@bluesea.test',
+            'service_mode' => 'Ocean Freight',
+            'origin' => 'Jebel Ali',
+            'destination' => 'Singapore',
+            'currency' => 'AED',
+            'status' => Quote::STATUS_DRAFT,
+            'quoted_at' => now(),
+        ]);
+
+        $this->actingAs($owner);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('workspaceId', $workspace->id)
+            ->call('selectQuote', $quote->id)
+            ->call('updateRecordAssignment', 'quote', $quote->id, (string) $salesUser->id)
+            ->assertHasNoErrors()
+            ->assertSee('Team collaboration');
+
+        $this->assertSame($salesUser->id, $quote->fresh()->assigned_user_id);
+
+        $this->assertDatabaseHas('workspace_notifications', [
+            'workspace_id' => $workspace->id,
+            'user_id' => $salesUser->id,
+            'notification_type' => WorkspaceNotification::TYPE_ASSIGNMENT,
+            'notable_type' => Quote::class,
+            'notable_id' => $quote->id,
         ]);
     }
 }

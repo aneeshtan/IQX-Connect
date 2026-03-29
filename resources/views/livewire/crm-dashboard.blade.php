@@ -110,9 +110,75 @@
                     <h1 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
                         {{ $currentWorkspace ? $currentWorkspace->name.' Dashboard' : 'Workspace Dashboard' }}
                     </h1>
+                    @if ($canViewWorkspaceTools)
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <button wire:click="$set('activeTab', 'settings')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
+                                Settings
+                            </button>
+                            <button wire:click="$set('activeTab', 'sources')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
+                                Sources
+                            </button>
+                            @if ($canManageAccess)
+                                <button wire:click="$set('activeTab', 'access')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
+                                    User Access
+                                </button>
+                            @endif
+                        </div>
+                    @endif
                 </div>
 
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    @if ($currentWorkspace)
+                        <div class="relative">
+                            <button wire:click="toggleNotifications" type="button" class="inline-flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                <span>Notifications</span>
+                                @if ($unreadWorkspaceNotificationCount > 0)
+                                    <span class="inline-flex min-w-6 items-center justify-center rounded-full bg-zinc-950 px-2 py-0.5 text-xs font-semibold text-white">{{ $unreadWorkspaceNotificationCount }}</span>
+                                @endif
+                            </button>
+
+                            @if ($showNotifications)
+                                <div class="absolute right-0 top-[calc(100%+0.75rem)] z-40 w-[24rem] rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-2xl shadow-zinc-950/10">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div>
+                                            <div class="text-sm font-semibold text-zinc-950">Workspace notifications</div>
+                                            <div class="mt-1 text-xs text-zinc-400">Assignment updates, notes, and teammate messages.</div>
+                                        </div>
+                                        @if ($unreadWorkspaceNotificationCount > 0)
+                                            <button wire:click="markAllWorkspaceNotificationsRead" type="button" class="text-xs font-medium text-sky-700 transition hover:text-sky-900">
+                                                Mark all read
+                                            </button>
+                                        @endif
+                                    </div>
+
+                                    <div class="mt-4 max-h-96 space-y-3 overflow-y-auto">
+                                        @forelse ($workspaceNotifications as $notification)
+                                            <button wire:click="openWorkspaceNotification({{ $notification->id }})" type="button" class="block w-full rounded-[1rem] border px-4 py-3 text-left transition {{ $notification->is_read ? 'border-zinc-200 bg-zinc-50/70 hover:bg-zinc-100/70' : 'border-sky-200 bg-sky-50/70 hover:bg-sky-100/70' }}">
+                                                <div class="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <div class="text-sm font-semibold text-zinc-950">{{ $notification->title }}</div>
+                                                        <div class="mt-1 text-sm text-zinc-600">{{ $notification->body }}</div>
+                                                        @if (data_get($notification->data, 'entry_preview'))
+                                                            <div class="mt-2 text-xs text-zinc-400">{{ data_get($notification->data, 'entry_preview') }}</div>
+                                                        @endif
+                                                    </div>
+                                                    <div class="text-right text-xs text-zinc-400">
+                                                        <div>{{ $notification->created_at?->format('d M') }}</div>
+                                                        <div class="mt-1">{{ $notification->created_at?->format('H:i') }}</div>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        @empty
+                                            <div class="rounded-[1rem] border border-dashed border-zinc-200 bg-zinc-50/60 px-4 py-4 text-sm text-zinc-500">
+                                                No notifications yet for this workspace.
+                                            </div>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
                     <select wire:model.live="workspaceId" class="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
                         @forelse ($workspaces as $workspace)
                             <option value="{{ $workspace->id }}">{{ $workspace->company->name }} / {{ $workspace->name }}</option>
@@ -145,6 +211,8 @@
                 <div class="hidden py-3 lg:block">
                     @php
                         $orderedTabs = collect($tabs);
+
+                        $orderedTabs->forget('settings');
 
                         if ($orderedTabs->has('analytics') && $orderedTabs->has('settings')) {
                             $analyticsLabel = $orderedTabs->pull('analytics');
@@ -475,6 +543,15 @@
                                         <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $selectedLead->notes ?: 'No notes saved for this lead yet.' }}</p>
                                     </div>
 
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'recordType' => 'lead',
+                                        'record' => $selectedLead,
+                                        'recordLabel' => 'lead',
+                                        'entries' => $selectedLeadCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
+
                                     @if ($selectedLead->disqualification_reason)
                                         <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
                                             <div class="text-sm font-semibold text-zinc-950">Disqualification reason</div>
@@ -798,6 +875,15 @@
                                         <div class="text-sm font-semibold text-zinc-950">{{ $opportunityInsights['headline'] ?? 'Opportunity overview' }}</div>
                                         <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $opportunityInsights['summary'] ?? 'Edit the deal details and keep the pipeline current.' }}</p>
                                     </div>
+
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'recordType' => 'opportunity',
+                                        'record' => $selectedOpportunity,
+                                        'recordLabel' => 'opportunity',
+                                        'entries' => $selectedOpportunityCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
 
                                     <form wire:submit="saveOpportunityDetails" class="grid gap-3 md:grid-cols-2">
                                         <input wire:model="opportunityEditForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
@@ -1185,6 +1271,15 @@
                                         </div>
                                     </div>
 
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'recordType' => 'quote',
+                                        'record' => $selectedQuote,
+                                        'recordLabel' => 'quote',
+                                        'entries' => $selectedQuoteCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
+
                                     <form wire:submit="saveQuoteDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                         <select wire:model="quoteEditForm.rate_card_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
                                             <option value="">No linked rate card</option>
@@ -1535,6 +1630,15 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'recordType' => 'shipment',
+                                        'record' => $selectedShipment,
+                                        'recordLabel' => 'shipment',
+                                        'entries' => $selectedShipmentCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
 
                                     <form wire:submit="saveShipmentDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                         <input wire:model="shipmentEditForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
@@ -3880,6 +3984,7 @@
                     </div>
 
                     <div class="flex flex-col gap-2">
+                        <p class="text-xs font-medium uppercase tracking-[0.25em] text-zinc-400">Settings</p>
                         <h2 class="text-lg font-semibold text-zinc-950">Workspace settings</h2>
                         <p class="text-sm text-zinc-500">Edit the CRM vocabulary for {{ $currentWorkspace->name }}. Status and stage logic stays stable internally, while labels and picklists remain workspace-specific.</p>
                     </div>
@@ -4640,8 +4745,7 @@
                 'opportunities' => 'Deals',
                 'customers' => 'Customers',
                 'analytics' => 'Analytics',
-                'settings' => 'Settings',
-            ])->filter(fn ($label, $tabKey) => array_key_exists($tabKey, $tabs) || $tabKey === 'settings');
+            ])->filter(fn ($label, $tabKey) => array_key_exists($tabKey, $tabs));
 
             if (! $mobileNavTabs->has($mobileActiveTab) && array_key_exists($mobileActiveTab, $tabs)) {
                 $mobileNavTabs = $mobileNavTabs->take(4);

@@ -73,85 +73,16 @@
                         <div class="absolute -left-8 top-8 h-28 w-28 rounded-full bg-emerald-200/50 blur-3xl"></div>
                         <div class="absolute -right-6 bottom-8 h-32 w-32 rounded-full bg-sky-200/60 blur-3xl"></div>
                         <div class="relative overflow-hidden rounded-[2rem] border border-emerald-100 bg-white p-5 shadow-xl shadow-emerald-950/10">
-                            <div class="rounded-[1.7rem] bg-[linear-gradient(135deg,_#06281f,_#0f766e_58%,_#16a34a)] p-5 text-white">
-                                <div class="flex items-start justify-between gap-4">
-                                    <div>
-                                        <div class="text-xs uppercase tracking-[0.3em] text-emerald-100">Demo Preview</div>
-                                        <div class="mt-2 text-2xl font-semibold">See IQX Connect in under two minutes</div>
-                                    </div>
-                                    <div class="rounded-2xl bg-white/10 px-3 py-2 text-sm">Placeholder Video</div>
-                                </div>
-                                <p class="mt-4 max-w-xl text-sm leading-7 text-emerald-50">
-                                    Replace this block with your product demo later. For now it frames the CRM as a guided walkthrough of lead updates, opportunity movement, workspace setup, and reporting windows.
-                                </p>
-                            </div>
-
-                            <div class="mt-5 rounded-[1.7rem] border border-zinc-200 bg-[linear-gradient(180deg,_#f8fafc,_#ffffff)] p-4">
-                                <div class="relative overflow-hidden rounded-[1.45rem] border border-zinc-200 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_26%),linear-gradient(160deg,_#061b15,_#0f172a_48%,_#134e4a)] p-5 text-white shadow-inner">
-                                    <div class="absolute inset-x-0 top-0 h-20 bg-[linear-gradient(180deg,_rgba(255,255,255,0.12),_transparent)]"></div>
-                                    <div class="relative flex items-center justify-between">
-                                        <div class="flex items-center gap-2">
-                                            <span class="h-3 w-3 rounded-full bg-rose-300/80"></span>
-                                            <span class="h-3 w-3 rounded-full bg-amber-300/80"></span>
-                                            <span class="h-3 w-3 rounded-full bg-emerald-300/80"></span>
-                                        </div>
-                                        <div class="rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-emerald-100">
-                                            Product Tour
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-8 grid gap-5 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
-                                        <div class="space-y-4">
-                                            <div class="rounded-[1.3rem] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                                                <div class="text-xs uppercase tracking-[0.28em] text-emerald-100">What the demo covers</div>
-                                                <div class="mt-4 space-y-3 text-sm text-emerald-50">
-                                                    <div class="rounded-xl bg-black/15 px-3 py-2">Lead and opportunity tabs in one workspace</div>
-                                                    <div class="rounded-xl bg-black/15 px-3 py-2">Google Sheets sync and CSV imports</div>
-                                                    <div class="rounded-xl bg-black/15 px-3 py-2">Time-bound reporting for users and admins</div>
-                                                </div>
-                                            </div>
-                                            <div class="grid gap-3 sm:grid-cols-3">
-                                                <div class="rounded-[1.2rem] border border-white/10 bg-white/10 p-3">
-                                                    <div class="text-[11px] uppercase tracking-[0.25em] text-emerald-100">Format</div>
-                                                    <div class="mt-2 text-lg font-semibold">Walkthrough</div>
-                                                </div>
-                                                <div class="rounded-[1.2rem] border border-white/10 bg-white/10 p-3">
-                                                    <div class="text-[11px] uppercase tracking-[0.25em] text-emerald-100">Length</div>
-                                                    <div class="mt-2 text-lg font-semibold">1:48</div>
-                                                </div>
-                                                <div class="rounded-[1.2rem] border border-white/10 bg-white/10 p-3">
-                                                    <div class="text-[11px] uppercase tracking-[0.25em] text-emerald-100">CTA</div>
-                                                    <div class="mt-2 text-lg font-semibold">Try Free</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="rounded-[1.5rem] border border-white/10 bg-black/15 p-4 backdrop-blur">
-                                            <div class="relative aspect-video overflow-hidden rounded-[1.35rem] border border-white/10 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.12),_transparent_22%),linear-gradient(145deg,_#111827,_#0b3b32_52%,_#065f46)]">
-                                                <div class="absolute inset-0 bg-[linear-gradient(180deg,_rgba(255,255,255,0.04),_transparent_26%,_rgba(255,255,255,0.03))]"></div>
-                                                <div class="absolute inset-x-5 top-5 flex items-center justify-between text-xs uppercase tracking-[0.28em] text-emerald-100">
-                                                    <span>IQX Connect Demo</span>
-                                                    <span>Placeholder</span>
-                                                </div>
-                                                <div class="absolute inset-0 flex flex-col items-center justify-center gap-5 px-8 text-center">
-                                                    <div class="flex h-20 w-20 items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-lg shadow-black/20">
-                                                        <div class="ml-1 h-0 w-0 border-y-[14px] border-l-[24px] border-y-transparent border-l-white"></div>
-                                                    </div>
-                                                    <div>
-                                                        <div class="text-2xl font-semibold tracking-tight">Demo Video Placeholder</div>
-                                                        <p class="mt-3 max-w-md text-sm leading-7 text-emerald-50/90">
-                                                            Swap this frame with your hosted video or embedded player when the product demo is ready.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div class="absolute inset-x-5 bottom-5 flex items-center justify-between text-sm text-emerald-50/90">
-                                                    <span>01:48 product tour</span>
-                                                    <span>Lead sync, pipeline, analytics</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div class="aspect-video overflow-hidden rounded-[1.7rem] border border-zinc-200 bg-zinc-950 shadow-inner">
+                                <iframe
+                                    class="h-full w-full"
+                                    src="https://www.youtube.com/embed/Edj_zj4U_9s"
+                                    title="IQX Connect demo video"
+                                    loading="lazy"
+                                    referrerpolicy="strict-origin-when-cross-origin"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowfullscreen
+                                ></iframe>
                             </div>
                         </div>
                     </section>

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Account extends Model
 {
@@ -70,5 +71,20 @@ class Account extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
+    }
+
+    public function metricSnapshots(): HasMany
+    {
+        return $this->hasMany(AccountMetricSnapshot::class);
+    }
+
+    public function currentMetricSnapshot(): HasOne
+    {
+        return $this->hasOne(AccountMetricSnapshot::class)->where('snapshot_key', 'current');
+    }
+
+    public function segmentAssignments(): HasMany
+    {
+        return $this->hasMany(AccountSegmentAssignment::class);
     }
 }

@@ -106,7 +106,7 @@ class FreightDemoSeeder extends Seeder
             [
                 'type' => SheetSource::TYPE_LEADS,
                 'source_kind' => SheetSource::SOURCE_KIND_GOOGLE_SHEET_CSV,
-                'url' => 'https://docs.google.com/spreadsheets/d/10e7bFezWnxiVEOtTMsAn5bOS9-2Y33utDoMFFibS-dY/edit?gid=0#gid=0',
+                'url' => 'https://docs.google.com/spreadsheets/d/IQXCONNECTDEMO1234567890/edit?gid=0#gid=0',
                 'description' => 'Public lead sheet used for the freight demo workspace',
                 'is_active' => true,
                 'sync_status' => 'synced',
