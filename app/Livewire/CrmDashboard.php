@@ -53,6 +53,10 @@ class CrmDashboard extends Component
 {
     use WithPagination;
 
+    protected $listeners = [
+        'open-workspace-notification' => 'openWorkspaceNotification',
+    ];
+
     protected array $leadScoreCache = [];
 
     public $workspaceId = null;
@@ -118,8 +122,6 @@ class CrmDashboard extends Component
     public string $activeTab = 'leads';
 
     public string $settingsTab = 'general';
-
-    public bool $showNotifications = false;
 
     public string $search = '';
 
@@ -325,11 +327,16 @@ class CrmDashboard extends Component
         }
 
         $this->primeForms($workspace);
+
+        if (($notificationId = request()->integer('notification')) > 0 && $workspace) {
+            $this->openWorkspaceNotification($notificationId);
+        }
     }
 
     public function updatedWorkspaceId(): void
     {
         $this->primeForms($this->currentWorkspace());
+        $this->dispatch('workspace-notification-workspace-changed', workspaceId: $this->workspaceId ? (int) $this->workspaceId : null);
         $this->resetPage('leadsPage');
         $this->resetPage('opportunitiesPage');
         $this->resetPage('contactsPage');
@@ -3160,40 +3167,6 @@ class CrmDashboard extends Component
         $this->deliveryEditForm = [];
     }
 
-    public function toggleNotifications(): void
-    {
-        $this->showNotifications = ! $this->showNotifications;
-    }
-
-    public function markWorkspaceNotificationRead(int $notificationId): void
-    {
-        $workspace = $this->currentWorkspaceOrFail();
-
-        WorkspaceNotification::query()
-            ->where('workspace_id', $workspace->id)
-            ->where('user_id', auth()->id())
-            ->whereKey($notificationId)
-            ->where('is_read', false)
-            ->update([
-                'is_read' => true,
-                'read_at' => now(),
-            ]);
-    }
-
-    public function markAllWorkspaceNotificationsRead(): void
-    {
-        $workspace = $this->currentWorkspaceOrFail();
-
-        WorkspaceNotification::query()
-            ->where('workspace_id', $workspace->id)
-            ->where('user_id', auth()->id())
-            ->where('is_read', false)
-            ->update([
-                'is_read' => true,
-                'read_at' => now(),
-            ]);
-    }
-
     public function openWorkspaceNotification(int $notificationId): void
     {
         $workspace = $this->currentWorkspaceOrFail();
@@ -3209,8 +3182,6 @@ class CrmDashboard extends Component
                 'read_at' => now(),
             ])->save();
         }
-
-        $this->showNotifications = false;
 
         match ($notification->notable_type) {
             Lead::class => $this->selectLead($notification->notable_id),
@@ -6024,8 +5995,6 @@ class CrmDashboard extends Component
         $selectedDrawing = null;
         $selectedDelivery = null;
         $selectedBookingInvoices = collect();
-        $workspaceNotifications = collect();
-        $unreadWorkspaceNotificationCount = 0;
         $analyticsKpis = [];
         $analyticsBreakdownRows = collect();
         $analyticsMonthlyRows = collect();
@@ -6211,22 +6180,6 @@ class CrmDashboard extends Component
 
             if ($needsWorkspaceUsers) {
                 $workspaceUsers = $workspace->users()->with(['roles.permissions', 'userPermissions'])->orderBy('name')->get();
-            }
-
-            $unreadWorkspaceNotificationCount = WorkspaceNotification::query()
-                ->where('workspace_id', $workspace->id)
-                ->where('user_id', auth()->id())
-                ->where('is_read', false)
-                ->count();
-
-            if ($this->showNotifications) {
-                $workspaceNotifications = WorkspaceNotification::query()
-                    ->with('actor')
-                    ->where('workspace_id', $workspace->id)
-                    ->where('user_id', auth()->id())
-                    ->latest()
-                    ->limit(8)
-                    ->get();
             }
 
             if ($needsAnalytics) {
@@ -6875,8 +6828,6 @@ class CrmDashboard extends Component
             'tabs' => $workspace
                 ? $this->availableTabsForWorkspace($workspace, $canManageAccess, $canViewWorkspaceTools, $canViewSources)
                 : $this->coreTabDefinitions(),
-            'workspaceNotifications' => $workspaceNotifications,
-            'unreadWorkspaceNotificationCount' => $unreadWorkspaceNotificationCount,
             'workspaceUsers' => $workspaceUsers,
             'workspaces' => $workspaces,
             'workspaceTemplates' => Workspace::workspaceTemplates(),
@@ -9046,7 +8997,7 @@ class CrmDashboard extends Component
             );
         }
 
-        $tabs['analytics'] = 'Analytics';
+        $tabs['analytics'] = 'Reports';
 
         if ($canViewWorkspaceTools) {
             $tabs['settings'] = 'Settings';

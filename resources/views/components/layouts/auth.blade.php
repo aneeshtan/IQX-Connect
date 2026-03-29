@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
-        @include('partials.head')
+        @include('partials.head', ['forceLight' => true])
     </head>
     <body class="min-h-screen bg-white antialiased">
         <div class="flex min-h-svh flex-col items-center justify-center gap-6 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.15),_transparent_35%),linear-gradient(180deg,_#eff6ff,_#f8fafc)] p-6 md:p-10">

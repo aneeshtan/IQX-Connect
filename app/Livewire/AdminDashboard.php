@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Services\GoogleOAuthService;
 use App\Services\SheetSourceSyncService;
+use App\Services\WorkspaceBillingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -70,6 +71,8 @@ class AdminDashboard extends Component
 
     public array $roleForm = [];
 
+    public array $billingForm = [];
+
     public function mount(): void
     {
         abort_unless(auth()->user()->isAdmin(), 403);
@@ -83,6 +86,7 @@ class AdminDashboard extends Component
 
         $this->primeForms($workspace);
         $this->primeWorkspaceEditor($workspace);
+        $this->primeBillingForm($workspace);
     }
 
     public function updatedWorkspaceId(): void
@@ -91,9 +95,33 @@ class AdminDashboard extends Component
 
         $this->primeForms($workspace);
         $this->primeWorkspaceEditor($workspace);
+        $this->primeBillingForm($workspace);
         $this->resetPage('sourcesPage');
         $this->resetPage('workspaceUsersPage');
         $this->resetPage('workspacesPage');
+    }
+
+    public function saveWorkspaceBilling(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+        $billing = app(WorkspaceBillingService::class);
+
+        $validated = validator($this->billingForm, [
+            'plan_key' => ['required', Rule::in(array_keys($billing->planCatalog()))],
+            'included_users' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'included_operational_records' => ['nullable', 'integer', 'min:1', 'max:1000000'],
+        ])->validate();
+
+        $billing->setWorkspacePlan(
+            $workspace,
+            $validated['plan_key'],
+            $validated['included_users'] ?? null,
+            $validated['included_operational_records'] ?? null,
+        );
+
+        $this->primeBillingForm($workspace->fresh('company'));
+
+        $this->flash("Billing plan updated for {$workspace->name}.");
     }
 
     public function updatedSourceSort(): void
@@ -599,6 +627,7 @@ class AdminDashboard extends Component
         $this->workspaceId = $workspace->id;
         $this->primeForms($workspace->fresh('company'));
         $this->primeWorkspaceEditor($workspace->fresh('company'));
+        $this->primeBillingForm($workspace->fresh('company'));
 
         $this->flash("Workspace {$workspace->name} updated.");
     }
@@ -625,6 +654,7 @@ class AdminDashboard extends Component
             $this->workspaceId = $nextWorkspace?->id;
             $this->primeForms($nextWorkspace);
             $this->primeWorkspaceEditor($nextWorkspace);
+            $this->primeBillingForm($nextWorkspace);
         }
 
         $this->flash("Workspace {$name} deleted.");
@@ -726,6 +756,7 @@ class AdminDashboard extends Component
         $this->workspaceId = $workspace?->id;
         $company = $workspace?->company;
         $googleOAuth = app(GoogleOAuthService::class);
+        $billing = app(WorkspaceBillingService::class);
 
         $companies = Company::query()
             ->withCount('workspaces')
@@ -748,6 +779,8 @@ class AdminDashboard extends Component
         $latestReport = null;
         $sourceBreakdown = collect();
         $kpis = [];
+        $currentBillingSummary = null;
+        $billingRows = collect();
 
         if ($workspace) {
             $sheetSources = $this->applySourceSorting(
@@ -793,6 +826,8 @@ class AdminDashboard extends Component
                 ->groupBy('lead_source')
                 ->orderByDesc('total')
                 ->get();
+
+            $currentBillingSummary = $billing->summary($workspace);
         }
 
         $workspaceRows = $this->applyWorkspaceSorting(
@@ -801,9 +836,19 @@ class AdminDashboard extends Component
                 ->withCount(['users', 'leads', 'opportunities'])
         )->paginate($this->workspacePerPage, ['*'], 'workspacesPage');
 
+        $billingRows = $workspaceRows->getCollection()->map(function (Workspace $workspaceRow) use ($billing) {
+            return [
+                'workspace' => $workspaceRow,
+                'summary' => $billing->summary($workspaceRow),
+            ];
+        });
+
         return view('livewire.admin-dashboard', [
+            'billingPlans' => $billing->planCatalog(),
+            'billingRows' => $billingRows,
             'companies' => $companies,
             'currentWorkspace' => $workspace,
+            'currentBillingSummary' => $currentBillingSummary,
             'currentCompany' => $company,
             'googleAccount' => $company?->googleAccount,
             'googleHasClientConfig' => $googleOAuth->hasClientConfig($company),
@@ -901,6 +946,12 @@ class AdminDashboard extends Component
             'description' => '',
             'level' => 3,
         ];
+
+        $this->billingForm = [
+            'plan_key' => app(WorkspaceBillingService::class)->defaultPlanKey(),
+            'included_users' => null,
+            'included_operational_records' => null,
+        ];
     }
 
     protected function defaultSourceConnectionFields(): array
@@ -986,6 +1037,27 @@ class AdminDashboard extends Component
             'description' => $workspace->description ?? '',
             'is_default' => $workspace->is_default,
             'settings_json' => $workspace->settings ? json_encode($workspace->settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : '',
+        ];
+    }
+
+    protected function primeBillingForm(?Workspace $workspace): void
+    {
+        $billing = app(WorkspaceBillingService::class);
+
+        if (! $workspace) {
+            $this->billingForm = [
+                'plan_key' => $billing->defaultPlanKey(),
+                'included_users' => null,
+                'included_operational_records' => null,
+            ];
+
+            return;
+        }
+
+        $this->billingForm = [
+            'plan_key' => $billing->resolvePlanKey($workspace),
+            'included_users' => data_get($workspace->settings, WorkspaceBillingService::BILLING_KEY.'.included_users'),
+            'included_operational_records' => data_get($workspace->settings, WorkspaceBillingService::BILLING_KEY.'.included_operational_records'),
         ];
     }
 

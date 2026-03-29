@@ -16,6 +16,8 @@ class Workspace extends Model
 
     public const TEMPLATE_MODULES_KEY = 'template_modules';
 
+    public const BILLING_KEY = 'billing';
+
     protected $fillable = [
         'company_id',
         'name',
@@ -280,6 +282,11 @@ class Workspace extends Model
     public function crmVocabulary(): array
     {
         return data_get($this->settings ?? [], self::CRM_VOCABULARY_KEY, []);
+    }
+
+    public function billingSettings(): array
+    {
+        return data_get($this->settings ?? [], self::BILLING_KEY, []);
     }
 
     public function leadStatusLabels(): array

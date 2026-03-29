@@ -54,6 +54,7 @@ class DashboardTest extends TestCase
 
         $response = $this->get('/dashboard');
         $response->assertStatus(200);
+        $response->assertDontSee('flux.js', false);
     }
 
     public function test_workspace_owners_can_open_sources_from_workspace_settings(): void
@@ -2344,7 +2345,7 @@ class DashboardTest extends TestCase
             ->assertSee('Quotes')
             ->assertSee('Shipments')
             ->assertSee('Carriers')
-            ->assertSee('Analytics')
+            ->assertSee('Reports')
             ->call('openTemplateModule', 'quotes')
             ->assertSet('activeTab', 'quotes')
             ->assertSee('Quote List')

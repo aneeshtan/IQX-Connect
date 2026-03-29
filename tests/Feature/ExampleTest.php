@@ -17,9 +17,12 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('IQX Connect')
             ->assertSee('Start your journey')
-            ->assertSee('first 100 shipments free');
+            ->assertSee('first 100 operational records');
 
-        $response->assertSee('Product Features');
-        $response->assertSee('Product Benefits');
+        $response->assertSee('Trusted by modern maritime businesses');
+        $response->assertSee('Workspace Modes');
+        $response->assertSee('Easy Listing Views');
+        $response->assertSee('Full Migrations and Integrations');
+        $response->assertSee('Frequently asked questions');
     }
 }

@@ -15,5 +15,24 @@
 <link rel="preconnect" href="https://fonts.bunny.net">
 <link href="https://fonts.bunny.net/css?family=space-grotesk:400,500,600,700" rel="stylesheet" />
 
+@php
+    $forceLight = (bool) ($forceLight ?? false);
+@endphp
+
+<script>
+    (() => {
+        const forceLight = @json($forceLight);
+        const appearance = window.localStorage.getItem('flux.appearance') || 'system';
+        const accentTheme = window.localStorage.getItem('iqx-accent-theme') || 'emerald';
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const shouldUseDark = !forceLight && (appearance === 'dark' || (appearance === 'system' && prefersDark));
+
+        document.documentElement.dataset.iqxForceLight = forceLight ? '1' : '0';
+        document.documentElement.dataset.iqxAppearance = forceLight ? 'light' : appearance;
+        document.documentElement.dataset.accentTheme = forceLight ? 'emerald' : accentTheme;
+        document.documentElement.classList.toggle('dark', shouldUseDark);
+        document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light';
+    })();
+</script>
+
 @vite(['resources/css/app.css', 'resources/js/app.js'])
-@fluxAppearance

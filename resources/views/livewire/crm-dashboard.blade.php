@@ -111,16 +111,16 @@
                         {{ $currentWorkspace ? $currentWorkspace->name.' Dashboard' : 'Workspace Dashboard' }}
                     </h1>
                     <div class="mt-4 flex flex-wrap gap-2">
-                        <button wire:click="$set('activeTab', 'settings')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
+                        <button wire:click="$set('activeTab', 'settings')" type="button" class="iqx-secondary-button">
                             Settings
                         </button>
                         @if ($canViewSources)
-                            <button wire:click="$set('activeTab', 'sources')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
+                            <button wire:click="$set('activeTab', 'sources')" type="button" class="iqx-secondary-button">
                                 Sources
                             </button>
                         @endif
                         @if ($canManageAccess)
-                            <button wire:click="$set('activeTab', 'access')" type="button" class="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100">
+                            <button wire:click="$set('activeTab', 'access')" type="button" class="iqx-secondary-button">
                                 User Access
                             </button>
                         @endif
@@ -128,57 +128,6 @@
                 </div>
 
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    @if ($currentWorkspace)
-                        <div class="relative">
-                            <button wire:click="toggleNotifications" type="button" class="inline-flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
-                                <span>Notifications</span>
-                                @if ($unreadWorkspaceNotificationCount > 0)
-                                    <span class="inline-flex min-w-6 items-center justify-center rounded-full bg-zinc-950 px-2 py-0.5 text-xs font-semibold text-white">{{ $unreadWorkspaceNotificationCount }}</span>
-                                @endif
-                            </button>
-
-                            @if ($showNotifications)
-                                <div class="absolute right-0 top-[calc(100%+0.75rem)] z-40 w-[24rem] rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-2xl shadow-zinc-950/10">
-                                    <div class="flex items-center justify-between gap-3">
-                                        <div>
-                                            <div class="text-sm font-semibold text-zinc-950">Workspace notifications</div>
-                                            <div class="mt-1 text-xs text-zinc-400">Assignment updates, notes, and teammate messages.</div>
-                                        </div>
-                                        @if ($unreadWorkspaceNotificationCount > 0)
-                                            <button wire:click="markAllWorkspaceNotificationsRead" type="button" class="text-xs font-medium text-sky-700 transition hover:text-sky-900">
-                                                Mark all read
-                                            </button>
-                                        @endif
-                                    </div>
-
-                                    <div class="mt-4 max-h-96 space-y-3 overflow-y-auto">
-                                        @forelse ($workspaceNotifications as $notification)
-                                            <button wire:click="openWorkspaceNotification({{ $notification->id }})" type="button" class="block w-full rounded-[1rem] border px-4 py-3 text-left transition {{ $notification->is_read ? 'border-zinc-200 bg-zinc-50/70 hover:bg-zinc-100/70' : 'border-sky-200 bg-sky-50/70 hover:bg-sky-100/70' }}">
-                                                <div class="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <div class="text-sm font-semibold text-zinc-950">{{ $notification->title }}</div>
-                                                        <div class="mt-1 text-sm text-zinc-600">{{ $notification->body }}</div>
-                                                        @if (data_get($notification->data, 'entry_preview'))
-                                                            <div class="mt-2 text-xs text-zinc-400">{{ data_get($notification->data, 'entry_preview') }}</div>
-                                                        @endif
-                                                    </div>
-                                                    <div class="text-right text-xs text-zinc-400">
-                                                        <div>{{ $notification->created_at?->format('d M') }}</div>
-                                                        <div class="mt-1">{{ $notification->created_at?->format('H:i') }}</div>
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        @empty
-                                            <div class="rounded-[1rem] border border-dashed border-zinc-200 bg-zinc-50/60 px-4 py-4 text-sm text-zinc-500">
-                                                No notifications yet for this workspace.
-                                            </div>
-                                        @endforelse
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-                    @endif
-
                     <select wire:model.live="workspaceId" class="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
                         @forelse ($workspaces as $workspace)
                             <option value="{{ $workspace->id }}">{{ $workspace->company->name }} / {{ $workspace->name }}</option>
@@ -445,7 +394,7 @@
                 @if ($selectedLead)
                     <div
                         wire:click.self="closeLeadDetails"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8"
                     >
                         <div class="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
@@ -819,7 +768,7 @@
                 @if ($selectedOpportunity)
                     <div
                         wire:click.self="closeOpportunityDetails"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8"
                     >
                         <div class="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
@@ -1026,7 +975,7 @@
                 @if ($selectedRate)
                     <div
                         wire:click.self="closeRateDetails"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8"
                     >
                         <div class="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
@@ -1223,7 +1172,7 @@
                 @if ($selectedQuote)
                     <div
                         wire:click.self="closeQuoteDetails"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8"
                     >
                         <div class="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
@@ -1434,7 +1383,7 @@
                 @if ($selectedShipment)
                     <div
                         wire:click.self="closeShipmentDetails"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8"
                     >
                         <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
@@ -1789,7 +1738,7 @@
                 </div>
 
                 @if ($selectedCarrier)
-                    <div wire:click.self="closeCarrierDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                    <div wire:click.self="closeCarrierDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8">
                         <div class="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
                                 <div>
@@ -1964,7 +1913,7 @@
                 </div>
 
                 @if ($selectedBooking)
-                    <div wire:click.self="closeBookingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                    <div wire:click.self="closeBookingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8">
                         <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
                                 <div>
@@ -2201,7 +2150,7 @@
                 </div>
 
                 @if ($selectedCosting)
-                    <div wire:click.self="closeCostingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                    <div wire:click.self="closeCostingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8">
                         <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
                                 <div>
@@ -2414,7 +2363,7 @@
                 </div>
 
                 @if ($selectedInvoice)
-                    <div wire:click.self="closeInvoiceDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                    <div wire:click.self="closeInvoiceDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8">
                         <div class="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
                                 <div>
@@ -2677,7 +2626,7 @@
                 @if ($selectedContact)
                     <div
                         wire:click.self="closeContactDetails"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8"
                     >
                         <div class="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[1.75rem] border border-emerald-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-emerald-50/70 px-6 py-5">
@@ -3002,7 +2951,7 @@
                 @if ($selectedCustomer)
                     <div
                         wire:click.self="closeCustomerDetails"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8"
                     >
                         <div class="flex h-[min(88vh,760px)] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
@@ -4142,7 +4091,7 @@
                 </div>
 
                 @if ($selectedProject)
-                    <div wire:click.self="closeProjectDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                    <div wire:click.self="closeProjectDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8">
                         <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
                                 <div>
@@ -4383,7 +4332,7 @@
                 </div>
 
                 @if ($selectedDrawing)
-                    <div wire:click.self="closeDrawingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                    <div wire:click.self="closeDrawingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8">
                         <div class="flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
                                 <div>
@@ -4531,7 +4480,7 @@
                 </div>
 
                 @if ($selectedDelivery)
-                    <div wire:click.self="closeDeliveryDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                    <div wire:click.self="closeDeliveryDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 px-4 py-8">
                         <div class="flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
                                 <div>
@@ -4594,48 +4543,6 @@
                         </div>
                     </div>
                 @endif
-            @endif
-
-            @if ($currentWorkspaceExtraModules->contains($activeTab) && ! in_array($activeTab, ['rates', 'quotes', 'shipments', 'carriers', 'bookings', 'costings', 'invoices', 'projects', 'drawings', 'delivery_tracking'], true))
-                <div class="space-y-6 p-4">
-                    <section class="rounded-[1.5rem] border border-emerald-200 bg-[linear-gradient(135deg,_#f0fdf4,_#ecfeff)] p-6">
-                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div class="max-w-2xl">
-                                <p class="text-xs uppercase tracking-[0.3em] text-emerald-700">{{ $currentWorkspaceTemplateName }}</p>
-                                <h2 class="mt-3 text-2xl font-semibold tracking-tight text-zinc-950">
-                                    {{ data_get($templateModuleMeta, $activeTab.'.label', str($activeTab)->replace('_', ' ')->title()) }}
-                                </h2>
-                                <p class="mt-3 text-sm leading-7 text-zinc-600">
-                                    {{ data_get($templateModuleMeta, $activeTab.'.description', 'This module is activated for the selected workspace mode.') }}
-                                </p>
-                            </div>
-                            <div class="rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-zinc-600 lg:max-w-sm">
-                                <div class="font-medium text-zinc-950">Module activated</div>
-                                <p class="mt-2 leading-6">
-                                    {{ $currentWorkspace->name }} is using the {{ $currentWorkspaceTemplateName }} mode, so this module is now active in the workspace.
-                                </p>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section class="grid gap-4 lg:grid-cols-3">
-                        <article class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 shadow-sm">
-                            <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</p>
-                            <p class="mt-3 text-2xl font-semibold text-zinc-950">Live</p>
-                            <p class="mt-2 text-sm leading-7 text-zinc-500">The workspace mode is applied correctly and this domain module is available for this team.</p>
-                        </article>
-                        <article class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 shadow-sm">
-                            <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Workspace</p>
-                            <p class="mt-3 text-2xl font-semibold text-zinc-950">{{ $currentWorkspace->name }}</p>
-                            <p class="mt-2 text-sm leading-7 text-zinc-500">{{ $currentWorkspaceTemplateDescription }}</p>
-                        </article>
-                        <article class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 shadow-sm">
-                            <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Next step</p>
-                            <p class="mt-3 text-2xl font-semibold text-zinc-950">Model screen</p>
-                            <p class="mt-2 text-sm leading-7 text-zinc-500">The mode now exposes this module in the CRM. The next build step is the dedicated data model and workflow screen for it.</p>
-                        </article>
-                    </section>
-                </div>
             @endif
 
             @if ($activeTab === 'settings')
@@ -5724,7 +5631,7 @@
                 'leads' => 'Leads',
                 'opportunities' => 'Deals',
                 'customers' => 'Customers',
-                'analytics' => 'Analytics',
+                'analytics' => 'Reports',
             ])->filter(fn ($label, $tabKey) => array_key_exists($tabKey, $tabs));
 
             if (! $mobileNavTabs->has($mobileActiveTab) && array_key_exists($mobileActiveTab, $tabs)) {

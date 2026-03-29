@@ -3,9 +3,9 @@
         <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <p class="text-xs uppercase tracking-[0.3em] text-zinc-500">Admin</p>
-                <h1 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">Analytics and platform setup</h1>
+                <h1 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">Platform control center</h1>
                 <p class="mt-2 max-w-2xl text-sm text-zinc-500">
-                    Reporting, sheet connections, user access, and workspace structure now live on a dedicated admin page.
+                    Control workspaces, users, sources, billing plans, and platform-wide governance from one admin center.
                 </p>
             </div>
 
@@ -37,7 +37,8 @@
         <div class="border-b border-zinc-200 bg-zinc-50 px-4">
             <div class="flex flex-wrap gap-1 py-2">
                 @foreach ([
-                    'analytics' => 'Analytics',
+                    'analytics' => 'Overview',
+                    'billing' => 'Billing',
                     'sources' => 'Data Sources',
                     'access' => 'Users & Roles',
                     'structure' => 'Companies & Workspaces',
@@ -143,6 +144,123 @@
                         </article>
                     </div>
                 </div>
+            </div>
+        @endif
+
+        @if ($activeTab === 'billing')
+            <div class="grid gap-6 p-4 xl:grid-cols-[0.95fr_1.05fr]">
+                <div class="space-y-6">
+                    <article class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50 p-4">
+                        <h2 class="text-lg font-semibold text-zinc-950">Workspace billing</h2>
+                        <p class="mt-1 text-sm text-zinc-500">
+                            Assign the plan, set custom included seats or operational volume when needed, and track usage by workspace mode.
+                        </p>
+
+                        @if ($currentWorkspace && $currentBillingSummary)
+                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Current Plan</div>
+                                    <div class="mt-2 text-xl font-semibold text-zinc-950">{{ $currentBillingSummary['plan_name'] }}</div>
+                                    <div class="mt-1 text-sm text-zinc-500">{{ $currentBillingSummary['price_label'] }}</div>
+                                </div>
+                                <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3">
+                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Usage Metric</div>
+                                    <div class="mt-2 text-xl font-semibold text-zinc-950">{{ $currentBillingSummary['usage_metric_label'] }}</div>
+                                    <div class="mt-1 text-sm text-zinc-500">{{ $currentBillingSummary['usage_metric_description'] }}</div>
+                                </div>
+                            </div>
+
+                            <form wire:submit="saveWorkspaceBilling" class="mt-4 grid gap-3">
+                                <select wire:model="billingForm.plan_key" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                    @foreach ($billingPlans as $planKey => $plan)
+                                        <option value="{{ $planKey }}">{{ $plan['name'] }} · {{ $plan['price_label'] }}</option>
+                                    @endforeach
+                                </select>
+                                <input wire:model="billingForm.included_users" type="number" min="1" placeholder="Custom included users (optional)" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                <input wire:model="billingForm.included_operational_records" type="number" min="1" placeholder="Custom included operational records (optional)" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                                    Save Billing Plan
+                                </button>
+                            </form>
+                        @endif
+                    </article>
+
+                    @if ($currentBillingSummary)
+                        <article class="rounded-[1.5rem] border border-zinc-200 p-4">
+                            <h2 class="text-lg font-semibold text-zinc-950">Current usage</h2>
+                            <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                <div class="rounded-xl bg-zinc-50 px-4 py-3">
+                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Users</div>
+                                    <div class="mt-2 text-2xl font-semibold text-zinc-950">
+                                        {{ $currentBillingSummary['current_users'] }}
+                                        @if ($currentBillingSummary['included_users'])
+                                            <span class="text-sm font-medium text-zinc-500">/ {{ $currentBillingSummary['included_users'] }}</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="rounded-xl bg-zinc-50 px-4 py-3">
+                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $currentBillingSummary['usage_metric_label'] }}</div>
+                                    <div class="mt-2 text-2xl font-semibold text-zinc-950">
+                                        {{ $currentBillingSummary['current_operational_records'] }}
+                                        @if ($currentBillingSummary['included_operational_records'])
+                                            <span class="text-sm font-medium text-zinc-500">/ {{ $currentBillingSummary['included_operational_records'] }}</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 space-y-2">
+                                @foreach ($currentBillingSummary['highlights'] as $highlight)
+                                    <div class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-600">{{ $highlight }}</div>
+                                @endforeach
+                            </div>
+                        </article>
+                    @endif
+                </div>
+
+                <article class="rounded-[1.5rem] border border-zinc-200 p-4">
+                    <h2 class="text-lg font-semibold text-zinc-950">Workspace plan coverage</h2>
+                    <div class="mt-4 overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-3 py-2 font-medium">Workspace</th>
+                                    <th class="border-b border-zinc-200 px-3 py-2 font-medium">Plan</th>
+                                    <th class="border-b border-zinc-200 px-3 py-2 font-medium">Users</th>
+                                    <th class="border-b border-zinc-200 px-3 py-2 font-medium">Usage</th>
+                                    <th class="border-b border-zinc-200 px-3 py-2 font-medium">Metric</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($billingRows as $billingRow)
+                                    <tr class="odd:bg-white even:bg-zinc-50/60">
+                                        <td class="border-b border-zinc-100 px-3 py-2 font-medium text-zinc-900">
+                                            {{ $billingRow['workspace']->name }}
+                                            <div class="text-xs text-zinc-400">{{ $billingRow['workspace']->company->name }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-3 py-2 text-zinc-600">
+                                            {{ $billingRow['summary']['plan_name'] }}
+                                            <div class="text-xs text-zinc-400">{{ $billingRow['summary']['price_label'] }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-3 py-2 text-zinc-600">
+                                            {{ $billingRow['summary']['current_users'] }}
+                                            @if ($billingRow['summary']['included_users'])
+                                                / {{ $billingRow['summary']['included_users'] }}
+                                            @endif
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-3 py-2 text-zinc-600">
+                                            {{ $billingRow['summary']['current_operational_records'] }}
+                                            @if ($billingRow['summary']['included_operational_records'])
+                                                / {{ $billingRow['summary']['included_operational_records'] }}
+                                            @endif
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-3 py-2 text-zinc-600">{{ $billingRow['summary']['usage_metric_label'] }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
             </div>
         @endif
 

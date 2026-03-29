@@ -2,64 +2,184 @@
     $docMode = $docMode ?? 'app';
     $isMarketing = $docMode === 'marketing';
 
-    $workspaceModes = [
-        ['name' => 'Freight Forwarder', 'desc' => 'Quotes, bookings, shipment jobs, rates, carriers, costing, and invoices.', 'tone' => 'Full freight execution'],
-        ['name' => 'Ship Chandling', 'desc' => 'Vessel call requests, supply orders, urgent fulfillment, and delivery tracking.', 'tone' => 'Port-call driven'],
-        ['name' => 'Container Conversion', 'desc' => 'Project-led sales, repeat follow-up, and simplified pipeline management.', 'tone' => 'Project focused'],
-        ['name' => 'Shipping Liner', 'desc' => 'Schedules, bookings, vessel movement, and service visibility.', 'tone' => 'Route aware'],
-        ['name' => 'Ship Management', 'desc' => 'Fleet activity, maintenance, crewing, and technical oversight.', 'tone' => 'Fleet control'],
-        ['name' => 'Container Trading / Leasing', 'desc' => 'Inventory, leasing cycles, depots, and asset availability.', 'tone' => 'Asset driven'],
-        ['name' => 'General Maritime', 'desc' => 'A lighter mode with CRM, collaboration, and reporting first.', 'tone' => 'Flexible start'],
+    $templateModuleMeta = [
+        'leads' => ['label' => 'Leads', 'description' => 'Capture enquiries from forms, sheets, uploads, and live sources.'],
+        'opportunities' => ['label' => 'Opportunities', 'description' => 'Convert qualified demand into active pipeline with revenue and timing context.'],
+        'contacts' => ['label' => 'Contacts', 'description' => 'Keep customer-side people, history, and signals easy to access.'],
+        'customers' => ['label' => 'Customers', 'description' => 'Track won accounts, linked records, and account health in one place.'],
+        'rates' => ['label' => 'Rates', 'description' => 'Maintain lane-based buy and sell rates, transit days, and validity windows.'],
+        'quotes' => ['label' => 'Quotes', 'description' => 'Build commercial offers, compare buy and sell, and manage revisions.'],
+        'shipments' => ['label' => 'Shipments', 'description' => 'Track shipment jobs, milestones, dates, documents, and linked commercial context.'],
+        'carriers' => ['label' => 'Carriers', 'description' => 'Manage carrier relationships, service lanes, and booking dependencies.'],
+        'bookings' => ['label' => 'Bookings', 'description' => 'Move accepted work into booking requests, confirmations, and execution.'],
+        'costings' => ['label' => 'Job Costing', 'description' => 'Track buy, sell, and margin against each operational job.'],
+        'invoices' => ['label' => 'Invoices', 'description' => 'Manage AR and AP invoices tied back to shipments, bookings, and costings.'],
+        'projects' => ['label' => 'Projects', 'description' => 'Run container conversion and delivery work from scope through completion.'],
+        'drawings' => ['label' => 'Drawings', 'description' => 'Coordinate drawing revisions, technical review, and approvals.'],
+        'delivery_tracking' => ['label' => 'Delivery Tracking', 'description' => 'Monitor fabrication, delivery milestones, and installation readiness.'],
+        'vessel_calls' => ['label' => 'Vessel Calls', 'description' => 'Manage ETA, ETD, and vessel-linked demand for chandling teams.'],
+        'supply_orders' => ['label' => 'Supply Orders', 'description' => 'Organize requisitions, supply lists, and urgent chandling fulfilment.'],
+        'delivery_tasks' => ['label' => 'Delivery Tasks', 'description' => 'Coordinate final-port delivery work and completion checks.'],
+        'sailings' => ['label' => 'Sailings', 'description' => 'Keep liner schedules and service coverage close to the commercial flow.'],
+        'customer_accounts' => ['label' => 'Customer Accounts', 'description' => 'Track account structures, contract rates, and booking activity.'],
+        'fleet' => ['label' => 'Fleet', 'description' => 'Organize managed vessels, owners, and service relationships.'],
+        'technical_management' => ['label' => 'Technical Management', 'description' => 'Track management proposals, technical reviews, and vessel handover work.'],
+        'crewing' => ['label' => 'Crewing', 'description' => 'Manage owner requirements and crewing-related commercial workflows.'],
+        'inventory' => ['label' => 'Inventory', 'description' => 'Track stock, grades, availability, and container allocation.'],
+        'leasing' => ['label' => 'Leasing', 'description' => 'Handle lease enquiries, terms, and contract progression.'],
+        'depots' => ['label' => 'Depots', 'description' => 'Monitor depot locations, partners, and depot-linked container activity.'],
     ];
 
-    $moduleGroups = [
-        [
-            'title' => 'CRM Core',
-            'items' => ['Leads', 'Opportunities', 'Contacts', 'Customers', 'Notes', 'Assignments', 'Messages'],
-        ],
-        [
-            'title' => 'Commercial',
-            'items' => ['Rates', 'Quotes', 'Carriers', 'Bookings', 'Revenue', 'Margins'],
-        ],
-        [
-            'title' => 'Operations',
-            'items' => ['Shipment Jobs', 'Milestones', 'Documents', 'Timeline', 'Notifications'],
-        ],
-        [
-            'title' => 'Finance',
-            'items' => ['Job Costing', 'Invoice Lines', 'Invoices', 'AP / AR Posting'],
-        ],
-        [
-            'title' => 'Admin',
-            'items' => ['Workspace Modes', 'Sources', 'Roles', 'Notification Preferences', 'Editable Labels'],
-        ],
+    $featureFlagLabels = [
+        'advanced_integrations' => 'Advanced integrations',
+        'premium_support' => 'Priority support',
+        'custom_branding' => 'Custom branding',
+        'enterprise_security' => 'Enterprise security',
     ];
+
+    $workspaceTemplates = collect(config('workspace_templates.templates', []));
+    $usageMetrics = config('pricing.usage_metrics', []);
+    $pricingDefaultPlan = config('pricing.default_plan');
+
+    $workspaceModes = $workspaceTemplates
+        ->map(function (array $template, string $key) use ($templateModuleMeta, $usageMetrics) {
+            $moduleLabels = collect($template['modules'] ?? [])
+                ->reject(fn (string $module) => in_array($module, ['sources', 'analytics', 'access', 'settings', 'exports'], true))
+                ->map(fn (string $module) => $templateModuleMeta[$module]['label'] ?? ucwords(str_replace('_', ' ', $module)))
+                ->take(4)
+                ->values()
+                ->all();
+
+            return [
+                'key' => $key,
+                'name' => $template['name'],
+                'desc' => $template['description'],
+                'usage_label' => data_get($usageMetrics, "{$key}.label", 'Operational records'),
+                'usage_description' => data_get($usageMetrics, "{$key}.description", 'Usage tracked inside the workspace.'),
+                'modules' => $moduleLabels,
+            ];
+        })
+        ->values()
+        ->all();
+
+    $pricingPlans = collect(config('pricing.plans', []))
+        ->map(function (array $plan, string $key) use ($featureFlagLabels, $pricingDefaultPlan) {
+            return [
+                'key' => $key,
+                'name' => $plan['name'],
+                'price_label' => $plan['price_label'],
+                'included_users' => $plan['included_users'],
+                'included_operational_records' => $plan['included_operational_records'],
+                'highlights' => $plan['highlights'] ?? [],
+                'extras' => collect($featureFlagLabels)
+                    ->filter(fn (string $label, string $flag) => (bool) data_get($plan, "feature_flags.{$flag}", false))
+                    ->values()
+                    ->all(),
+                'is_default' => $pricingDefaultPlan === $key,
+            ];
+        })
+        ->values()
+        ->all();
 
     $flowSteps = [
-        ['title' => 'Capture demand', 'desc' => 'Import from Google Sheets, CSV uploads, CargoWise-style APIs, or manual entry.'],
-        ['title' => 'Qualify and quote', 'desc' => 'Convert leads into opportunities, attach rates, and build lane-based quotes.'],
-        ['title' => 'Move to operations', 'desc' => 'Turn accepted work into bookings, shipment jobs, milestones, and documents.'],
-        ['title' => 'Cost and invoice', 'desc' => 'Track margin, post invoices, and keep AP/AR linked to the shipment job.'],
+        ['title' => 'Capture demand', 'desc' => 'Bring in leads, opportunities, and reports from Google Sheets, CSV uploads, APIs, or manual entry.'],
+        ['title' => 'Run the commercial workflow', 'desc' => 'Qualify demand, score leads, manage opportunities, and create quotes or project proposals.'],
+        ['title' => 'Execute delivery work', 'desc' => 'Convert accepted work into bookings, shipment jobs, projects, milestones, drawings, or delivery tasks based on the workspace mode.'],
+        ['title' => 'Close the financial loop', 'desc' => 'Track costing, invoices, account activity, and reporting windows without breaking the record trail.'],
     ];
 
-    $benefits = [
-        ['title' => 'Faster qualification', 'desc' => 'Sales can sort real opportunities from noise and move faster into pricing.'],
-        ['title' => 'Cleaner handoffs', 'desc' => 'Commercial and operations teams share the same record trail.'],
-        ['title' => 'Better customer memory', 'desc' => 'Accounts and contacts keep the full relationship history visible.'],
-        ['title' => 'Decision-ready reporting', 'desc' => 'Management sees revenue, margin, deal flow, and operational activity in one place.'],
+    $capabilityGroups = [
+        [
+            'title' => 'Commercial CRM',
+            'desc' => 'The core dashboard keeps lead, opportunity, contact, and customer work in one searchable screen.',
+            'items' => ['Leads', 'Opportunities', 'Contacts', 'Customers', 'Assignments', 'Lead scoring'],
+        ],
+        [
+            'title' => 'Execution and finance',
+            'desc' => 'Freight teams can move from pricing into bookings, shipment jobs, costing, and invoicing on linked records.',
+            'items' => ['Rates', 'Quotes', 'Bookings', 'Shipment Jobs', 'Job Costing', 'Invoices'],
+        ],
+        [
+            'title' => 'Projects and delivery',
+            'desc' => 'Project-led workspaces expose project records, drawings, and delivery milestones instead of forcing a freight workflow everywhere.',
+            'items' => ['Projects', 'Drawings', 'Delivery tracking', 'Milestones', 'Documents', 'Assigned owners'],
+        ],
+        [
+            'title' => 'Collaboration and control',
+            'desc' => 'Teams can keep notes, activity, notifications, segmentation, and workspace settings close to the records they work on.',
+            'items' => ['Collaboration entries', 'Workspace notifications', 'Customer segments', 'Roles and access', 'Editable labels', 'Exports'],
+        ],
     ];
 
     $integrationCards = [
-        ['title' => 'Google Sheets', 'desc' => 'Public CSV links or Google Sheets API for live source sync and write-back.'],
-        ['title' => 'CSV Uploads', 'desc' => 'Quick imports for leads, opportunities, quotes, shipments, and reports.'],
-        ['title' => 'CargoWise Style APIs', 'desc' => 'Configurable API sources for freight systems and external operational feeds.'],
-        ['title' => 'Google Ads', 'desc' => 'Marketing reporting-ready connection path for future ad performance sync.'],
+        ['title' => 'Google Sheets API', 'desc' => 'Connect authenticated spreadsheets, sync records in, and support write-back where mapped.'],
+        ['title' => 'Public or uploaded CSV', 'desc' => 'Import leads, opportunities, reports, or operational records without a full integration project.'],
+        ['title' => 'CargoWise-style APIs', 'desc' => 'Bring in external operational data through configurable API-based sources.'],
+        ['title' => 'Migration-first onboarding', 'desc' => 'Start with live sources and manual work, then deepen the operating model as adoption grows.'],
     ];
 
     $reportingCards = [
-        ['title' => 'Time-bound analytics', 'desc' => 'Default last month, then 30 / 60 / 90 days, all time, or a specific month.'],
-        ['title' => 'Benchmark-style views', 'desc' => 'SQL, closed won, revenue, ROMI, ROAS, and funnel performance cards.'],
-        ['title' => 'Workspace segmentation', 'desc' => 'Customer health and churn-risk style segmentation by behavior.'],
+        ['title' => 'Flexible reporting windows', 'desc' => 'Use last month, 30, 60, or 90 days, all time, or a specific month.'],
+        ['title' => 'Benchmark-style KPIs', 'desc' => 'Track SQL, won deals, revenue, ROMI, ROAS, and funnel performance from one workspace.'],
+        ['title' => 'Customer segmentation', 'desc' => 'Define account segments and keep health, opportunity volume, and account activity visible.'],
+        ['title' => 'Operator-ready visibility', 'desc' => 'Keep activity, notes, milestones, documents, and account context accessible inside each record.'],
+    ];
+
+    $benefits = [
+        ['title' => 'One record trail', 'desc' => 'Commercial, operational, and financial work stays connected instead of breaking across spreadsheets and inboxes.'],
+        ['title' => 'Mode-specific setup', 'desc' => 'Each maritime business model gets the modules and labels it actually needs.'],
+        ['title' => 'Faster adoption', 'desc' => 'List-first screens, inline actions, and mobile-friendly views reduce CRM overhead for operators.'],
+        ['title' => 'Clear upgrade path', 'desc' => 'Teams can start free, validate the workflow, and move into paid plans when usage and headcount increase.'],
+    ];
+
+    $gettingStartedSteps = [
+        'Create a company and workspace, then choose the operating template that matches the business.',
+        'Connect Google Sheets, upload CSV files, or create records manually so the workspace starts with real data.',
+        'Run the commercial process, then convert accepted work into bookings, shipment jobs, projects, costing, or invoices as required.',
+        'Set roles, notification preferences, customer segments, and exports once the team is live.',
+    ];
+
+    $faqItems = [
+        [
+            'question' => 'What does IQX Connect cover in one app?',
+            'answer' => 'It combines CRM, operational execution, project delivery, costing, invoicing, collaboration, and reporting inside one workspace so teams can move from enquiry to execution without switching systems.',
+        ],
+        [
+            'question' => 'Which business models can use it?',
+            'answer' => 'The product ships with workspace templates for Freight Forwarder, Container Conversion Company, Ship Chandling, Shipping Liner, Ship Management Company, Container Trading / Leasing, and General Maritime teams.',
+        ],
+        [
+            'question' => 'What is included in the Freemium plan?',
+            'answer' => 'Freemium includes one workspace, three users, the first 100 operational records, and the core CRM, collaboration, and reporting workflow so teams can validate the process before paying.',
+        ],
+        [
+            'question' => 'How do the paid plans scale?',
+            'answer' => 'Growth adds five users, 500 operational records, and standard integrations. Professional increases that to ten users, 1,500 operational records, and adds advanced workflow, finance, segmentation, support, and branding options. Enterprise is custom for rollouts, security, and integration-heavy teams.',
+        ],
+        [
+            'question' => 'What counts as an operational record?',
+            'answer' => 'The usage metric follows the workspace mode. Freight Forwarder counts shipment jobs, Container Conversion counts projects, Ship Chandling counts operational orders, Shipping Liner counts bookings, Ship Management counts managed contracts, Container Trading / Leasing counts commercial deals, and General Maritime counts operational benchmark records.',
+        ],
+        [
+            'question' => 'Can we import from Google Sheets or CSV before a full migration?',
+            'answer' => 'Yes. IQX Connect supports public CSV links, uploaded CSV files, authenticated Google Sheets, and API-based source integrations so teams can start with the data they already have.',
+        ],
+        [
+            'question' => 'Does the product support both sales and operations teams?',
+            'answer' => 'Yes. Leads and opportunities stay linked to quotes, bookings, shipment jobs, projects, milestones, costings, and invoices so handoffs do not lose context.',
+        ],
+        [
+            'question' => 'How are collaboration and notifications handled?',
+            'answer' => 'The app includes collaboration entries on records, assignment workflows, and workspace notifications so teams can coordinate directly inside the CRM instead of relying on scattered email threads.',
+        ],
+        [
+            'question' => 'What reporting is available?',
+            'answer' => 'Managers can review time-bound dashboards, monthly reports, funnel metrics, revenue visibility, source performance, and customer segmentation from the same workspace.',
+        ],
+        [
+            'question' => 'When should a team consider Enterprise?',
+            'answer' => 'Enterprise is the right fit when the rollout needs custom user volume, SSO or enterprise controls, SLA-backed support, multi-workspace onboarding, or custom integrations beyond the standard setup.',
+        ],
     ];
 @endphp
 
@@ -74,10 +194,10 @@
 
                     <div class="space-y-4">
                         <h1 class="max-w-4xl text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-                            A product guide built for maritime teams evaluating IQX Connect.
+                            A product guide aligned to the workflows and pricing IQX Connect ships today.
                         </h1>
                         <p class="max-w-3xl text-base leading-8 text-zinc-600 sm:text-lg">
-                            This page explains the real workflow, the freight-forwarding depth, and the business value in a format buyers can scan quickly. Start with the operating model, then move into modules, integrations, reporting, and pricing.
+                            IQX Connect combines maritime CRM, operations, projects, finance, collaboration, and reporting in one workspace. This guide maps the real app features to the actual pricing plans so buyers can evaluate fit without guessing.
                         </p>
                     </div>
 
@@ -90,27 +210,32 @@
                         </a>
                     </div>
 
-                    <div class="grid gap-3 sm:grid-cols-3">
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         <div class="rounded-[1.35rem] border border-zinc-200 bg-white p-4 shadow-sm">
-                            <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Best For</div>
-                            <div class="mt-3 text-xl font-semibold text-zinc-950">Maritime teams</div>
-                            <p class="mt-2 text-sm leading-6 text-zinc-500">Freight forwarders, chandlers, liners, ship managers, and maritime operators.</p>
+                            <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Workspace Modes</div>
+                            <div class="mt-3 text-xl font-semibold text-zinc-950">{{ count($workspaceModes) }}</div>
+                            <p class="mt-2 text-sm leading-6 text-zinc-500">Freight, projects, liner, chandling, ship management, leasing, and general maritime workflows.</p>
                         </div>
                         <div class="rounded-[1.35rem] border border-zinc-200 bg-white p-4 shadow-sm">
-                            <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Core Flow</div>
-                            <div class="mt-3 text-xl font-semibold text-zinc-950">Lead To Job</div>
-                            <p class="mt-2 text-sm leading-6 text-zinc-500">Lead, quote, booking, shipment, costing, and invoice stay linked in one system.</p>
+                            <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Feature Footprint</div>
+                            <div class="mt-3 text-xl font-semibold text-zinc-950">CRM + Ops + Finance</div>
+                            <p class="mt-2 text-sm leading-6 text-zinc-500">Leads through invoices stay linked on one record chain.</p>
                         </div>
                         <div class="rounded-[1.35rem] border border-zinc-200 bg-white p-4 shadow-sm">
-                            <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Pricing Model</div>
-                            <div class="mt-3 text-xl font-semibold text-zinc-950">Freemium</div>
-                            <p class="mt-2 text-sm leading-6 text-zinc-500">Use the product free for the first 100 shipments, then scale into a paid plan.</p>
+                            <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Pricing Plans</div>
+                            <div class="mt-3 text-xl font-semibold text-zinc-950">{{ count($pricingPlans) }}</div>
+                            <p class="mt-2 text-sm leading-6 text-zinc-500">Freemium, Growth, Professional, and Enterprise.</p>
+                        </div>
+                        <div class="rounded-[1.35rem] border border-zinc-200 bg-white p-4 shadow-sm">
+                            <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Source Options</div>
+                            <div class="mt-3 text-xl font-semibold text-zinc-950">Sheets + CSV + APIs</div>
+                            <p class="mt-2 text-sm leading-6 text-zinc-500">Migration can start with the data tools teams already use.</p>
                         </div>
                     </div>
                 </div>
 
                 <div class="rounded-[1.8rem] border border-zinc-200 bg-zinc-950 p-5 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between gap-4">
                         <div>
                             <div class="text-xs uppercase tracking-[0.26em] text-emerald-100/70">Guide Map</div>
                             <div class="mt-2 text-2xl font-semibold">What this page covers</div>
@@ -120,10 +245,11 @@
 
                     <div class="mt-5 space-y-3">
                         @foreach ([
-                            ['step' => '01', 'title' => 'Operating model', 'desc' => 'How IQX Connect fits freight and maritime work.'],
-                            ['step' => '02', 'title' => 'Modules and workflow', 'desc' => 'CRM, quotes, shipments, costing, and invoicing.'],
-                            ['step' => '03', 'title' => 'Reporting and integrations', 'desc' => 'Live sources, segmentation, and manager visibility.'],
-                            ['step' => '04', 'title' => 'Benefits and pricing', 'desc' => 'Why teams adopt it and how the freemium plan works.'],
+                            ['step' => '01', 'title' => 'Operating model', 'desc' => 'How the app connects demand, delivery, and finance.'],
+                            ['step' => '02', 'title' => 'Feature map', 'desc' => 'The modules available across CRM, execution, projects, and admin control.'],
+                            ['step' => '03', 'title' => 'Integrations and reporting', 'desc' => 'Migration paths, source sync, analytics, and segmentation.'],
+                            ['step' => '04', 'title' => 'Pricing models', 'desc' => 'All current plans, included users, and usage limits.'],
+                            ['step' => '05', 'title' => 'FAQs', 'desc' => 'Clear buyer answers on rollout, usage, and fit.'],
                         ] as $item)
                             <div class="rounded-[1.25rem] border border-white/10 bg-white/6 p-4">
                                 <div class="flex items-start gap-3">
@@ -137,18 +263,10 @@
                         @endforeach
                     </div>
 
-                    <div class="mt-5 grid grid-cols-2 gap-3">
-                        @foreach ([
-                            ['label' => 'Workspace modes', 'value' => '7'],
-                            ['label' => 'Operational depth', 'value' => 'Bookings + jobs'],
-                            ['label' => 'Reporting windows', 'value' => 'Last month to all time'],
-                            ['label' => 'Source options', 'value' => 'Sheets, CSV, APIs'],
-                        ] as $stat)
-                            <div class="rounded-[1.1rem] border border-white/10 bg-white/6 p-4">
-                                <div class="text-xs uppercase tracking-[0.22em] text-white/55">{{ $stat['label'] }}</div>
-                                <div class="mt-2 text-lg font-semibold text-white">{{ $stat['value'] }}</div>
-                            </div>
-                        @endforeach
+                    <div class="mt-5 rounded-[1.2rem] border border-white/10 bg-white/6 p-4">
+                        <div class="text-xs uppercase tracking-[0.22em] text-white/55">Default entry plan</div>
+                        <div class="mt-2 text-lg font-semibold text-white">Freemium</div>
+                        <p class="mt-2 text-sm leading-6 text-white/70">Start with one workspace, three users, and the first 100 operational records before moving up to paid tiers.</p>
                     </div>
                 </div>
             </div>
@@ -164,10 +282,10 @@
 
                 <div class="space-y-4">
                     <h1 class="max-w-4xl text-4xl font-semibold tracking-tight sm:text-5xl">
-                        A living guide to the freight and maritime workflows inside IQX Connect.
+                        A living guide to the current IQX Connect feature set, workspace templates, and pricing model.
                     </h1>
                     <p class="max-w-3xl text-base leading-8 text-emerald-50/90 sm:text-lg">
-                        Use this page as the operational reference for workspace modes, CRM modules, integrations, reporting, and the freight workflow.
+                        Use this page as the operational reference for workspace modes, feature coverage, integrations, reporting, and how the product packages usage across plans.
                     </p>
                 </div>
 
@@ -181,7 +299,7 @@
                 </div>
 
                 <div class="flex flex-wrap gap-2 pt-2">
-                    @foreach (['Lead-to-job workflow', '7 workspace modes', 'Rates and quotes', 'Shipment jobs', 'Job costing', 'Invoices', 'Mobile friendly'] as $pill)
+                    @foreach (['Lead To Job', '7 workspace modes', 'Rates and quotes', 'Projects and shipments', 'Job costing', 'Invoices', 'Notifications'] as $pill)
                         <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-emerald-50/90">
                             {{ $pill }}
                         </span>
@@ -193,23 +311,23 @@
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="rounded-[1.35rem] border border-white/10 bg-white/10 p-4">
                         <div class="text-xs uppercase tracking-[0.24em] text-emerald-50/70">Workspace Modes</div>
-                        <div class="mt-3 text-3xl font-semibold">7</div>
-                        <p class="mt-2 text-sm leading-6 text-emerald-50/85">Freight, chandling, conversion, liner, ship management, leasing, and general maritime.</p>
+                        <div class="mt-3 text-3xl font-semibold">{{ count($workspaceModes) }}</div>
+                        <p class="mt-2 text-sm leading-6 text-emerald-50/85">Freight, conversion, chandling, liner, ship management, leasing, and general maritime templates.</p>
                     </div>
                     <div class="rounded-[1.35rem] border border-white/10 bg-white/10 p-4">
                         <div class="text-xs uppercase tracking-[0.24em] text-emerald-50/70">Workflow</div>
                         <div class="mt-3 text-3xl font-semibold">Lead To Job</div>
-                        <p class="mt-2 text-sm leading-6 text-emerald-50/85">CRM, quote, booking, shipment, costing, and invoice in one flow.</p>
+                        <p class="mt-2 text-sm leading-6 text-emerald-50/85">CRM, quotes, bookings, shipment jobs, projects, costing, and invoices can stay linked.</p>
                     </div>
                     <div class="rounded-[1.35rem] border border-white/10 bg-white/10 p-4">
-                        <div class="text-xs uppercase tracking-[0.24em] text-emerald-50/70">Visibility</div>
-                        <div class="mt-3 text-3xl font-semibold">Live</div>
-                        <p class="mt-2 text-sm leading-6 text-emerald-50/85">Track activity, documents, financials, and margin signals from one workspace.</p>
+                        <div class="text-xs uppercase tracking-[0.24em] text-emerald-50/70">Pricing Models</div>
+                        <div class="mt-3 text-3xl font-semibold">{{ count($pricingPlans) }}</div>
+                        <p class="mt-2 text-sm leading-6 text-emerald-50/85">Freemium through Enterprise with workspace-based usage packaging.</p>
                     </div>
                     <div class="rounded-[1.35rem] border border-white/10 bg-white/10 p-4">
                         <div class="text-xs uppercase tracking-[0.24em] text-emerald-50/70">Control</div>
                         <div class="mt-3 text-3xl font-semibold">Owner-led</div>
-                        <p class="mt-2 text-sm leading-6 text-emerald-50/85">Workspace owners control labels, roles, sources, and notifications.</p>
+                        <p class="mt-2 text-sm leading-6 text-emerald-50/85">Workspace owners control labels, roles, sources, notifications, and exports.</p>
                     </div>
                 </div>
             </div>
@@ -230,6 +348,7 @@
                         ['href' => '#reporting', 'label' => 'Reporting'],
                         ['href' => '#benefits', 'label' => 'Benefits'],
                         ['href' => '#pricing', 'label' => 'Pricing'],
+                        ['href' => '#faqs', 'label' => 'FAQs'],
                         ['href' => '#getting-started', 'label' => 'Getting started'],
                     ] as $link)
                         <a href="{{ $link['href'] }}" class="flex items-center justify-between rounded-2xl px-3 py-2.5 text-zinc-600 transition hover:bg-zinc-50 hover:text-zinc-950">
@@ -241,8 +360,8 @@
 
                 <div class="mt-5 rounded-[1.25rem] border border-emerald-100 bg-emerald-50 p-4">
                     <div class="text-xs uppercase tracking-[0.24em] text-emerald-700">Freemium</div>
-                    <div class="mt-2 text-lg font-semibold text-zinc-950">First 100 shipments free</div>
-                    <p class="mt-2 text-sm leading-6 text-zinc-600">Start with the full workflow before you commit to a paid scale plan.</p>
+                    <div class="mt-2 text-lg font-semibold text-zinc-950">First 100 operational records</div>
+                    <p class="mt-2 text-sm leading-6 text-zinc-600">Start with real usage, then move into Growth, Professional, or Enterprise when rollout size increases.</p>
                 </div>
             </div>
         </aside>
@@ -253,9 +372,9 @@
 <section id="overview" class="scroll-mt-28 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
     <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
         <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">How the platform works</div>
-        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Built around the freight-forwarder lifecycle.</h2>
+        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Built to keep commercial, operational, and financial work on one timeline.</h2>
         <p class="mt-3 text-base leading-7 text-zinc-600">
-            IQX Connect keeps the commercial and operational chain in one workspace so teams do not lose context between sales, pricing, execution, and finance.
+            IQX Connect keeps the record chain intact from first enquiry through shipment, project, costing, and invoicing, so teams do not lose context during handoff.
         </p>
         <div class="mt-6 space-y-4">
             @foreach ($flowSteps as $step)
@@ -269,18 +388,23 @@
 
     <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
         <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Workspace Modes</div>
-        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Use the right operating model for the business.</h2>
+        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Use the operating model that matches the business.</h2>
         <p class="mt-3 text-base leading-7 text-zinc-600">
-            Each workspace can activate a different maritime template. That keeps the UI simple while giving different company types the modules they actually need.
+            Each workspace template changes the modules, labels, and usage metric so different maritime companies can run the same platform without forcing the same process.
         </p>
         <div class="mt-6 grid gap-3 sm:grid-cols-2">
             @foreach ($workspaceModes as $mode)
                 <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
                     <div class="flex items-start justify-between gap-3">
                         <div class="text-sm font-semibold text-zinc-950">{{ $mode['name'] }}</div>
-                        <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-500">{{ $mode['tone'] }}</span>
+                        <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-500">{{ $mode['usage_label'] }}</span>
                     </div>
                     <div class="mt-2 text-sm leading-6 text-zinc-500">{{ $mode['desc'] }}</div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach ($mode['modules'] as $module)
+                            <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600">{{ $module }}</span>
+                        @endforeach
+                    </div>
                 </div>
             @endforeach
         </div>
@@ -290,32 +414,33 @@
 <section id="modules" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
     <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-            <div class="inline-flex rounded-2xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-800">Core modules</div>
-            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">The product stays simple at the top, but deep underneath.</h2>
+            <div class="inline-flex rounded-2xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-800">Feature map</div>
+            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">The public guide now reflects the actual app surface.</h2>
         </div>
         <p class="max-w-2xl text-base leading-7 text-zinc-600">
-            The workspace exposes only the modules that matter to the selected maritime company, while the data model remains strong enough for freight execution and reporting.
+            IQX Connect is not only a lead tracker. The product spans CRM, execution, delivery, finance, collaboration, and admin controls depending on the workspace template.
         </p>
     </div>
 
-    <div class="mt-6 grid gap-4 lg:grid-cols-5">
-        @foreach ($moduleGroups as $group)
-            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
-                <div class="text-sm font-semibold text-zinc-950">{{ $group['title'] }}</div>
-                <div class="mt-3 flex flex-wrap gap-2">
+    <div class="mt-6 grid gap-4 lg:grid-cols-2">
+        @foreach ($capabilityGroups as $group)
+            <article class="rounded-[1.45rem] border border-zinc-200 bg-zinc-50 p-5">
+                <div class="text-lg font-semibold tracking-tight text-zinc-950">{{ $group['title'] }}</div>
+                <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $group['desc'] }}</p>
+                <div class="mt-4 flex flex-wrap gap-2">
                     @foreach ($group['items'] as $item)
                         <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600">{{ $item }}</span>
                     @endforeach
                 </div>
-            </div>
+            </article>
         @endforeach
     </div>
 </section>
 
 <section id="resources" class="scroll-mt-28 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
     <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-        <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Integrations</div>
-        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Bring data in from the systems your team already uses.</h2>
+        <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Integrations and rollout</div>
+        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Bring data in before replacing every legacy workflow.</h2>
         <div class="mt-6 grid gap-4 sm:grid-cols-2">
             @foreach ($integrationCards as $card)
                 <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
@@ -327,8 +452,8 @@
     </article>
 
     <article id="reporting" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-        <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Reporting and segmentation</div>
-        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Give managers a faster read on pipeline and account health.</h2>
+        <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Reporting and visibility</div>
+        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Give management a faster read on demand, delivery, and account health.</h2>
         <div class="mt-6 space-y-4">
             @foreach ($reportingCards as $card)
                 <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
@@ -343,7 +468,7 @@
 <section class="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
     <article id="benefits" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
         <div class="inline-flex rounded-2xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-800">Benefits</div>
-        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">What teams gain from the platform.</h2>
+        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Why maritime teams adopt the platform.</h2>
         <div class="mt-6 space-y-4">
             @foreach ($benefits as $benefit)
                 <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
@@ -356,14 +481,9 @@
 
     <article id="getting-started" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
         <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Getting started</div>
-        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">How to start using IQX Connect.</h2>
+        <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">How teams usually roll it out.</h2>
         <ol class="mt-6 space-y-4">
-            @foreach ([
-                'Create a company and workspace, then choose the correct maritime template.',
-                'Connect a source: Google Sheets, CSV, manual data, or a CargoWise-style API.',
-                'Move demand from leads into quotes, bookings, shipment jobs, costing, and invoices.',
-                'Turn on notifications, assign users, and review analytics by time window.',
-            ] as $index => $item)
+            @foreach ($gettingStartedSteps as $index => $item)
                 <li class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
                     <div class="flex items-start gap-3">
                         <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-xs font-semibold text-white">{{ $index + 1 }}</div>
@@ -376,28 +496,101 @@
 </section>
 
 <section id="pricing" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-    <div class="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-center">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-            <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Pricing</div>
-            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Freemium first, then scale when volume justifies it.</h2>
-            <p class="mt-3 text-base leading-7 text-zinc-600">
-                IQX Connect is designed to be easy to try in a live maritime workflow. Teams can adopt the product with real operational depth before they cross into paid usage.
-            </p>
+            <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Pricing models</div>
+            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">All current plans are shown here, not just a freemium teaser.</h2>
         </div>
-        <div class="grid gap-4 sm:grid-cols-2">
-            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-5">
-                <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Freemium</div>
-                <div class="mt-3 text-4xl font-semibold text-zinc-950">100</div>
-                <p class="mt-2 text-sm leading-6 text-zinc-500">Shipments included for free, with the core CRM, quotes, shipment jobs, costing, and reporting workflow active.</p>
+        <p class="max-w-2xl text-base leading-7 text-zinc-600">
+            Pricing is workspace-based. Plans scale through user count, operational record volume, integrations, support, branding, and enterprise controls.
+        </p>
+    </div>
+
+    <div class="mt-6 grid gap-4 xl:grid-cols-4">
+        @foreach ($pricingPlans as $plan)
+            <article class="rounded-[1.5rem] border {{ $plan['is_default'] ? 'border-emerald-200 bg-emerald-50/60' : 'border-zinc-200 bg-zinc-50' }} p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="text-xs uppercase tracking-[0.24em] {{ $plan['is_default'] ? 'text-emerald-700' : 'text-zinc-400' }}">{{ $plan['name'] }}</div>
+                        <div class="mt-3 text-3xl font-semibold text-zinc-950">{{ $plan['price_label'] }}</div>
+                    </div>
+                    @if ($plan['is_default'])
+                        <span class="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm">Default</span>
+                    @endif
+                </div>
+
+                <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                    <div class="rounded-[1.1rem] border border-zinc-200 bg-white px-4 py-3">
+                        <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Included users</div>
+                        <div class="mt-2 text-lg font-semibold text-zinc-950">{{ $plan['included_users'] ? number_format($plan['included_users']) : 'Custom' }}</div>
+                    </div>
+                    <div class="rounded-[1.1rem] border border-zinc-200 bg-white px-4 py-3">
+                        <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Operational records</div>
+                        <div class="mt-2 text-lg font-semibold text-zinc-950">{{ $plan['included_operational_records'] ? number_format($plan['included_operational_records']) : 'Custom' }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-2">
+                    @foreach ($plan['highlights'] as $highlight)
+                        <div class="rounded-2xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600">{{ $highlight }}</div>
+                    @endforeach
+                </div>
+
+                @if ($plan['extras'] !== [])
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        @foreach ($plan['extras'] as $extra)
+                            <span class="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-medium text-emerald-700">{{ $extra }}</span>
+                        @endforeach
+                    </div>
+                @endif
+            </article>
+        @endforeach
+    </div>
+
+    <div class="mt-8 rounded-[1.6rem] border border-zinc-200 bg-zinc-50 p-5">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <div class="text-sm font-semibold text-zinc-950">What counts toward usage depends on the workspace mode.</div>
+                <p class="mt-2 max-w-3xl text-sm leading-7 text-zinc-600">The pricing model follows the primary operational object for each business type so teams are measured on the work that matters in their mode.</p>
             </div>
-            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-5">
-                <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Paid Scale</div>
-                <div class="mt-3 text-4xl font-semibold text-zinc-950">Custom</div>
-                <p class="mt-2 text-sm leading-6 text-zinc-500">Upgrade when your team needs larger shipment volume, more operational automation, and broader workspace rollout.</p>
-            </div>
+            <div class="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-600 shadow-sm">Mode-aware packaging</div>
+        </div>
+
+        <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            @foreach ($workspaceModes as $mode)
+                <div class="rounded-[1.2rem] border border-zinc-200 bg-white p-4">
+                    <div class="text-sm font-semibold text-zinc-950">{{ $mode['name'] }}</div>
+                    <div class="mt-2 text-sm font-medium text-emerald-700">{{ $mode['usage_label'] }}</div>
+                    <p class="mt-2 text-sm leading-6 text-zinc-500">{{ $mode['usage_description'] }}</p>
+                </div>
+            @endforeach
         </div>
     </div>
 </section>
+
+@if ($isMarketing)
+    <section id="faqs" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+        <div class="max-w-3xl">
+            <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Frequently asked questions</div>
+            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Buyer questions answered directly.</h2>
+            <p class="mt-3 text-base leading-7 text-zinc-600">
+                These FAQs reflect the current app, workspace templates, and plan structure so teams can evaluate rollout fit without reading between the lines.
+            </p>
+        </div>
+
+        <div class="mt-8 space-y-3">
+            @foreach ($faqItems as $faq)
+                <details class="group rounded-[1.4rem] border border-zinc-200 bg-zinc-50 p-5">
+                    <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-base font-semibold text-zinc-950">
+                        <span>{{ $faq['question'] }}</span>
+                        <span class="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-500 transition group-open:rotate-45">+</span>
+                    </summary>
+                    <p class="mt-4 max-w-4xl text-sm leading-7 text-zinc-600">{{ $faq['answer'] }}</p>
+                </details>
+            @endforeach
+        </div>
+    </section>
+@endif
 
 @if ($isMarketing)
         </div>
@@ -409,9 +602,9 @@
         <div class="grid gap-8 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
             <div>
                 <div class="text-sm uppercase tracking-[0.3em] text-emerald-100">Try it live</div>
-                <h2 class="mt-4 text-4xl font-semibold tracking-tight">Sell the process, not the complexity.</h2>
+                <h2 class="mt-4 text-4xl font-semibold tracking-tight">See the workflow before you commit to the rollout.</h2>
                 <p class="mt-4 max-w-2xl text-lg leading-8 text-emerald-50">
-                    Give maritime teams a workspace they can understand on the first day, with enough depth for freight execution and reporting as they grow.
+                    Start with the live workspace, validate the operating model against your team, and move into the right pricing tier when usage and complexity justify it.
                 </p>
             </div>
             <div class="flex flex-col gap-3">
