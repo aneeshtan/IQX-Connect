@@ -39,6 +39,8 @@ class Lead extends Model
         'company_id',
         'workspace_id',
         'sheet_source_id',
+        'account_id',
+        'contact_id',
         'assigned_user_id',
         'external_key',
         'lead_id',
@@ -91,6 +93,16 @@ class Lead extends Model
         return $this->belongsTo(SheetSource::class);
     }
 
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
     public function assignedUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_user_id');
@@ -114,6 +126,16 @@ class Lead extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function jobCostings(): HasMany
+    {
+        return $this->hasMany(JobCosting::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
     }
 
     public function statusLogs(): HasMany

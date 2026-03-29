@@ -39,6 +39,7 @@
 @layer base {
     html {
         scroll-behavior: smooth;
+        -webkit-tap-highlight-color: transparent;
     }
 
     body {
@@ -52,16 +53,39 @@
     ::file-selector-button {
         border-color: var(--color-gray-200, currentColor);
     }
+
+    @media (display-mode: standalone) {
+        html,
+        body {
+            overscroll-behavior-y: none;
+        }
+    }
 }
 
 @layer components {
     .ios-tab-strip {
-        @apply inline-flex flex-wrap gap-2 rounded-[1.25rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(244,244,245,0.9))] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_30px_rgba(15,23,42,0.05)];
+        @apply relative inline-flex w-full flex-nowrap gap-2 overflow-x-auto rounded-[1.25rem] border border-sky-100/90 bg-[linear-gradient(180deg,rgba(239,246,255,0.92),rgba(232,240,248,0.9))] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(148,163,184,0.12),0_12px_32px_rgba(15,23,42,0.07)] lg:w-auto lg:flex-wrap lg:overflow-visible;
         backdrop-filter: blur(18px);
+        scrollbar-width: none;
+    }
+
+    .ios-tab-strip::before {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: 1.05rem;
+        background:
+            linear-gradient(180deg, rgba(255,255,255,0.68), rgba(255,255,255,0.18)),
+            radial-gradient(circle at top left, rgba(255,255,255,0.55), transparent 42%);
+        pointer-events: none;
+    }
+
+    .ios-tab-strip::-webkit-scrollbar {
+        display: none;
     }
 
     .ios-tab-pill {
-        @apply relative overflow-hidden rounded-[1rem] px-4 py-2.5 text-sm font-medium text-zinc-500 transition duration-300 ease-out;
+        @apply relative shrink-0 overflow-hidden rounded-[1rem] px-4 py-2.5 text-sm font-medium text-zinc-500 transition duration-300 ease-out;
         transform: translateZ(0);
     }
 
@@ -129,6 +153,35 @@
         background: linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0));
         filter: blur(2px);
         pointer-events: none;
+    }
+
+    .mobile-dashboard-nav {
+        @apply fixed inset-x-3 bottom-3 z-40 rounded-[1.5rem] border border-sky-100/90 bg-white/90 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl lg:hidden;
+        padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    }
+
+    .mobile-dashboard-nav-grid {
+        @apply grid grid-cols-5 gap-1;
+    }
+
+    .mobile-dashboard-nav-item {
+        @apply flex min-h-14 flex-col items-center justify-center rounded-[1rem] px-2 py-2 text-center text-[11px] font-medium leading-tight text-zinc-500 transition;
+    }
+
+    .mobile-dashboard-nav-item-active {
+        @apply bg-sky-50 text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_8px_20px_rgba(14,165,233,0.14)];
+    }
+
+    .mobile-record-card {
+        @apply rounded-[1.35rem] border border-zinc-200 bg-white p-4 shadow-sm;
+    }
+
+    .mobile-record-card-label {
+        @apply text-[11px] uppercase tracking-[0.18em] text-zinc-400;
+    }
+
+    .mobile-record-card-value {
+        @apply mt-1 text-sm font-medium text-zinc-900;
     }
 }
 

@@ -2,15 +2,24 @@
 
 namespace App\Livewire;
 
+use App\Models\Account;
 use App\Models\Booking;
 use App\Models\Carrier;
 use App\Models\Company;
+use App\Models\Contact;
+use App\Models\Invoice;
+use App\Models\InvoiceLine;
+use App\Models\JobCosting;
+use App\Models\JobCostingLine;
 use App\Models\Lead;
 use App\Models\LeadStatusLog;
 use App\Models\Opportunity;
 use App\Models\Quote;
+use App\Models\RateCard;
 use App\Models\SheetSource;
+use App\Models\ShipmentDocument;
 use App\Models\ShipmentJob;
+use App\Models\ShipmentMilestone;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\GoogleSheetsService;
@@ -51,21 +60,33 @@ class CrmDashboard extends Component
 
     public ?int $selectedQuoteId = null;
 
+    public ?int $selectedRateId = null;
+
     public ?int $selectedShipmentId = null;
 
     public ?int $selectedCarrierId = null;
 
     public ?int $selectedBookingId = null;
 
+    public ?int $selectedCostingId = null;
+
+    public ?int $selectedInvoiceId = null;
+
     public ?int $editingOpportunityId = null;
 
     public ?int $editingQuoteId = null;
+
+    public ?int $editingRateId = null;
 
     public ?int $editingShipmentId = null;
 
     public ?int $editingCarrierId = null;
 
     public ?int $editingBookingId = null;
+
+    public ?int $editingCostingId = null;
+
+    public ?int $editingInvoiceId = null;
 
     public ?int $pendingDisqualificationLeadId = null;
 
@@ -87,9 +108,15 @@ class CrmDashboard extends Component
 
     public string $shipmentSearch = '';
 
+    public string $rateSearch = '';
+
     public string $carrierSearch = '';
 
     public string $bookingSearch = '';
+
+    public string $costingSearch = '';
+
+    public string $invoiceSearch = '';
 
     public string $leadSort = 'newest';
 
@@ -103,17 +130,31 @@ class CrmDashboard extends Component
 
     public string $shipmentSort = 'newest';
 
+    public string $rateSort = 'newest';
+
     public string $carrierSort = 'name_asc';
 
     public string $bookingSort = 'newest';
+
+    public string $costingSort = 'newest';
+
+    public string $invoiceSort = 'newest';
 
     public string $quoteStatusFilter = '';
 
     public string $shipmentStatusFilter = '';
 
+    public string $rateModeFilter = '';
+
     public string $carrierModeFilter = '';
 
     public string $bookingStatusFilter = '';
+
+    public string $costingStatusFilter = '';
+
+    public string $invoiceStatusFilter = '';
+
+    public string $invoiceBookingFilter = '';
 
     public string $analyticsRange = 'last_month';
 
@@ -133,9 +174,15 @@ class CrmDashboard extends Component
 
     public int $shipmentPerPage = 15;
 
+    public int $ratePerPage = 15;
+
     public int $carrierPerPage = 15;
 
     public int $bookingPerPage = 15;
+
+    public int $costingPerPage = 15;
+
+    public int $invoicePerPage = 15;
 
     public array $companyForm = [];
 
@@ -161,21 +208,37 @@ class CrmDashboard extends Component
 
     public array $manualQuoteForm = [];
 
+    public array $manualRateForm = [];
+
     public array $manualShipmentForm = [];
 
     public array $manualCarrierForm = [];
 
     public array $manualBookingForm = [];
 
+    public array $manualCostingForm = [];
+
+    public array $manualInvoiceForm = [];
+
+    public array $shipmentMilestoneForm = [];
+
+    public array $shipmentDocumentForm = [];
+
     public array $opportunityEditForm = [];
 
     public array $quoteEditForm = [];
+
+    public array $rateEditForm = [];
 
     public array $shipmentEditForm = [];
 
     public array $carrierEditForm = [];
 
     public array $bookingEditForm = [];
+
+    public array $costingEditForm = [];
+
+    public array $invoiceEditForm = [];
 
     public function mount(): void
     {
@@ -200,33 +263,52 @@ class CrmDashboard extends Component
         $this->resetPage('opportunitiesPage');
         $this->resetPage('contactsPage');
         $this->resetPage('customersPage');
+        $this->resetPage('ratesPage');
         $this->resetPage('quotesPage');
         $this->resetPage('shipmentsPage');
+        $this->resetPage('carriersPage');
+        $this->resetPage('bookingsPage');
+        $this->resetPage('costingsPage');
+        $this->resetPage('invoicesPage');
         $this->selectedLeadId = null;
         $this->pendingDisqualificationLeadId = null;
         $this->selectedContactId = null;
         $this->selectedCustomerId = null;
+        $this->selectedRateId = null;
         $this->selectedOpportunityId = null;
         $this->selectedQuoteId = null;
         $this->selectedShipmentId = null;
         $this->selectedCarrierId = null;
         $this->selectedBookingId = null;
+        $this->selectedCostingId = null;
+        $this->selectedInvoiceId = null;
         $this->editingWorkspaceUserId = null;
+        $this->editingRateId = null;
         $this->editingOpportunityId = null;
         $this->editingQuoteId = null;
         $this->editingShipmentId = null;
         $this->editingCarrierId = null;
         $this->editingBookingId = null;
+        $this->editingCostingId = null;
+        $this->editingInvoiceId = null;
         $this->resetManualOpportunityForm();
+        $this->resetManualRateForm();
         $this->resetManualQuoteForm();
         $this->resetManualShipmentForm();
         $this->resetManualCarrierForm();
         $this->resetManualBookingForm();
+        $this->resetManualCostingForm();
+        $this->resetManualInvoiceForm();
+        $this->resetShipmentMilestoneForm();
+        $this->resetShipmentDocumentForm();
         $this->opportunityEditForm = [];
         $this->quoteEditForm = [];
+        $this->rateEditForm = [];
         $this->shipmentEditForm = [];
         $this->carrierEditForm = [];
         $this->bookingEditForm = [];
+        $this->costingEditForm = [];
+        $this->invoiceEditForm = [];
         $this->editingWorkspaceUserForm = [];
     }
 
@@ -249,6 +331,12 @@ class CrmDashboard extends Component
     {
         $this->resetPage('customersPage');
         $this->selectedCustomerId = null;
+    }
+
+    public function updatedRateSearch(): void
+    {
+        $this->resetPage('ratesPage');
+        $this->selectedRateId = null;
     }
 
     public function updatedQuoteSearch(): void
@@ -301,6 +389,18 @@ class CrmDashboard extends Component
         $this->selectedQuoteId = null;
     }
 
+    public function updatedRateModeFilter(): void
+    {
+        $this->resetPage('ratesPage');
+        $this->selectedRateId = null;
+    }
+
+    public function updatedInvoiceBookingFilter(): void
+    {
+        $this->resetPage('invoicesPage');
+        $this->selectedInvoiceId = null;
+    }
+
     public function updatedManualQuoteFormCustomerRecordId($value): void
     {
         $workspace = $this->currentWorkspace();
@@ -316,12 +416,22 @@ class CrmDashboard extends Component
             return;
         }
 
-        $customer = Opportunity::query()
-            ->with('lead')
+        $customer = Account::query()
+            ->with('contacts')
             ->where('workspace_id', $workspace->id)
-            ->findOrFail((int) $value);
+            ->find((int) $value);
 
-        $this->hydrateManualQuoteFromCustomer($customer);
+        if (! $customer) {
+            $opportunity = Opportunity::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail((int) $value);
+
+            $customer = $opportunity->account_id
+                ? Account::query()->with('contacts')->where('workspace_id', $workspace->id)->findOrFail($opportunity->account_id)
+                : abort(404);
+        }
+
+        $this->hydrateManualQuoteFromAccount($customer);
     }
 
     public function updatedManualQuoteFormOpportunityId($value): void
@@ -334,7 +444,7 @@ class CrmDashboard extends Component
             $this->manualQuoteForm = [
                 ...$this->manualQuoteForm,
                 'opportunity_id' => '',
-                'lead_id' => $customer?->lead_id ? (string) $customer->lead_id : '',
+                'lead_id' => '',
             ];
 
             return;
@@ -346,6 +456,26 @@ class CrmDashboard extends Component
             ->findOrFail((int) $value);
 
         $this->hydrateManualQuoteFromOpportunity($opportunity);
+    }
+
+    public function updatedManualQuoteFormRateCardId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualQuoteForm = [
+                ...$this->manualQuoteForm,
+                'rate_card_id' => '',
+            ];
+
+            return;
+        }
+
+        $rateCard = RateCard::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualQuoteFromRateCard($rateCard);
     }
 
     public function updatedManualBookingFormShipmentJobId($value): void
@@ -392,6 +522,238 @@ class CrmDashboard extends Component
         }
     }
 
+    public function updatedManualCostingFormShipmentJobId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualCostingForm = [
+                ...$this->manualCostingForm,
+                'shipment_job_id' => '',
+                'quote_id' => '',
+                'opportunity_id' => '',
+                'lead_id' => '',
+                'customer_name' => '',
+                'service_mode' => '',
+                'currency' => 'AED',
+                'lines' => $this->blankCostingLines(),
+            ];
+
+            return;
+        }
+
+        $shipment = ShipmentJob::query()
+            ->with(['quote', 'opportunity', 'lead'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualCostingFromShipment($shipment);
+    }
+
+    public function updatedManualInvoiceFormShipmentJobId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualInvoiceForm = [
+                ...$this->manualInvoiceForm,
+                'shipment_job_id' => '',
+                'booking_id' => '',
+                'job_costing_id' => '',
+                'quote_id' => '',
+                'opportunity_id' => '',
+                'lead_id' => '',
+                'invoice_type' => $this->manualInvoiceForm['invoice_type'] ?? Invoice::TYPE_ACCOUNTS_RECEIVABLE,
+                'bill_to_name' => '',
+                'contact_email' => '',
+                'issue_date' => $this->manualInvoiceForm['issue_date'] ?? now()->toDateString(),
+                'due_date' => $this->manualInvoiceForm['due_date'] ?? now()->addDays(14)->toDateString(),
+                'currency' => $this->manualInvoiceForm['currency'] ?? 'AED',
+                'subtotal_amount' => '',
+                'tax_amount' => '0',
+                'paid_amount' => '0',
+                'total_amount' => '',
+                'balance_amount' => '',
+                'status' => $this->manualInvoiceForm['status'] ?? Invoice::STATUS_DRAFT,
+                'lines' => $this->blankInvoiceLines(),
+            ];
+
+            return;
+        }
+
+        $shipment = ShipmentJob::query()
+            ->with(['quote', 'opportunity', 'lead', 'bookings' => fn ($query) => $query->latest('id'), 'jobCostings' => fn ($query) => $query->latest('id')])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualInvoiceFromShipment($shipment);
+    }
+
+    public function updatedManualInvoiceFormBookingId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualInvoiceForm = [
+                ...$this->manualInvoiceForm,
+                'booking_id' => '',
+            ];
+
+            return;
+        }
+
+        $booking = Booking::query()
+            ->with(['shipmentJob.jobCostings' => fn ($query) => $query->latest('id')])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualInvoiceFromBooking($booking);
+    }
+
+    public function updatedManualInvoiceFormJobCostingId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualInvoiceForm = [
+                ...$this->manualInvoiceForm,
+                'job_costing_id' => '',
+                'status' => $this->manualInvoiceForm['status'] ?? Invoice::STATUS_DRAFT,
+                'lines' => $this->blankInvoiceLines(),
+            ];
+
+            return;
+        }
+
+        $costing = JobCosting::query()
+            ->with('lines')
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualInvoiceFromCosting($costing);
+    }
+
+    public function updatedManualInvoiceFormInvoiceType($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank(data_get($this->manualInvoiceForm, 'job_costing_id'))) {
+            data_set($this->manualInvoiceForm, 'lines', $this->blankInvoiceLines());
+            $this->applyInvoiceLineTotalsToForm('manualInvoiceForm');
+
+            return;
+        }
+
+        $costing = JobCosting::query()
+            ->with('lines')
+            ->where('workspace_id', $workspace->id)
+            ->find((int) data_get($this->manualInvoiceForm, 'job_costing_id'));
+
+        if (! $costing) {
+            return;
+        }
+
+        data_set($this->manualInvoiceForm, 'lines', $this->invoiceLinesFromCosting($costing, (string) $value));
+        $this->applyInvoiceLineTotalsToForm('manualInvoiceForm');
+    }
+
+    public function updatedInvoiceEditFormInvoiceType($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || ! $this->selectedInvoiceId) {
+            return;
+        }
+
+        $invoice = Invoice::query()
+            ->with('jobCosting.lines')
+            ->where('workspace_id', $workspace->id)
+            ->find($this->selectedInvoiceId);
+
+        if (! $invoice || ! $invoice->jobCosting) {
+            return;
+        }
+
+        data_set($this->invoiceEditForm, 'lines', $this->invoiceLinesFromCosting($invoice->jobCosting, (string) $value));
+        $this->applyInvoiceLineTotalsToForm('invoiceEditForm');
+    }
+
+    public function updatedManualInvoiceFormTaxAmount(): void
+    {
+        $this->applyInvoiceLineTotalsToForm('manualInvoiceForm');
+    }
+
+    public function updatedManualInvoiceFormPaidAmount(): void
+    {
+        $this->applyInvoiceLineTotalsToForm('manualInvoiceForm');
+    }
+
+    public function updatedManualInvoiceFormLines(): void
+    {
+        $this->applyInvoiceLineTotalsToForm('manualInvoiceForm');
+    }
+
+    public function updatedInvoiceEditFormTaxAmount(): void
+    {
+        $this->applyInvoiceLineTotalsToForm('invoiceEditForm');
+    }
+
+    public function updatedInvoiceEditFormPaidAmount(): void
+    {
+        $this->applyInvoiceLineTotalsToForm('invoiceEditForm');
+    }
+
+    public function updatedInvoiceEditFormLines(): void
+    {
+        $this->applyInvoiceLineTotalsToForm('invoiceEditForm');
+    }
+
+    public function addCostingLine(string $scope = 'manual'): void
+    {
+        $formKey = $scope === 'edit' ? 'costingEditForm' : 'manualCostingForm';
+        $lines = data_get($this->{$formKey}, 'lines', []);
+        $lines[] = $this->blankCostingLine();
+        data_set($this->{$formKey}, 'lines', array_values($lines));
+    }
+
+    public function addInvoiceLine(string $scope = 'manual'): void
+    {
+        $formKey = $scope === 'edit' ? 'invoiceEditForm' : 'manualInvoiceForm';
+        $lines = data_get($this->{$formKey}, 'lines', []);
+        $lines[] = $this->blankInvoiceLine();
+        data_set($this->{$formKey}, 'lines', array_values($lines));
+        $this->applyInvoiceLineTotalsToForm($formKey);
+    }
+
+    public function removeCostingLine(string $scope, int $index): void
+    {
+        $formKey = $scope === 'edit' ? 'costingEditForm' : 'manualCostingForm';
+        $lines = data_get($this->{$formKey}, 'lines', []);
+        unset($lines[$index]);
+        $lines = array_values($lines);
+
+        if ($lines === []) {
+            $lines = $this->blankCostingLines();
+        }
+
+        data_set($this->{$formKey}, 'lines', $lines);
+    }
+
+    public function removeInvoiceLine(string $scope, int $index): void
+    {
+        $formKey = $scope === 'edit' ? 'invoiceEditForm' : 'manualInvoiceForm';
+        $lines = data_get($this->{$formKey}, 'lines', []);
+        unset($lines[$index]);
+        $lines = array_values($lines);
+
+        if ($lines === []) {
+            $lines = $this->blankInvoiceLines();
+        }
+
+        data_set($this->{$formKey}, 'lines', $lines);
+        $this->applyInvoiceLineTotalsToForm($formKey);
+    }
+
     public function updatedShipmentSort(): void
     {
         $this->resetPage('shipmentsPage');
@@ -416,6 +778,54 @@ class CrmDashboard extends Component
         $this->selectedBookingId = null;
     }
 
+    public function updatedCostingSearch(): void
+    {
+        $this->resetPage('costingsPage');
+        $this->selectedCostingId = null;
+    }
+
+    public function updatedInvoiceSearch(): void
+    {
+        $this->resetPage('invoicesPage');
+        $this->selectedInvoiceId = null;
+    }
+
+    public function updatedCostingStatusFilter(): void
+    {
+        $this->resetPage('costingsPage');
+        $this->selectedCostingId = null;
+    }
+
+    public function updatedInvoiceStatusFilter(): void
+    {
+        $this->resetPage('invoicesPage');
+        $this->selectedInvoiceId = null;
+    }
+
+    public function updatedCostingSort(): void
+    {
+        $this->resetPage('costingsPage');
+        $this->selectedCostingId = null;
+    }
+
+    public function updatedInvoiceSort(): void
+    {
+        $this->resetPage('invoicesPage');
+        $this->selectedInvoiceId = null;
+    }
+
+    public function updatedCostingPerPage(): void
+    {
+        $this->resetPage('costingsPage');
+        $this->selectedCostingId = null;
+    }
+
+    public function updatedInvoicePerPage(): void
+    {
+        $this->resetPage('invoicesPage');
+        $this->selectedInvoiceId = null;
+    }
+
     public function updatedManualShipmentFormCustomerRecordId($value): void
     {
         $workspace = $this->currentWorkspace();
@@ -432,10 +842,22 @@ class CrmDashboard extends Component
             return;
         }
 
-        $customer = Opportunity::query()
-            ->with('lead')
+        $customer = Account::query()
+            ->with('contacts')
             ->where('workspace_id', $workspace->id)
-            ->findOrFail((int) $value);
+            ->find((int) $value);
+
+        if (! $customer) {
+            $opportunity = Opportunity::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail((int) $value);
+
+            $customer = $opportunity->account_id
+                ? Account::query()->with('contacts')->where('workspace_id', $workspace->id)->findOrFail($opportunity->account_id)
+                : abort(404);
+        }
+
+        $primaryContact = $customer->contacts->sortByDesc('last_activity_at')->first();
 
         $this->manualShipmentForm = [
             ...$this->manualShipmentForm,
@@ -443,10 +865,10 @@ class CrmDashboard extends Component
             'opportunity_id' => '',
             'quote_id' => '',
             'lead_id' => '',
-            'company_name' => $customer->company_name ?: '',
-            'contact_name' => $customer->lead?->contact_name ?: '',
-            'contact_email' => $customer->contact_email ?: ($customer->lead?->email ?: ''),
-            'service_mode' => $customer->required_service ?: ($customer->lead?->service ?: 'Ocean Freight'),
+            'company_name' => $customer->name ?: '',
+            'contact_name' => $primaryContact?->full_name ?: '',
+            'contact_email' => $primaryContact?->email ?: ($customer->primary_email ?: ''),
+            'service_mode' => $customer->latest_service ?: 'Ocean Freight',
             'origin' => '',
             'destination' => '',
             'incoterm' => '',
@@ -471,7 +893,7 @@ class CrmDashboard extends Component
                 ...$this->manualShipmentForm,
                 'opportunity_id' => '',
                 'quote_id' => '',
-                'lead_id' => $customer?->lead_id ? (string) $customer->lead_id : '',
+                'lead_id' => '',
             ];
 
             return;
@@ -572,6 +994,12 @@ class CrmDashboard extends Component
         $this->selectedQuoteId = null;
     }
 
+    public function updatedRateSort(): void
+    {
+        $this->resetPage('ratesPage');
+        $this->selectedRateId = null;
+    }
+
     public function updatedLeadPerPage(): void
     {
         $this->resetPage('leadsPage');
@@ -603,9 +1031,16 @@ class CrmDashboard extends Component
             $this->quoteEditForm = [];
         }
 
+        if (! in_array($value, ['rates', 'manual-rate'], true)) {
+            $this->selectedRateId = null;
+            $this->rateEditForm = [];
+        }
+
         if (! in_array($value, ['shipments', 'manual-shipment'], true)) {
             $this->selectedShipmentId = null;
             $this->shipmentEditForm = [];
+            $this->resetShipmentMilestoneForm();
+            $this->resetShipmentDocumentForm();
         }
 
         if (! in_array($value, ['carriers', 'manual-carrier'], true)) {
@@ -616,6 +1051,16 @@ class CrmDashboard extends Component
         if (! in_array($value, ['bookings', 'manual-booking'], true)) {
             $this->selectedBookingId = null;
             $this->bookingEditForm = [];
+        }
+
+        if (! in_array($value, ['costings', 'manual-costing'], true)) {
+            $this->selectedCostingId = null;
+            $this->costingEditForm = [];
+        }
+
+        if (! in_array($value, ['invoices', 'manual-invoice'], true)) {
+            $this->selectedInvoiceId = null;
+            $this->invoiceEditForm = [];
         }
 
         if ($value !== 'access') {
@@ -659,6 +1104,12 @@ class CrmDashboard extends Component
     {
         $this->resetPage('quotesPage');
         $this->selectedQuoteId = null;
+    }
+
+    public function updatedRatePerPage(): void
+    {
+        $this->resetPage('ratesPage');
+        $this->selectedRateId = null;
     }
 
     public function updatedShipmentPerPage(): void
@@ -1134,23 +1585,21 @@ class CrmDashboard extends Component
 
         $rows = $this->applyContactSorting($this->buildContactsQuery($workspace))
             ->get()
-            ->map(fn (Lead $contact) => [
-                $contact->lead_id ?: $contact->external_key,
-                $contact->contact_name ?: '',
-                $contact->company_name ?: '',
+            ->map(fn (Contact $contact) => [
+                $contact->full_name ?: '',
+                $contact->account?->name ?: '',
                 $contact->email ?: '',
                 $contact->phone ?: '',
-                $this->leadStatusLabel($contact->status, $workspace),
-                $contact->lead_source ?: '',
-                $contact->service ?: '',
-                optional($contact->submission_date)->format('Y-m-d H:i:s') ?: '',
-                $contact->assignedUser?->name ?: '',
+                (string) $contact->leads_count,
+                (string) $contact->opportunities_count,
+                (string) $contact->quotes_count,
+                optional($contact->last_activity_at)->format('Y-m-d H:i:s') ?: '',
             ])
             ->all();
 
         return $this->streamCsv(
             $this->workspaceExportFilename($workspace, 'contacts'),
-            ['Lead ID', 'Contact', 'Company', 'Email', 'Phone', 'Status', 'Source', 'Service', 'Submission Date', 'Owner'],
+            ['Contact', 'Account', 'Email', 'Phone', 'Leads', 'Opportunities', 'Quotes', 'Last Activity'],
             $rows,
         );
     }
@@ -1162,23 +1611,23 @@ class CrmDashboard extends Component
 
         $rows = $this->applyCustomerSorting($this->buildCustomersQuery($workspace))
             ->get()
-            ->map(fn (Opportunity $customer) => [
-                $customer->external_key ?: '',
-                $customer->company_name ?: '',
-                $customer->contact_email ?: '',
-                $customer->lead_source ?: '',
-                $customer->required_service ?: '',
-                $customer->revenue_potential !== null ? (string) $customer->revenue_potential : '',
-                $customer->project_timeline_days !== null ? (string) $customer->project_timeline_days : '',
-                $this->opportunityStageLabel($customer->sales_stage, $workspace),
-                optional($customer->submission_date)->format('Y-m-d H:i:s') ?: '',
-                $customer->assignedUser?->name ?: '',
+            ->map(fn (Account $customer) => [
+                $customer->name ?: '',
+                $customer->primary_email ?: '',
+                $customer->latest_service ?: '',
+                (string) $customer->contacts_count,
+                (string) $customer->opportunities_count,
+                (string) $customer->quotes_count,
+                (string) $customer->shipment_jobs_count,
+                (string) $customer->invoices_count,
+                $customer->opportunity_revenue_sum !== null ? (string) $customer->opportunity_revenue_sum : '',
+                optional($customer->last_activity_at)->format('Y-m-d H:i:s') ?: '',
             ])
             ->all();
 
         return $this->streamCsv(
             $this->workspaceExportFilename($workspace, 'customers'),
-            ['Opportunity Key', 'Customer', 'Contact Email', 'Source', 'Service', 'Revenue Potential', 'Timeline Days', 'Stage', 'Submission Date', 'Owner'],
+            ['Account', 'Primary Email', 'Latest Service', 'Contacts', 'Opportunities', 'Quotes', 'Shipments', 'Invoices', 'Tracked Revenue', 'Last Activity'],
             $rows,
         );
     }
@@ -1367,12 +1816,83 @@ class CrmDashboard extends Component
         $this->flash($message);
     }
 
+    public function addManualRate(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualRateForm, [
+            'carrier_id' => ['nullable', 'exists:carriers,id'],
+            'customer_name' => ['nullable', 'string', 'max:255'],
+            'service_mode' => ['required', Rule::in(RateCard::MODES)],
+            'origin' => ['required', 'string', 'max:255'],
+            'destination' => ['required', 'string', 'max:255'],
+            'via_port' => ['nullable', 'string', 'max:255'],
+            'incoterm' => ['nullable', 'string', 'max:100'],
+            'commodity' => ['nullable', 'string', 'max:255'],
+            'equipment_type' => ['nullable', 'string', 'max:255'],
+            'transit_days' => ['nullable', 'integer', 'min:0'],
+            'buy_amount' => ['nullable', 'numeric', 'min:0'],
+            'sell_amount' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:10'],
+            'valid_from' => ['nullable', 'date'],
+            'valid_until' => ['nullable', 'date'],
+            'is_active' => ['boolean'],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $payload = [
+            'carrier_id' => ($validated['carrier_id'] ?? null) ?: null,
+            'customer_name' => ($validated['customer_name'] ?? null) ?: null,
+            'service_mode' => $validated['service_mode'],
+            'origin' => $validated['origin'],
+            'destination' => $validated['destination'],
+            'via_port' => ($validated['via_port'] ?? null) ?: null,
+            'incoterm' => ($validated['incoterm'] ?? null) ?: null,
+            'commodity' => ($validated['commodity'] ?? null) ?: null,
+            'equipment_type' => ($validated['equipment_type'] ?? null) ?: null,
+            'transit_days' => ($validated['transit_days'] ?? null) ?: null,
+            'buy_amount' => $validated['buy_amount'] ?? null,
+            'sell_amount' => $validated['sell_amount'] ?? null,
+            'margin_amount' => $this->quoteMarginFromPayload($validated),
+            'currency' => $validated['currency'],
+            'valid_from' => ($validated['valid_from'] ?? null) ?: null,
+            'valid_until' => ($validated['valid_until'] ?? null) ?: null,
+            'is_active' => (bool) ($validated['is_active'] ?? false),
+            'notes' => $validated['notes'] ?? null,
+            'assigned_user_id' => auth()->id(),
+        ];
+
+        if ($this->editingRateId) {
+            $rateCard = RateCard::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingRateId);
+
+            $rateCard->update($payload);
+            $message = "Rate {$rateCard->rate_code} updated.";
+        } else {
+            $rateCard = RateCard::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                'rate_code' => $this->nextRateCode($workspace),
+                ...$payload,
+            ]);
+
+            $message = "Rate {$rateCard->rate_code} added.";
+        }
+
+        $this->resetManualRateForm();
+        $this->activeTab = 'rates';
+
+        $this->flash($message);
+    }
+
     public function addManualQuote(): void
     {
         $workspace = $this->currentWorkspaceOrFail();
 
         $validated = validator($this->manualQuoteForm, [
             'opportunity_id' => ['nullable', 'exists:opportunities,id'],
+            'rate_card_id' => ['nullable', Rule::exists('rate_cards', 'id')->where('workspace_id', $workspace->id)],
             'lead_id' => ['nullable', 'exists:leads,id'],
             'company_name' => ['required', 'string', 'max:255'],
             'contact_name' => ['nullable', 'string', 'max:255'],
@@ -1395,8 +1915,9 @@ class CrmDashboard extends Component
 
         $payload = [
             ...$validated,
-            'opportunity_id' => $validated['opportunity_id'] ?: null,
-            'lead_id' => $validated['lead_id'] ?: null,
+            'opportunity_id' => ($validated['opportunity_id'] ?? null) ?: null,
+            'rate_card_id' => ($validated['rate_card_id'] ?? null) ?: null,
+            'lead_id' => ($validated['lead_id'] ?? null) ?: null,
             'assigned_user_id' => auth()->id(),
             'quoted_at' => now(),
             'margin_amount' => $this->quoteMarginFromPayload($validated),
@@ -1478,14 +1999,18 @@ class CrmDashboard extends Component
                 ->findOrFail($this->editingShipmentId);
 
             $shipment->update($payload);
+            $this->ensureShipmentExecutionDefaults($shipment->fresh());
+            $this->draftCostingFromShipment($shipment->fresh());
             $message = 'Shipment job updated.';
         } else {
-            ShipmentJob::create([
+            $shipment = ShipmentJob::create([
                 'company_id' => $workspace->company_id,
                 'workspace_id' => $workspace->id,
                 'job_number' => $this->nextShipmentJobNumber($workspace),
                 ...$payload,
             ]);
+            $this->ensureShipmentExecutionDefaults($shipment);
+            $this->draftCostingFromShipment($shipment);
 
             $message = 'Shipment job added.';
         }
@@ -1613,6 +2138,164 @@ class CrmDashboard extends Component
         $this->flash($message);
     }
 
+    public function addManualCosting(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualCostingForm, [
+            'shipment_job_id' => ['nullable', 'exists:shipment_jobs,id'],
+            'quote_id' => ['nullable', 'exists:quotes,id'],
+            'opportunity_id' => ['nullable', 'exists:opportunities,id'],
+            'lead_id' => ['nullable', 'exists:leads,id'],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'service_mode' => ['nullable', 'string', 'max:255'],
+            'currency' => ['required', 'string', 'max:10'],
+            'status' => ['required', Rule::in(JobCosting::STATUSES)],
+            'notes' => ['nullable', 'string'],
+            'lines' => ['array', 'min:1'],
+            'lines.*.line_type' => ['required', Rule::in(JobCostingLine::TYPES)],
+            'lines.*.charge_code' => ['nullable', 'string', 'max:100'],
+            'lines.*.description' => ['required', 'string', 'max:255'],
+            'lines.*.vendor_name' => ['nullable', 'string', 'max:255'],
+            'lines.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.unit_amount' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.is_billable' => ['boolean'],
+            'lines.*.notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $totals = $this->costingTotalsFromLines($validated['lines']);
+
+        $payload = [
+            'shipment_job_id' => $validated['shipment_job_id'] ?: null,
+            'quote_id' => $validated['quote_id'] ?: null,
+            'opportunity_id' => $validated['opportunity_id'] ?: null,
+            'lead_id' => $validated['lead_id'] ?: null,
+            'customer_name' => $validated['customer_name'],
+            'service_mode' => $validated['service_mode'] ?: null,
+            'currency' => $validated['currency'],
+            'status' => $validated['status'],
+            'notes' => $validated['notes'] ?? null,
+            'assigned_user_id' => auth()->id(),
+            ...$totals,
+        ];
+
+        if ($this->editingCostingId) {
+            $costing = JobCosting::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingCostingId);
+
+            $costing->update($payload);
+            $this->syncCostingLines($costing, $validated['lines']);
+            $this->applyCostingShipmentConnection($costing->fresh('lines'));
+            $message = 'Job costing updated.';
+        } else {
+            $costing = JobCosting::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                'costing_number' => $this->nextCostingNumber($workspace),
+                ...$payload,
+            ]);
+
+            $this->syncCostingLines($costing, $validated['lines']);
+            $this->applyCostingShipmentConnection($costing->fresh('lines'));
+            $message = 'Job costing added.';
+        }
+
+        $this->editingCostingId = null;
+        $this->resetManualCostingForm();
+        $this->activeTab = 'costings';
+
+        $this->flash($message);
+    }
+
+    public function addManualInvoice(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualInvoiceForm, [
+            'shipment_job_id' => ['nullable', 'exists:shipment_jobs,id'],
+            'booking_id' => ['nullable', 'exists:bookings,id'],
+            'job_costing_id' => ['nullable', 'exists:job_costings,id'],
+            'quote_id' => ['nullable', 'exists:quotes,id'],
+            'opportunity_id' => ['nullable', 'exists:opportunities,id'],
+            'lead_id' => ['nullable', 'exists:leads,id'],
+            'invoice_type' => ['required', Rule::in(Invoice::TYPES)],
+            'bill_to_name' => ['required', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'issue_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
+            'currency' => ['required', 'string', 'max:10'],
+            'tax_amount' => ['nullable', 'numeric', 'min:0'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', Rule::in(Invoice::STATUSES)],
+            'notes' => ['nullable', 'string'],
+            'lines' => ['array', 'min:1'],
+            'lines.*.job_costing_line_id' => ['nullable', 'exists:job_costing_lines,id'],
+            'lines.*.charge_code' => ['nullable', 'string', 'max:100'],
+            'lines.*.description' => ['required', 'string', 'max:255'],
+            'lines.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.unit_amount' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $subtotal = $this->invoiceLineSubtotal($validated['lines']);
+        $tax = (float) ($validated['tax_amount'] ?? 0);
+        $paid = (float) ($validated['paid_amount'] ?? 0);
+        $total = $subtotal + $tax;
+
+        $payload = [
+            'shipment_job_id' => $validated['shipment_job_id'] ?: null,
+            'booking_id' => $validated['booking_id'] ?: null,
+            'job_costing_id' => $validated['job_costing_id'] ?: null,
+            'quote_id' => $validated['quote_id'] ?: null,
+            'opportunity_id' => $validated['opportunity_id'] ?: null,
+            'lead_id' => $validated['lead_id'] ?: null,
+            'invoice_type' => $validated['invoice_type'],
+            'bill_to_name' => $validated['bill_to_name'],
+            'contact_email' => $validated['contact_email'] ?: null,
+            'issue_date' => $validated['issue_date'] ?: null,
+            'due_date' => $validated['due_date'] ?: null,
+            'currency' => $validated['currency'],
+            'subtotal_amount' => $subtotal,
+            'tax_amount' => $tax,
+            'total_amount' => $total,
+            'paid_amount' => $paid,
+            'balance_amount' => max($total - $paid, 0),
+            'status' => $validated['status'],
+            'notes' => $validated['notes'] ?? null,
+            'assigned_user_id' => auth()->id(),
+        ];
+
+        if ($this->editingInvoiceId) {
+            $invoice = Invoice::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingInvoiceId);
+
+            $invoice->update($payload);
+            $this->syncInvoiceLines($invoice, $validated['lines']);
+            $this->syncCostingInvoiceState($invoice->jobCosting);
+            $message = 'Invoice updated.';
+        } else {
+            $invoice = Invoice::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                'invoice_number' => $this->nextInvoiceNumber($workspace, $validated['invoice_type']),
+                ...$payload,
+            ]);
+
+            $this->syncInvoiceLines($invoice, $validated['lines']);
+            $this->syncCostingInvoiceState($invoice->jobCosting);
+
+            $message = 'Invoice added.';
+        }
+
+        $this->editingInvoiceId = null;
+        $this->resetManualInvoiceForm();
+        $this->activeTab = 'invoices';
+
+        $this->flash($message);
+    }
+
     public function selectLead(int $leadId): void
     {
         $workspace = $this->currentWorkspaceOrFail();
@@ -1635,9 +2318,19 @@ class CrmDashboard extends Component
     {
         $workspace = $this->currentWorkspaceOrFail();
 
-        $contact = Lead::query()
+        $contact = Contact::query()
             ->where('workspace_id', $workspace->id)
-            ->findOrFail($contactId);
+            ->find($contactId);
+
+        if (! $contact) {
+            $lead = Lead::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($contactId);
+
+            $contact = $lead->contact_id
+                ? Contact::query()->where('workspace_id', $workspace->id)->findOrFail($lead->contact_id)
+                : abort(404);
+        }
 
         $this->selectedContactId = $contact->id;
         $this->activeTab = 'contacts';
@@ -1652,9 +2345,19 @@ class CrmDashboard extends Component
     {
         $workspace = $this->currentWorkspaceOrFail();
 
-        $customer = Opportunity::query()
+        $customer = Account::query()
             ->where('workspace_id', $workspace->id)
-            ->findOrFail($customerId);
+            ->find($customerId);
+
+        if (! $customer) {
+            $opportunity = Opportunity::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($customerId);
+
+            $customer = $opportunity->account_id
+                ? Account::query()->where('workspace_id', $workspace->id)->findOrFail($opportunity->account_id)
+                : abort(404);
+        }
 
         $this->selectedCustomerId = $customer->id;
         $this->activeTab = 'customers';
@@ -1691,6 +2394,19 @@ class CrmDashboard extends Component
         $this->activeTab = 'quotes';
     }
 
+    public function selectRate(int $rateId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $rateCard = RateCard::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($rateId);
+
+        $this->selectedRateId = $rateCard->id;
+        $this->fillRateEditForm($rateCard);
+        $this->activeTab = 'rates';
+    }
+
     public function selectShipment(int $shipmentId): void
     {
         $workspace = $this->currentWorkspaceOrFail();
@@ -1699,8 +2415,9 @@ class CrmDashboard extends Component
             ->where('workspace_id', $workspace->id)
             ->findOrFail($shipmentId);
 
+        $this->ensureShipmentExecutionDefaults($shipment->fresh());
         $this->selectedShipmentId = $shipment->id;
-        $this->fillShipmentEditForm($shipment);
+        $this->fillShipmentEditForm($shipment->fresh());
         $this->activeTab = 'shipments';
     }
 
@@ -1730,6 +2447,34 @@ class CrmDashboard extends Component
         $this->activeTab = 'bookings';
     }
 
+    public function selectCosting(int $costingId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $costing = JobCosting::query()
+            ->with(['lines', 'shipmentJob', 'quote', 'assignedUser'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($costingId);
+
+        $this->selectedCostingId = $costing->id;
+        $this->fillCostingEditForm($costing);
+        $this->activeTab = 'costings';
+    }
+
+    public function selectInvoice(int $invoiceId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $invoice = Invoice::query()
+            ->with(['lines', 'shipmentJob', 'booking', 'jobCosting.lines', 'quote', 'assignedUser', 'postedByUser'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($invoiceId);
+
+        $this->selectedInvoiceId = $invoice->id;
+        $this->fillInvoiceEditForm($invoice);
+        $this->activeTab = 'invoices';
+    }
+
     public function closeOpportunityDetails(): void
     {
         $this->selectedOpportunityId = null;
@@ -1742,10 +2487,129 @@ class CrmDashboard extends Component
         $this->quoteEditForm = [];
     }
 
+    public function closeRateDetails(): void
+    {
+        $this->selectedRateId = null;
+        $this->rateEditForm = [];
+    }
+
     public function closeShipmentDetails(): void
     {
         $this->selectedShipmentId = null;
         $this->shipmentEditForm = [];
+        $this->resetShipmentMilestoneForm();
+        $this->resetShipmentDocumentForm();
+    }
+
+    public function addShipmentMilestone(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedShipmentId, 404);
+
+        $validated = validator($this->shipmentMilestoneForm, [
+            'label' => ['required', 'string', 'max:255'],
+            'planned_at' => ['nullable', 'date'],
+            'status' => ['required', Rule::in(ShipmentMilestone::STATUSES)],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $shipment = ShipmentJob::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedShipmentId);
+
+        ShipmentMilestone::create([
+            'company_id' => $workspace->company_id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'event_key' => null,
+            'label' => $validated['label'],
+            'sequence' => (($shipment->milestones()->max('sequence') ?? 0) + 1),
+            'status' => $validated['status'],
+            'planned_at' => $validated['planned_at'] ?: null,
+            'completed_at' => $validated['status'] === ShipmentMilestone::STATUS_COMPLETED ? now() : null,
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        $this->resetShipmentMilestoneForm();
+        $this->flash("Milestone added to {$shipment->job_number}.");
+    }
+
+    public function updateShipmentMilestoneStatus(int $milestoneId, string $status): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_unless(in_array($status, ShipmentMilestone::STATUSES, true), 422);
+
+        $milestone = ShipmentMilestone::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($milestoneId);
+
+        $milestone->update([
+            'status' => $status,
+            'completed_at' => $status === ShipmentMilestone::STATUS_COMPLETED
+                ? ($milestone->completed_at ?: now())
+                : null,
+        ]);
+
+        $this->flash("Milestone {$milestone->label} updated.");
+    }
+
+    public function addShipmentDocument(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedShipmentId, 404);
+
+        $validated = validator($this->shipmentDocumentForm, [
+            'document_type' => ['required', Rule::in(ShipmentDocument::TYPES)],
+            'document_name' => ['required', 'string', 'max:255'],
+            'reference_number' => ['nullable', 'string', 'max:255'],
+            'external_url' => ['nullable', 'url', 'max:1000'],
+            'status' => ['required', Rule::in(ShipmentDocument::STATUSES)],
+            'uploaded_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $shipment = ShipmentJob::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedShipmentId);
+
+        ShipmentDocument::create([
+            'company_id' => $workspace->company_id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'document_type' => $validated['document_type'],
+            'document_name' => $validated['document_name'],
+            'reference_number' => $validated['reference_number'] ?: null,
+            'external_url' => $validated['external_url'] ?: null,
+            'status' => $validated['status'],
+            'uploaded_at' => $validated['uploaded_at'] ?: now(),
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        $this->resetShipmentDocumentForm();
+        $this->flash("Document added to {$shipment->job_number}.");
+    }
+
+    public function updateShipmentDocumentStatus(int $documentId, string $status): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_unless(in_array($status, ShipmentDocument::STATUSES, true), 422);
+
+        $document = ShipmentDocument::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($documentId);
+
+        $document->update([
+            'status' => $status,
+            'uploaded_at' => in_array($status, [ShipmentDocument::STATUS_RECEIVED, ShipmentDocument::STATUS_SENT, ShipmentDocument::STATUS_APPROVED], true)
+                ? ($document->uploaded_at ?: now())
+                : $document->uploaded_at,
+        ]);
+
+        $this->flash("Document {$document->document_name} updated.");
     }
 
     public function closeCarrierDetails(): void
@@ -1758,6 +2622,18 @@ class CrmDashboard extends Component
     {
         $this->selectedBookingId = null;
         $this->bookingEditForm = [];
+    }
+
+    public function closeCostingDetails(): void
+    {
+        $this->selectedCostingId = null;
+        $this->costingEditForm = [];
+    }
+
+    public function closeInvoiceDetails(): void
+    {
+        $this->selectedInvoiceId = null;
+        $this->invoiceEditForm = [];
     }
 
     public function saveOpportunityDetails(): void
@@ -1795,6 +2671,7 @@ class CrmDashboard extends Component
         abort_if(! $this->selectedQuoteId, 404);
 
         $validated = validator($this->quoteEditForm, [
+            'rate_card_id' => ['nullable', Rule::exists('rate_cards', 'id')->where('workspace_id', $workspace->id)],
             'company_name' => ['required', 'string', 'max:255'],
             'contact_name' => ['nullable', 'string', 'max:255'],
             'contact_email' => ['nullable', 'email'],
@@ -1820,12 +2697,69 @@ class CrmDashboard extends Component
 
         $quote->update([
             ...$validated,
+            'rate_card_id' => ($validated['rate_card_id'] ?? null) ?: null,
             'margin_amount' => $this->quoteMarginFromPayload($validated),
         ]);
 
-        $this->fillQuoteEditForm($quote->fresh(['lead', 'opportunity', 'assignedUser']));
+        $this->fillQuoteEditForm($quote->fresh(['lead', 'opportunity', 'assignedUser', 'rateCard']));
 
         $this->flash("Quote {$quote->quote_number} updated.");
+    }
+
+    public function saveRateDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedRateId, 404);
+
+        $validated = validator($this->rateEditForm, [
+            'carrier_id' => ['nullable', 'exists:carriers,id'],
+            'customer_name' => ['nullable', 'string', 'max:255'],
+            'service_mode' => ['required', Rule::in(RateCard::MODES)],
+            'origin' => ['required', 'string', 'max:255'],
+            'destination' => ['required', 'string', 'max:255'],
+            'via_port' => ['nullable', 'string', 'max:255'],
+            'incoterm' => ['nullable', 'string', 'max:100'],
+            'commodity' => ['nullable', 'string', 'max:255'],
+            'equipment_type' => ['nullable', 'string', 'max:255'],
+            'transit_days' => ['nullable', 'integer', 'min:0'],
+            'buy_amount' => ['nullable', 'numeric', 'min:0'],
+            'sell_amount' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'max:10'],
+            'valid_from' => ['nullable', 'date'],
+            'valid_until' => ['nullable', 'date'],
+            'is_active' => ['boolean'],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $rateCard = RateCard::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedRateId);
+
+        $rateCard->update([
+            'carrier_id' => ($validated['carrier_id'] ?? null) ?: null,
+            'customer_name' => ($validated['customer_name'] ?? null) ?: null,
+            'service_mode' => $validated['service_mode'],
+            'origin' => $validated['origin'],
+            'destination' => $validated['destination'],
+            'via_port' => ($validated['via_port'] ?? null) ?: null,
+            'incoterm' => ($validated['incoterm'] ?? null) ?: null,
+            'commodity' => ($validated['commodity'] ?? null) ?: null,
+            'equipment_type' => ($validated['equipment_type'] ?? null) ?: null,
+            'transit_days' => ($validated['transit_days'] ?? null) ?: null,
+            'buy_amount' => $validated['buy_amount'] ?? null,
+            'sell_amount' => $validated['sell_amount'] ?? null,
+            'margin_amount' => $this->quoteMarginFromPayload($validated),
+            'currency' => $validated['currency'],
+            'valid_from' => ($validated['valid_from'] ?? null) ?: null,
+            'valid_until' => ($validated['valid_until'] ?? null) ?: null,
+            'is_active' => (bool) ($validated['is_active'] ?? false),
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        $this->fillRateEditForm($rateCard->fresh(['carrier', 'assignedUser']));
+
+        $this->flash("Rate {$rateCard->rate_code} updated.");
     }
 
     public function saveShipmentDetails(): void
@@ -1871,6 +2805,9 @@ class CrmDashboard extends Component
             ...$validated,
             'margin_amount' => $this->shipmentMarginFromPayload($validated),
         ]);
+
+        $this->ensureShipmentExecutionDefaults($shipment->fresh());
+        $this->draftCostingFromShipment($shipment->fresh());
 
         $this->fillShipmentEditForm($shipment->fresh(['lead', 'opportunity', 'quote', 'assignedUser']));
 
@@ -1955,6 +2892,157 @@ class CrmDashboard extends Component
         $this->fillBookingEditForm($booking->fresh(['carrier', 'shipmentJob', 'quote', 'assignedUser']));
 
         $this->flash("Booking {$booking->booking_number} updated.");
+    }
+
+    public function saveCostingDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedCostingId, 404);
+
+        $validated = validator($this->costingEditForm, [
+            'customer_name' => ['required', 'string', 'max:255'],
+            'service_mode' => ['nullable', 'string', 'max:255'],
+            'currency' => ['required', 'string', 'max:10'],
+            'status' => ['required', Rule::in(JobCosting::STATUSES)],
+            'notes' => ['nullable', 'string'],
+            'lines' => ['array', 'min:1'],
+            'lines.*.line_type' => ['required', Rule::in(JobCostingLine::TYPES)],
+            'lines.*.charge_code' => ['nullable', 'string', 'max:100'],
+            'lines.*.description' => ['required', 'string', 'max:255'],
+            'lines.*.vendor_name' => ['nullable', 'string', 'max:255'],
+            'lines.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.unit_amount' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.is_billable' => ['boolean'],
+            'lines.*.notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $costing = JobCosting::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedCostingId);
+
+        $totals = $this->costingTotalsFromLines($validated['lines']);
+
+        $costing->update([
+            'customer_name' => $validated['customer_name'],
+            'service_mode' => $validated['service_mode'] ?: null,
+            'currency' => $validated['currency'],
+            'status' => $validated['status'],
+            'notes' => $validated['notes'] ?? null,
+            ...$totals,
+        ]);
+
+        $this->syncCostingLines($costing, $validated['lines']);
+        $this->applyCostingShipmentConnection($costing->fresh('lines'));
+
+        $this->fillCostingEditForm($costing->fresh(['lines', 'shipmentJob', 'quote', 'assignedUser']));
+
+        $this->flash("Job costing {$costing->costing_number} updated.");
+    }
+
+    public function saveInvoiceDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedInvoiceId, 404);
+
+        $validated = validator($this->invoiceEditForm, [
+            'booking_id' => ['nullable', 'exists:bookings,id'],
+            'invoice_type' => ['required', Rule::in(Invoice::TYPES)],
+            'bill_to_name' => ['required', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'issue_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
+            'currency' => ['required', 'string', 'max:10'],
+            'tax_amount' => ['nullable', 'numeric', 'min:0'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', Rule::in(Invoice::STATUSES)],
+            'notes' => ['nullable', 'string'],
+            'lines' => ['array', 'min:1'],
+            'lines.*.job_costing_line_id' => ['nullable', 'exists:job_costing_lines,id'],
+            'lines.*.charge_code' => ['nullable', 'string', 'max:100'],
+            'lines.*.description' => ['required', 'string', 'max:255'],
+            'lines.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.unit_amount' => ['nullable', 'numeric', 'min:0'],
+            'lines.*.notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $invoice = Invoice::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedInvoiceId);
+
+        if ($invoice->posted_at) {
+            $this->flash("Invoice {$invoice->invoice_number} is already posted and can no longer be edited.");
+
+            return;
+        }
+
+        $subtotal = $this->invoiceLineSubtotal($validated['lines']);
+        $tax = (float) ($validated['tax_amount'] ?? 0);
+        $paid = (float) ($validated['paid_amount'] ?? 0);
+        $total = $subtotal + $tax;
+
+        $invoice->update([
+            'booking_id' => $validated['booking_id'] ?: null,
+            'invoice_type' => $validated['invoice_type'],
+            'bill_to_name' => $validated['bill_to_name'],
+            'contact_email' => $validated['contact_email'] ?: null,
+            'issue_date' => $validated['issue_date'] ?: null,
+            'due_date' => $validated['due_date'] ?: null,
+            'currency' => $validated['currency'],
+            'subtotal_amount' => $subtotal,
+            'tax_amount' => $tax,
+            'total_amount' => $total,
+            'paid_amount' => $paid,
+            'balance_amount' => max($total - $paid, 0),
+            'status' => $validated['status'],
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        $this->syncInvoiceLines($invoice, $validated['lines'] ?? []);
+        $this->syncCostingInvoiceState($invoice->jobCosting);
+
+        $this->fillInvoiceEditForm($invoice->fresh(['lines', 'shipmentJob', 'booking', 'jobCosting.lines', 'quote', 'assignedUser', 'postedByUser']));
+
+        $this->flash("Invoice {$invoice->invoice_number} updated.");
+    }
+
+    public function postInvoice(int $invoiceId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $invoice = Invoice::query()
+            ->with(['lines', 'jobCosting', 'booking'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($invoiceId);
+
+        if ($invoice->posted_at) {
+            $this->flash("Invoice {$invoice->invoice_number} is already posted.");
+
+            return;
+        }
+
+        $subtotal = $this->invoiceLineSubtotal($invoice->lines->toArray());
+        $tax = (float) $invoice->tax_amount;
+        $paid = (float) $invoice->paid_amount;
+        $total = $subtotal + $tax;
+
+        $invoice->forceFill([
+            'subtotal_amount' => $subtotal,
+            'total_amount' => $total,
+            'balance_amount' => max($total - $paid, 0),
+            'status' => $invoice->status === Invoice::STATUS_DRAFT ? Invoice::STATUS_SENT : $invoice->status,
+            'posted_at' => now(),
+            'posted_by_user_id' => auth()->id(),
+        ])->save();
+
+        $this->syncCostingInvoiceState($invoice->jobCosting);
+
+        if ($this->selectedInvoiceId === $invoice->id) {
+            $this->fillInvoiceEditForm($invoice->fresh(['lines', 'shipmentJob', 'booking', 'jobCosting.lines', 'quote', 'assignedUser', 'postedByUser']));
+        }
+
+        $this->flash("Invoice {$invoice->invoice_number} posted.");
     }
 
     public function updateLeadStatus(int $leadId, string $status): void
@@ -2309,6 +3397,7 @@ class CrmDashboard extends Component
     protected function fillQuoteEditForm(Quote $quote): void
     {
         $this->quoteEditForm = [
+            'rate_card_id' => $quote->rate_card_id ? (string) $quote->rate_card_id : '',
             'company_name' => $quote->company_name ?: '',
             'contact_name' => $quote->contact_name ?: '',
             'contact_email' => $quote->contact_email ?: '',
@@ -2329,19 +3418,20 @@ class CrmDashboard extends Component
         ];
     }
 
-    protected function hydrateManualQuoteFromCustomer(Opportunity $customer): void
+    protected function hydrateManualQuoteFromAccount(Account $customer): void
     {
-        $lead = $customer->lead;
+        $primaryContact = $customer->contacts->sortByDesc('last_activity_at')->first();
 
         $this->manualQuoteForm = [
             ...$this->manualQuoteForm,
             'customer_record_id' => (string) $customer->id,
             'opportunity_id' => '',
-            'lead_id' => $customer->lead_id ? (string) $customer->lead_id : '',
-            'company_name' => $customer->company_name ?: '',
-            'contact_name' => $lead?->contact_name ?: '',
-            'contact_email' => $customer->contact_email ?: ($lead?->email ?: ''),
-            'service_mode' => $customer->required_service ?: ($lead?->service ?: 'Ocean Freight'),
+            'rate_card_id' => '',
+            'lead_id' => '',
+            'company_name' => $customer->name ?: '',
+            'contact_name' => $primaryContact?->full_name ?: '',
+            'contact_email' => $primaryContact?->email ?: ($customer->primary_email ?: ''),
+            'service_mode' => $customer->latest_service ?: 'Ocean Freight',
             'notes' => $customer->notes ?: '',
         ];
     }
@@ -2352,8 +3442,9 @@ class CrmDashboard extends Component
 
         $this->manualQuoteForm = [
             ...$this->manualQuoteForm,
-            'customer_record_id' => (string) $opportunity->id,
+            'customer_record_id' => $opportunity->account_id ? (string) $opportunity->account_id : ($this->manualQuoteForm['customer_record_id'] ?? ''),
             'opportunity_id' => (string) $opportunity->id,
+            'rate_card_id' => $this->manualQuoteForm['rate_card_id'] ?? '',
             'lead_id' => $opportunity->lead_id ? (string) $opportunity->lead_id : '',
             'company_name' => $opportunity->company_name ?: ($lead?->company_name ?: ''),
             'contact_name' => $lead?->contact_name ?: ($this->manualQuoteForm['contact_name'] ?? ''),
@@ -2361,6 +3452,53 @@ class CrmDashboard extends Component
             'service_mode' => $opportunity->required_service ?: ($lead?->service ?: 'Ocean Freight'),
             'sell_amount' => $opportunity->revenue_potential !== null ? (string) $opportunity->revenue_potential : ($this->manualQuoteForm['sell_amount'] ?? ''),
             'notes' => $opportunity->notes ?: ($this->manualQuoteForm['notes'] ?? ''),
+        ];
+    }
+
+    protected function hydrateManualQuoteFromRateCard(RateCard $rateCard): void
+    {
+        $this->manualQuoteForm = [
+            ...$this->manualQuoteForm,
+            'rate_card_id' => (string) $rateCard->id,
+            'service_mode' => $rateCard->service_mode ?: ($this->manualQuoteForm['service_mode'] ?? 'Ocean Freight'),
+            'origin' => $rateCard->origin ?: '',
+            'destination' => $rateCard->destination ?: '',
+            'incoterm' => $rateCard->incoterm ?: ($this->manualQuoteForm['incoterm'] ?? ''),
+            'commodity' => $rateCard->commodity ?: ($this->manualQuoteForm['commodity'] ?? ''),
+            'equipment_type' => $rateCard->equipment_type ?: ($this->manualQuoteForm['equipment_type'] ?? ''),
+            'buy_amount' => $rateCard->buy_amount !== null ? (string) $rateCard->buy_amount : ($this->manualQuoteForm['buy_amount'] ?? ''),
+            'sell_amount' => $rateCard->sell_amount !== null ? (string) $rateCard->sell_amount : ($this->manualQuoteForm['sell_amount'] ?? ''),
+            'currency' => $rateCard->currency ?: ($this->manualQuoteForm['currency'] ?? 'AED'),
+            'valid_until' => $rateCard->valid_until?->format('Y-m-d') ?: ($this->manualQuoteForm['valid_until'] ?? ''),
+            'notes' => trim(collect([
+                $this->manualQuoteForm['notes'] ?? '',
+                $rateCard->carrier?->name ? 'Rate card carrier: '.$rateCard->carrier->name : '',
+                $rateCard->via_port ? 'Via: '.$rateCard->via_port : '',
+                $rateCard->transit_days ? 'Transit: '.$rateCard->transit_days.' days' : '',
+            ])->filter()->join("\n")),
+        ];
+    }
+
+    protected function fillRateEditForm(RateCard $rateCard): void
+    {
+        $this->rateEditForm = [
+            'carrier_id' => $rateCard->carrier_id ? (string) $rateCard->carrier_id : '',
+            'customer_name' => $rateCard->customer_name ?: '',
+            'service_mode' => $rateCard->service_mode ?: RateCard::MODE_OCEAN,
+            'origin' => $rateCard->origin ?: '',
+            'destination' => $rateCard->destination ?: '',
+            'via_port' => $rateCard->via_port ?: '',
+            'incoterm' => $rateCard->incoterm ?: '',
+            'commodity' => $rateCard->commodity ?: '',
+            'equipment_type' => $rateCard->equipment_type ?: '',
+            'transit_days' => $rateCard->transit_days !== null ? (string) $rateCard->transit_days : '',
+            'buy_amount' => $rateCard->buy_amount !== null ? (string) $rateCard->buy_amount : '',
+            'sell_amount' => $rateCard->sell_amount !== null ? (string) $rateCard->sell_amount : '',
+            'currency' => $rateCard->currency ?: 'AED',
+            'valid_from' => $rateCard->valid_from?->format('Y-m-d') ?: '',
+            'valid_until' => $rateCard->valid_until?->format('Y-m-d') ?: '',
+            'is_active' => (bool) $rateCard->is_active,
+            'notes' => $rateCard->notes ?: '',
         ];
     }
 
@@ -2408,6 +3546,55 @@ class CrmDashboard extends Component
         ];
     }
 
+    protected function fillCostingEditForm(JobCosting $costing): void
+    {
+        $this->costingEditForm = [
+            'customer_name' => $costing->customer_name ?: '',
+            'service_mode' => $costing->service_mode ?: '',
+            'currency' => $costing->currency ?: 'AED',
+            'status' => $costing->status ?: JobCosting::STATUS_DRAFT,
+            'notes' => $costing->notes ?: '',
+            'lines' => $costing->lines->map(fn (JobCostingLine $line) => [
+                'line_type' => $line->line_type ?: JobCostingLine::TYPE_COST,
+                'charge_code' => $line->charge_code ?: '',
+                'description' => $line->description ?: '',
+                'vendor_name' => $line->vendor_name ?: '',
+                'quantity' => $line->quantity !== null ? (string) $line->quantity : '1',
+                'unit_amount' => $line->unit_amount !== null ? (string) $line->unit_amount : '',
+                'is_billable' => (bool) $line->is_billable,
+                'notes' => $line->notes ?: '',
+            ])->values()->all() ?: $this->blankCostingLines(),
+        ];
+    }
+
+    protected function fillInvoiceEditForm(Invoice $invoice): void
+    {
+        $this->invoiceEditForm = [
+            'booking_id' => $invoice->booking_id ? (string) $invoice->booking_id : '',
+            'invoice_type' => $invoice->invoice_type ?: Invoice::TYPE_ACCOUNTS_RECEIVABLE,
+            'bill_to_name' => $invoice->bill_to_name ?: '',
+            'contact_email' => $invoice->contact_email ?: '',
+            'issue_date' => $invoice->issue_date?->format('Y-m-d') ?: '',
+            'due_date' => $invoice->due_date?->format('Y-m-d') ?: '',
+            'currency' => $invoice->currency ?: 'AED',
+            'subtotal_amount' => $invoice->subtotal_amount !== null ? (string) $invoice->subtotal_amount : '',
+            'tax_amount' => $invoice->tax_amount !== null ? (string) $invoice->tax_amount : '0',
+            'total_amount' => $invoice->total_amount !== null ? (string) $invoice->total_amount : '',
+            'paid_amount' => $invoice->paid_amount !== null ? (string) $invoice->paid_amount : '0',
+            'balance_amount' => $invoice->balance_amount !== null ? (string) $invoice->balance_amount : '',
+            'status' => $invoice->status ?: Invoice::STATUS_DRAFT,
+            'notes' => $invoice->notes ?: '',
+            'lines' => $invoice->lines->map(fn (InvoiceLine $line) => [
+                'job_costing_line_id' => $line->job_costing_line_id ? (string) $line->job_costing_line_id : '',
+                'charge_code' => $line->charge_code ?: '',
+                'description' => $line->description ?: '',
+                'quantity' => $line->quantity !== null ? (string) $line->quantity : '1',
+                'unit_amount' => $line->unit_amount !== null ? (string) $line->unit_amount : '',
+                'notes' => $line->notes ?: '',
+            ])->values()->all() ?: $this->invoiceLinesFromCosting($invoice->jobCosting, $invoice->invoice_type),
+        ];
+    }
+
     protected function hydrateManualBookingFromShipment(ShipmentJob $shipment): void
     {
         $this->manualBookingForm = [
@@ -2439,10 +3626,107 @@ class CrmDashboard extends Component
         ];
     }
 
+    protected function hydrateManualCostingFromShipment(ShipmentJob $shipment): void
+    {
+        $this->manualCostingForm = [
+            ...$this->manualCostingForm,
+            'shipment_job_id' => (string) $shipment->id,
+            'quote_id' => $shipment->quote_id ? (string) $shipment->quote_id : '',
+            'opportunity_id' => $shipment->opportunity_id ? (string) $shipment->opportunity_id : '',
+            'lead_id' => $shipment->lead_id ? (string) $shipment->lead_id : '',
+            'customer_name' => $shipment->company_name ?: '',
+            'service_mode' => $shipment->service_mode ?: '',
+            'currency' => $shipment->currency ?: 'AED',
+            'status' => $this->manualCostingForm['status'] ?? JobCosting::STATUS_DRAFT,
+            'notes' => $shipment->notes ?: '',
+            'lines' => $this->costingLinesFromShipment($shipment),
+        ];
+    }
+
+    protected function hydrateManualInvoiceFromShipment(ShipmentJob $shipment): void
+    {
+        $latestCosting = $shipment->jobCostings->sortByDesc('id')->first();
+        $latestBooking = $shipment->bookings->sortByDesc('id')->first();
+        $invoiceType = $this->manualInvoiceForm['invoice_type'] ?? Invoice::TYPE_ACCOUNTS_RECEIVABLE;
+        $lines = $latestCosting
+            ? $this->invoiceLinesFromCosting($latestCosting, $invoiceType)
+            : $this->blankInvoiceLines();
+        $subtotal = $this->invoiceLineSubtotal($lines);
+
+        $this->manualInvoiceForm = [
+            ...$this->manualInvoiceForm,
+            'shipment_job_id' => (string) $shipment->id,
+            'booking_id' => $latestBooking?->id ? (string) $latestBooking->id : ($this->manualInvoiceForm['booking_id'] ?? ''),
+            'job_costing_id' => $latestCosting?->id ? (string) $latestCosting->id : '',
+            'quote_id' => $shipment->quote_id ? (string) $shipment->quote_id : '',
+            'opportunity_id' => $shipment->opportunity_id ? (string) $shipment->opportunity_id : '',
+            'lead_id' => $shipment->lead_id ? (string) $shipment->lead_id : '',
+            'invoice_type' => $invoiceType,
+            'bill_to_name' => $shipment->company_name ?: '',
+            'contact_email' => $shipment->contact_email ?: '',
+            'issue_date' => $this->manualInvoiceForm['issue_date'] ?? now()->toDateString(),
+            'due_date' => $this->manualInvoiceForm['due_date'] ?? now()->addDays(14)->toDateString(),
+            'currency' => $shipment->currency ?: 'AED',
+            'subtotal_amount' => $subtotal > 0 ? (string) $subtotal : '',
+            'tax_amount' => $this->manualInvoiceForm['tax_amount'] ?? '0',
+            'paid_amount' => $this->manualInvoiceForm['paid_amount'] ?? '0',
+            'total_amount' => $subtotal > 0 ? (string) $subtotal : '',
+            'balance_amount' => $subtotal > 0 ? (string) $subtotal : '',
+            'status' => $this->manualInvoiceForm['status'] ?? Invoice::STATUS_DRAFT,
+            'notes' => $shipment->notes ?: '',
+            'lines' => $lines,
+        ];
+    }
+
+    protected function hydrateManualInvoiceFromBooking(Booking $booking): void
+    {
+        if ($booking->shipmentJob) {
+            $this->hydrateManualInvoiceFromShipment($booking->shipmentJob->loadMissing(['jobCostings' => fn ($query) => $query->latest('id'), 'bookings']));
+        }
+
+        $this->manualInvoiceForm = [
+            ...$this->manualInvoiceForm,
+            'booking_id' => (string) $booking->id,
+            'shipment_job_id' => $booking->shipment_job_id ? (string) $booking->shipment_job_id : ($this->manualInvoiceForm['shipment_job_id'] ?? ''),
+            'bill_to_name' => $booking->customer_name ?: ($this->manualInvoiceForm['bill_to_name'] ?? ''),
+            'contact_email' => $booking->contact_email ?: ($this->manualInvoiceForm['contact_email'] ?? ''),
+        ];
+    }
+
+    protected function hydrateManualInvoiceFromCosting(JobCosting $costing): void
+    {
+        $invoiceType = $this->manualInvoiceForm['invoice_type'] ?? Invoice::TYPE_ACCOUNTS_RECEIVABLE;
+        $lines = $this->invoiceLinesFromCosting($costing, $invoiceType);
+        $subtotal = $this->invoiceLineSubtotal($lines);
+
+        $this->manualInvoiceForm = [
+            ...$this->manualInvoiceForm,
+            'shipment_job_id' => $costing->shipment_job_id ? (string) $costing->shipment_job_id : ($this->manualInvoiceForm['shipment_job_id'] ?? ''),
+            'job_costing_id' => (string) $costing->id,
+            'quote_id' => $costing->quote_id ? (string) $costing->quote_id : '',
+            'opportunity_id' => $costing->opportunity_id ? (string) $costing->opportunity_id : '',
+            'lead_id' => $costing->lead_id ? (string) $costing->lead_id : '',
+            'invoice_type' => $invoiceType,
+            'bill_to_name' => $costing->customer_name ?: '',
+            'contact_email' => $this->manualInvoiceForm['contact_email'] ?? '',
+            'issue_date' => $this->manualInvoiceForm['issue_date'] ?? now()->toDateString(),
+            'due_date' => $this->manualInvoiceForm['due_date'] ?? now()->addDays(14)->toDateString(),
+            'currency' => $costing->currency ?: 'AED',
+            'subtotal_amount' => $subtotal > 0 ? (string) $subtotal : '',
+            'tax_amount' => $this->manualInvoiceForm['tax_amount'] ?? '0',
+            'paid_amount' => $this->manualInvoiceForm['paid_amount'] ?? '0',
+            'total_amount' => $subtotal > 0 ? (string) $subtotal : '',
+            'balance_amount' => $subtotal > 0 ? (string) $subtotal : '',
+            'status' => $this->manualInvoiceForm['status'] ?? Invoice::STATUS_DRAFT,
+            'notes' => $costing->notes ?: '',
+            'lines' => $lines,
+        ];
+    }
+
     protected function fillManualShipmentFormFromShipment(ShipmentJob $shipment): void
     {
         $this->manualShipmentForm = [
-            'customer_record_id' => $shipment->opportunity_id ?: '',
+            'customer_record_id' => $shipment->account_id ?: '',
             'opportunity_id' => $shipment->opportunity_id ?: '',
             'quote_id' => $shipment->quote_id ?: '',
             'lead_id' => $shipment->lead_id ?: '',
@@ -2485,7 +3769,7 @@ class CrmDashboard extends Component
 
         $this->manualShipmentForm = [
             ...$this->manualShipmentForm,
-            'customer_record_id' => (string) $opportunity->id,
+            'customer_record_id' => $opportunity->account_id ? (string) $opportunity->account_id : ($this->manualShipmentForm['customer_record_id'] ?? ''),
             'opportunity_id' => (string) $opportunity->id,
             'quote_id' => $preferredQuote?->id ? (string) $preferredQuote->id : '',
             'lead_id' => $opportunity->lead_id ? (string) $opportunity->lead_id : '',
@@ -2528,7 +3812,7 @@ class CrmDashboard extends Component
 
         $this->manualShipmentForm = [
             ...$this->manualShipmentForm,
-            'customer_record_id' => $quote->opportunity_id ? (string) $quote->opportunity_id : ($this->manualShipmentForm['customer_record_id'] ?? ''),
+            'customer_record_id' => $quote->account_id ? (string) $quote->account_id : ($this->manualShipmentForm['customer_record_id'] ?? ''),
             'opportunity_id' => $quote->opportunity_id ? (string) $quote->opportunity_id : ($this->manualShipmentForm['opportunity_id'] ?? ''),
             'quote_id' => (string) $quote->id,
             'lead_id' => $quote->lead_id ? (string) $quote->lead_id : ($lead?->id ? (string) $lead->id : ''),
@@ -2582,6 +3866,285 @@ class CrmDashboard extends Component
         ];
     }
 
+    protected function shipmentMilestoneBlueprints(): array
+    {
+        return [
+            ['event_key' => 'booking_requested', 'label' => 'Booking Requested', 'sequence' => 10],
+            ['event_key' => 'booked', 'label' => 'Booked With Carrier', 'sequence' => 20],
+            ['event_key' => 'departed', 'label' => 'Departed Origin', 'sequence' => 30],
+            ['event_key' => 'arrived', 'label' => 'Arrived Destination', 'sequence' => 40],
+            ['event_key' => 'customs_clearance', 'label' => 'Customs Clearance', 'sequence' => 50],
+            ['event_key' => 'delivered', 'label' => 'Delivered', 'sequence' => 60],
+        ];
+    }
+
+    protected function defaultShipmentDocumentBlueprints(): array
+    {
+        return [
+            ShipmentDocument::TYPE_BOOKING_CONFIRMATION,
+            ShipmentDocument::TYPE_HOUSE_BILL,
+            ShipmentDocument::TYPE_MASTER_BILL,
+            ShipmentDocument::TYPE_COMMERCIAL_INVOICE,
+            ShipmentDocument::TYPE_DELIVERY_ORDER,
+        ];
+    }
+
+    protected function ensureShipmentExecutionDefaults(ShipmentJob $shipment): void
+    {
+        $shipment->loadMissing(['milestones', 'documents', 'bookings', 'invoices']);
+
+        $existingMilestones = $shipment->milestones->keyBy('event_key');
+
+        foreach ($this->shipmentMilestoneBlueprints() as $milestone) {
+            if ($existingMilestones->has($milestone['event_key'])) {
+                continue;
+            }
+
+            ShipmentMilestone::create([
+                'company_id' => $shipment->company_id,
+                'workspace_id' => $shipment->workspace_id,
+                'shipment_job_id' => $shipment->id,
+                'event_key' => $milestone['event_key'],
+                'label' => $milestone['label'],
+                'sequence' => $milestone['sequence'],
+                'status' => ShipmentMilestone::STATUS_PENDING,
+            ]);
+        }
+
+        $existingDocuments = $shipment->documents->keyBy('document_type');
+
+        foreach ($this->defaultShipmentDocumentBlueprints() as $documentType) {
+            if ($existingDocuments->has($documentType)) {
+                continue;
+            }
+
+            ShipmentDocument::create([
+                'company_id' => $shipment->company_id,
+                'workspace_id' => $shipment->workspace_id,
+                'shipment_job_id' => $shipment->id,
+                'document_type' => $documentType,
+                'document_name' => $documentType,
+                'status' => ShipmentDocument::STATUS_MISSING,
+            ]);
+        }
+
+        $this->syncShipmentExecutionState($shipment->fresh(['milestones', 'documents', 'bookings', 'invoices']));
+    }
+
+    protected function syncShipmentExecutionState(ShipmentJob $shipment): void
+    {
+        $completeKeys = [];
+        $activeKey = null;
+
+        if ($shipment->actual_departure_at) {
+            $completeKeys[] = 'departed';
+        }
+
+        if ($shipment->actual_arrival_at) {
+            $completeKeys[] = 'arrived';
+        }
+
+        if ($shipment->status === ShipmentJob::STATUS_BOOKING_REQUESTED) {
+            $activeKey = 'booking_requested';
+        }
+
+        if ($shipment->status === ShipmentJob::STATUS_BOOKED) {
+            $completeKeys = [...$completeKeys, 'booking_requested', 'booked'];
+        }
+
+        if ($shipment->status === ShipmentJob::STATUS_IN_TRANSIT) {
+            $completeKeys = [...$completeKeys, 'booking_requested', 'booked', 'departed'];
+            $activeKey = 'arrived';
+        }
+
+        if ($shipment->status === ShipmentJob::STATUS_CUSTOMS_CLEARANCE) {
+            $completeKeys = [...$completeKeys, 'booking_requested', 'booked', 'departed', 'arrived'];
+            $activeKey = 'customs_clearance';
+        }
+
+        if ($shipment->status === ShipmentJob::STATUS_DELIVERED) {
+            $completeKeys = [...$completeKeys, 'booking_requested', 'booked', 'departed', 'arrived', 'customs_clearance', 'delivered'];
+        }
+
+        $completeKeys = array_values(array_unique($completeKeys));
+
+        foreach ($shipment->milestones as $milestone) {
+            if (blank($milestone->event_key)) {
+                continue;
+            }
+
+            if ($milestone->status === ShipmentMilestone::STATUS_EXCEPTION) {
+                continue;
+            }
+
+            if (in_array($milestone->event_key, $completeKeys, true)) {
+                $milestone->forceFill([
+                    'status' => ShipmentMilestone::STATUS_COMPLETED,
+                    'completed_at' => $milestone->completed_at ?: now(),
+                ])->save();
+
+                continue;
+            }
+
+            if ($activeKey !== null && $milestone->event_key === $activeKey && $milestone->status !== ShipmentMilestone::STATUS_COMPLETED) {
+                $milestone->forceFill([
+                    'status' => ShipmentMilestone::STATUS_IN_PROGRESS,
+                ])->save();
+
+                continue;
+            }
+
+            if ($milestone->status !== ShipmentMilestone::STATUS_COMPLETED) {
+                $milestone->forceFill([
+                    'status' => ShipmentMilestone::STATUS_PENDING,
+                    'completed_at' => null,
+                ])->save();
+            }
+        }
+
+        $bookingConfirmation = $shipment->documents->firstWhere('document_type', ShipmentDocument::TYPE_BOOKING_CONFIRMATION);
+        if ($bookingConfirmation && $bookingConfirmation->status === ShipmentDocument::STATUS_MISSING && $shipment->bookings->contains(fn (Booking $booking) => filled($booking->carrier_confirmation_ref))) {
+            $bookingConfirmation->forceFill([
+                'status' => ShipmentDocument::STATUS_RECEIVED,
+                'uploaded_at' => $bookingConfirmation->uploaded_at ?: now(),
+            ])->save();
+        }
+
+        $houseBill = $shipment->documents->firstWhere('document_type', ShipmentDocument::TYPE_HOUSE_BILL);
+        if ($houseBill && filled($shipment->house_bill_no) && $houseBill->status === ShipmentDocument::STATUS_MISSING) {
+            $houseBill->forceFill([
+                'status' => ShipmentDocument::STATUS_RECEIVED,
+                'reference_number' => $houseBill->reference_number ?: $shipment->house_bill_no,
+                'uploaded_at' => $houseBill->uploaded_at ?: now(),
+            ])->save();
+        }
+
+        $masterBill = $shipment->documents->firstWhere('document_type', ShipmentDocument::TYPE_MASTER_BILL);
+        if ($masterBill && filled($shipment->master_bill_no) && $masterBill->status === ShipmentDocument::STATUS_MISSING) {
+            $masterBill->forceFill([
+                'status' => ShipmentDocument::STATUS_RECEIVED,
+                'reference_number' => $masterBill->reference_number ?: $shipment->master_bill_no,
+                'uploaded_at' => $masterBill->uploaded_at ?: now(),
+            ])->save();
+        }
+
+        $commercialInvoice = $shipment->documents->firstWhere('document_type', ShipmentDocument::TYPE_COMMERCIAL_INVOICE);
+        if ($commercialInvoice && $shipment->invoices->isNotEmpty() && $commercialInvoice->status === ShipmentDocument::STATUS_MISSING) {
+            $commercialInvoice->forceFill([
+                'status' => ShipmentDocument::STATUS_RECEIVED,
+                'uploaded_at' => $commercialInvoice->uploaded_at ?: now(),
+            ])->save();
+        }
+
+        $deliveryOrder = $shipment->documents->firstWhere('document_type', ShipmentDocument::TYPE_DELIVERY_ORDER);
+        if ($deliveryOrder && $shipment->status === ShipmentJob::STATUS_DELIVERED && $deliveryOrder->status === ShipmentDocument::STATUS_MISSING) {
+            $deliveryOrder->forceFill([
+                'status' => ShipmentDocument::STATUS_RECEIVED,
+                'uploaded_at' => $deliveryOrder->uploaded_at ?: now(),
+            ])->save();
+        }
+    }
+
+    protected function shipmentTimelineRows(ShipmentJob $shipment)
+    {
+        $rows = collect([
+            [
+                'at' => $shipment->created_at,
+                'title' => 'Shipment job created',
+                'detail' => $shipment->job_number.' opened for '.($shipment->company_name ?: 'Unknown company'),
+                'tone' => 'neutral',
+            ],
+        ]);
+
+        foreach ($shipment->milestones as $milestone) {
+            if ($milestone->status === ShipmentMilestone::STATUS_PENDING && blank($milestone->planned_at)) {
+                continue;
+            }
+
+            $rows->push([
+                'at' => $milestone->completed_at ?: $milestone->planned_at ?: $milestone->created_at,
+                'title' => $milestone->label,
+                'detail' => $milestone->status.($milestone->notes ? ' · '.$milestone->notes : ''),
+                'tone' => match ($milestone->status) {
+                    ShipmentMilestone::STATUS_COMPLETED => 'success',
+                    ShipmentMilestone::STATUS_EXCEPTION => 'danger',
+                    ShipmentMilestone::STATUS_IN_PROGRESS => 'info',
+                    default => 'neutral',
+                },
+            ]);
+        }
+
+        foreach ($shipment->documents as $document) {
+            if ($document->status === ShipmentDocument::STATUS_MISSING && blank($document->reference_number) && blank($document->external_url) && blank($document->uploaded_at)) {
+                continue;
+            }
+
+            $rows->push([
+                'at' => $document->uploaded_at ?: $document->created_at,
+                'title' => $document->document_name,
+                'detail' => $document->document_type.' · '.$document->status.($document->reference_number ? ' · '.$document->reference_number : ''),
+                'tone' => match ($document->status) {
+                    ShipmentDocument::STATUS_APPROVED => 'success',
+                    ShipmentDocument::STATUS_MISSING => 'warning',
+                    default => 'neutral',
+                },
+            ]);
+        }
+
+        foreach ($shipment->bookings as $booking) {
+            $rows->push([
+                'at' => $booking->confirmed_etd ?: $booking->created_at,
+                'title' => 'Booking '.$booking->booking_number,
+                'detail' => $booking->status.($booking->carrier?->name ? ' · '.$booking->carrier->name : ''),
+                'tone' => 'info',
+            ]);
+        }
+
+        foreach ($shipment->jobCostings as $costing) {
+            $rows->push([
+                'at' => $costing->created_at,
+                'title' => 'Job costing '.$costing->costing_number,
+                'detail' => $costing->status.' · '.$costing->currency.' '.number_format((float) $costing->margin_amount, 0),
+                'tone' => 'neutral',
+            ]);
+        }
+
+        foreach ($shipment->invoices as $invoice) {
+            $rows->push([
+                'at' => $invoice->posted_at ?: $invoice->issue_date ?: $invoice->created_at,
+                'title' => 'Invoice '.$invoice->invoice_number,
+                'detail' => $invoice->status.' · '.$invoice->currency.' '.number_format((float) $invoice->total_amount, 0),
+                'tone' => $invoice->posted_at ? 'success' : 'neutral',
+            ]);
+        }
+
+        return $rows
+            ->filter(fn (array $row) => $row['at'] !== null)
+            ->sortByDesc(fn (array $row) => Carbon::parse($row['at'])->timestamp)
+            ->values();
+    }
+
+    public function shipmentMilestoneStatusClasses(string $status): string
+    {
+        return match ($status) {
+            ShipmentMilestone::STATUS_COMPLETED => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            ShipmentMilestone::STATUS_IN_PROGRESS => 'border-sky-200 bg-sky-50 text-sky-700',
+            ShipmentMilestone::STATUS_EXCEPTION => 'border-rose-200 bg-rose-50 text-rose-700',
+            default => 'border-zinc-200 bg-zinc-50 text-zinc-600',
+        };
+    }
+
+    public function shipmentDocumentStatusClasses(string $status): string
+    {
+        return match ($status) {
+            ShipmentDocument::STATUS_APPROVED => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            ShipmentDocument::STATUS_RECEIVED => 'border-sky-200 bg-sky-50 text-sky-700',
+            ShipmentDocument::STATUS_SENT => 'border-amber-200 bg-amber-50 text-amber-700',
+            ShipmentDocument::STATUS_MISSING => 'border-rose-200 bg-rose-50 text-rose-700',
+            default => 'border-zinc-200 bg-zinc-50 text-zinc-600',
+        };
+    }
+
     protected function draftShipmentFromWonOpportunity(Opportunity $opportunity): ShipmentJob
     {
         $existingShipment = ShipmentJob::query()
@@ -2598,7 +4161,7 @@ class CrmDashboard extends Component
             ->sortByDesc(fn (Quote $quote) => ($quote->status === Quote::STATUS_ACCEPTED ? 1000000 : 0) + ($quote->quoted_at?->timestamp ?? 0) + $quote->id)
             ->first();
 
-        return ShipmentJob::create([
+        $shipment = ShipmentJob::create([
             'company_id' => $opportunity->company_id,
             'workspace_id' => $opportunity->workspace_id,
             'opportunity_id' => $opportunity->id,
@@ -2627,6 +4190,47 @@ class CrmDashboard extends Component
             'status' => ShipmentJob::STATUS_DRAFT,
             'notes' => $quote?->notes ?: $opportunity->notes,
         ]);
+
+        $this->ensureShipmentExecutionDefaults($shipment);
+
+        return $shipment;
+    }
+
+    protected function draftCostingFromShipment(ShipmentJob $shipment): JobCosting
+    {
+        $existingCosting = JobCosting::query()
+            ->where('workspace_id', $shipment->workspace_id)
+            ->where('shipment_job_id', $shipment->id)
+            ->latest('id')
+            ->first();
+
+        if ($existingCosting) {
+            return $existingCosting;
+        }
+
+        $workspace = $shipment->workspace;
+
+        $costing = JobCosting::create([
+            'company_id' => $shipment->company_id,
+            'workspace_id' => $shipment->workspace_id,
+            'shipment_job_id' => $shipment->id,
+            'quote_id' => $shipment->quote_id,
+            'opportunity_id' => $shipment->opportunity_id,
+            'lead_id' => $shipment->lead_id,
+            'assigned_user_id' => auth()->id() ?: $shipment->assigned_user_id,
+            'costing_number' => $this->nextCostingNumber($workspace),
+            'customer_name' => $shipment->company_name ?: 'Unknown customer',
+            'service_mode' => $shipment->service_mode,
+            'currency' => $shipment->currency ?: 'AED',
+            'status' => JobCosting::STATUS_DRAFT,
+            'notes' => $shipment->notes,
+            ...$this->costingTotalsFromLines($this->costingLinesFromShipment($shipment)),
+        ]);
+
+        $this->syncCostingLines($costing, $this->costingLinesFromShipment($shipment));
+        $this->applyCostingShipmentConnection($costing->fresh('lines'));
+
+        return $costing;
     }
 
     protected function resetManualOpportunityForm(): void
@@ -2652,6 +4256,7 @@ class CrmDashboard extends Component
         $this->manualQuoteForm = [
             'customer_record_id' => '',
             'opportunity_id' => '',
+            'rate_card_id' => '',
             'lead_id' => '',
             'company_name' => '',
             'contact_name' => '',
@@ -2669,6 +4274,30 @@ class CrmDashboard extends Component
             'currency' => 'AED',
             'status' => Quote::STATUS_DRAFT,
             'valid_until' => '',
+            'notes' => '',
+        ];
+    }
+
+    protected function resetManualRateForm(): void
+    {
+        $this->editingRateId = null;
+        $this->manualRateForm = [
+            'carrier_id' => '',
+            'customer_name' => '',
+            'service_mode' => RateCard::MODE_OCEAN,
+            'origin' => '',
+            'destination' => '',
+            'via_port' => '',
+            'incoterm' => '',
+            'commodity' => '',
+            'equipment_type' => '',
+            'transit_days' => '',
+            'buy_amount' => '',
+            'sell_amount' => '',
+            'currency' => 'AED',
+            'valid_from' => now()->toDateString(),
+            'valid_until' => now()->addMonth()->toDateString(),
+            'is_active' => true,
             'notes' => '',
         ];
     }
@@ -2750,6 +4379,11 @@ class CrmDashboard extends Component
             'status' => Booking::STATUS_DRAFT,
             'notes' => '',
         ];
+
+        $this->resetManualCarrierForm();
+        $this->resetManualBookingForm();
+        $this->resetManualCostingForm();
+        $this->resetManualInvoiceForm();
     }
 
     protected function resetManualCarrierForm(): void
@@ -2802,6 +4436,142 @@ class CrmDashboard extends Component
         ];
     }
 
+    protected function resetManualCostingForm(): void
+    {
+        $this->editingCostingId = null;
+        $this->manualCostingForm = [
+            'shipment_job_id' => '',
+            'quote_id' => '',
+            'opportunity_id' => '',
+            'lead_id' => '',
+            'customer_name' => '',
+            'service_mode' => '',
+            'currency' => 'AED',
+            'status' => JobCosting::STATUS_DRAFT,
+            'notes' => '',
+            'lines' => $this->blankCostingLines(),
+        ];
+    }
+
+    protected function resetManualInvoiceForm(): void
+    {
+        $this->editingInvoiceId = null;
+        $this->manualInvoiceForm = [
+            'shipment_job_id' => '',
+            'booking_id' => '',
+            'job_costing_id' => '',
+            'quote_id' => '',
+            'opportunity_id' => '',
+            'lead_id' => '',
+            'invoice_type' => Invoice::TYPE_ACCOUNTS_RECEIVABLE,
+            'bill_to_name' => '',
+            'contact_email' => '',
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(14)->toDateString(),
+            'currency' => 'AED',
+            'subtotal_amount' => '',
+            'tax_amount' => '0',
+            'paid_amount' => '0',
+            'total_amount' => '',
+            'balance_amount' => '',
+            'status' => Invoice::STATUS_DRAFT,
+            'notes' => '',
+            'lines' => $this->blankInvoiceLines(),
+        ];
+    }
+
+    protected function resetShipmentMilestoneForm(): void
+    {
+        $this->shipmentMilestoneForm = [
+            'label' => '',
+            'planned_at' => '',
+            'status' => ShipmentMilestone::STATUS_PENDING,
+            'notes' => '',
+        ];
+    }
+
+    protected function resetShipmentDocumentForm(): void
+    {
+        $this->shipmentDocumentForm = [
+            'document_type' => ShipmentDocument::TYPE_OTHER,
+            'document_name' => '',
+            'reference_number' => '',
+            'external_url' => '',
+            'status' => ShipmentDocument::STATUS_RECEIVED,
+            'uploaded_at' => now()->format('Y-m-d\TH:i'),
+            'notes' => '',
+        ];
+    }
+
+    protected function blankCostingLine(): array
+    {
+        return [
+            'line_type' => JobCostingLine::TYPE_COST,
+            'charge_code' => '',
+            'description' => '',
+            'vendor_name' => '',
+            'quantity' => '1',
+            'unit_amount' => '',
+            'is_billable' => true,
+            'notes' => '',
+        ];
+    }
+
+    protected function blankCostingLines(): array
+    {
+        return [$this->blankCostingLine()];
+    }
+
+    protected function blankInvoiceLine(): array
+    {
+        return [
+            'job_costing_line_id' => '',
+            'charge_code' => '',
+            'description' => '',
+            'quantity' => '1',
+            'unit_amount' => '',
+            'notes' => '',
+        ];
+    }
+
+    protected function blankInvoiceLines(): array
+    {
+        return [$this->blankInvoiceLine()];
+    }
+
+    protected function costingLinesFromShipment(ShipmentJob $shipment): array
+    {
+        $lines = [];
+
+        if ($shipment->buy_amount !== null && (float) $shipment->buy_amount > 0) {
+            $lines[] = [
+                'line_type' => JobCostingLine::TYPE_COST,
+                'charge_code' => 'BUY-FRT',
+                'description' => 'Freight buy',
+                'vendor_name' => $shipment->carrier_name ?: '',
+                'quantity' => '1',
+                'unit_amount' => (string) $shipment->buy_amount,
+                'is_billable' => true,
+                'notes' => '',
+            ];
+        }
+
+        if ($shipment->sell_amount !== null && (float) $shipment->sell_amount > 0) {
+            $lines[] = [
+                'line_type' => JobCostingLine::TYPE_REVENUE,
+                'charge_code' => 'SELL-FRT',
+                'description' => 'Freight sell',
+                'vendor_name' => $shipment->company_name ?: '',
+                'quantity' => '1',
+                'unit_amount' => (string) $shipment->sell_amount,
+                'is_billable' => true,
+                'notes' => '',
+            ];
+        }
+
+        return $lines !== [] ? $lines : $this->blankCostingLines();
+    }
+
     public function render()
     {
         $workspaces = $this->accessibleWorkspaces();
@@ -2826,15 +4596,20 @@ class CrmDashboard extends Component
             ['*'],
             'opportunitiesPage',
         );
-        $contacts = Lead::query()->whereRaw('1 = 0')->paginate(
+        $contacts = Contact::query()->whereRaw('1 = 0')->paginate(
             $this->contactPerPage,
             ['*'],
             'contactsPage',
         );
-        $customers = Opportunity::query()->whereRaw('1 = 0')->paginate(
+        $customers = Account::query()->whereRaw('1 = 0')->paginate(
             $this->customerPerPage,
             ['*'],
             'customersPage',
+        );
+        $rates = RateCard::query()->whereRaw('1 = 0')->paginate(
+            $this->ratePerPage,
+            ['*'],
+            'ratesPage',
         );
         $quotes = Quote::query()->whereRaw('1 = 0')->paginate(
             $this->quotePerPage,
@@ -2856,15 +4631,29 @@ class CrmDashboard extends Component
             ['*'],
             'bookingsPage',
         );
+        $costings = JobCosting::query()->whereRaw('1 = 0')->paginate(
+            $this->costingPerPage,
+            ['*'],
+            'costingsPage',
+        );
+        $invoices = Invoice::query()->whereRaw('1 = 0')->paginate(
+            $this->invoicePerPage,
+            ['*'],
+            'invoicesPage',
+        );
         $sourceBreakdown = collect();
         $selectedLead = null;
         $selectedOpportunity = null;
         $selectedContact = null;
         $selectedCustomer = null;
+        $selectedRate = null;
         $selectedQuote = null;
         $selectedShipment = null;
         $selectedCarrier = null;
         $selectedBooking = null;
+        $selectedCosting = null;
+        $selectedInvoice = null;
+        $selectedShipmentTimeline = collect();
         $leadInsights = [];
         $opportunityInsights = [];
         $contactInsights = [];
@@ -2874,6 +4663,7 @@ class CrmDashboard extends Component
         $kpis = [];
         $leadOptions = collect();
         $quoteOptions = collect();
+        $rateCardOptions = collect();
         $quoteCustomerOptions = collect();
         $quoteOpportunityOptions = collect();
         $shipmentCustomerOptions = collect();
@@ -2881,6 +4671,11 @@ class CrmDashboard extends Component
         $shipmentQuoteOptions = collect();
         $carrierOptions = collect();
         $bookingShipmentOptions = collect();
+        $invoiceBookingOptions = collect();
+        $costingShipmentOptions = collect();
+        $invoiceShipmentOptions = collect();
+        $invoiceCostingOptions = collect();
+        $selectedBookingInvoices = collect();
         $analyticsKpis = [];
         $analyticsBreakdownRows = collect();
         $analyticsMonthlyRows = collect();
@@ -2900,10 +4695,13 @@ class CrmDashboard extends Component
                 ...$this->availableTabsForWorkspace($workspace, $canManageAccess, $canViewWorkspaceTools),
                 'manual-lead' => 'Add Lead',
                 'manual-opportunity' => 'Add Opportunity',
+                'manual-rate' => 'New Rate',
                 'manual-quote' => 'New Quote',
                 'manual-shipment' => 'New Shipment',
                 'manual-carrier' => 'New Carrier',
                 'manual-booking' => 'New Booking',
+                'manual-costing' => 'New Job Costing',
+                'manual-invoice' => 'New Invoice',
             ];
 
             if ($canViewWorkspaceTools) {
@@ -2938,6 +4736,8 @@ class CrmDashboard extends Component
             $customers = $this->applyCustomerSorting($customersQuery)
                 ->paginate($this->customerPerPage, ['*'], 'customersPage');
 
+            $rates = $this->applyRateSorting($this->buildRateQuery($workspace))
+                ->paginate($this->ratePerPage, ['*'], 'ratesPage');
             $quotes = $this->applyQuoteSorting($this->buildQuoteQuery($workspace))
                 ->paginate($this->quotePerPage, ['*'], 'quotesPage');
             $shipments = $this->applyShipmentSorting($this->buildShipmentQuery($workspace))
@@ -2946,6 +4746,10 @@ class CrmDashboard extends Component
                 ->paginate($this->carrierPerPage, ['*'], 'carriersPage');
             $bookings = $this->applyBookingSorting($this->buildBookingQuery($workspace))
                 ->paginate($this->bookingPerPage, ['*'], 'bookingsPage');
+            $costings = $this->applyCostingSorting($this->buildCostingQuery($workspace))
+                ->paginate($this->costingPerPage, ['*'], 'costingsPage');
+            $invoices = $this->applyInvoiceSorting($this->buildInvoiceQuery($workspace))
+                ->paginate($this->invoicePerPage, ['*'], 'invoicesPage');
 
             $sheetSources = $workspace->sheetSources()->latest()->get();
             $workspaceUsers = $workspace->users()->with(['roles.permissions', 'userPermissions'])->orderBy('name')->get();
@@ -2969,6 +4773,10 @@ class CrmDashboard extends Component
                 ->orderByDesc('created_at')
                 ->limit(100)
                 ->get(['id', 'quote_number', 'company_name']);
+            $rateCardOptions = $this->quoteRateCardOptions(
+                $workspace,
+                $this->selectedManualQuoteCustomer($workspace),
+            );
             $quoteCustomerOptions = $this->quoteCustomerOptions($workspace);
             $quoteOpportunityOptions = $this->quoteOpportunityOptions(
                 $workspace,
@@ -2994,6 +4802,17 @@ class CrmDashboard extends Component
                 ->orderByDesc('estimated_departure_at')
                 ->orderByDesc('created_at')
                 ->get(['id', 'job_number', 'company_name']);
+            $invoiceBookingOptions = Booking::query()
+                ->where('workspace_id', $workspace->id)
+                ->orderByDesc('requested_etd')
+                ->orderByDesc('created_at')
+                ->get(['id', 'booking_number', 'customer_name', 'shipment_job_id']);
+            $costingShipmentOptions = $this->costingShipmentOptions($workspace);
+            $invoiceShipmentOptions = $this->invoiceShipmentOptions($workspace);
+            $invoiceCostingOptions = $this->invoiceCostingOptions(
+                $workspace,
+                $this->selectedManualInvoiceShipment($workspace),
+            );
 
             $liveLeadBase = Lead::query()->where('workspace_id', $workspace->id);
             $liveOpportunityBase = Opportunity::query()->where('workspace_id', $workspace->id);
@@ -3219,30 +5038,55 @@ class CrmDashboard extends Component
                 : null;
 
             $selectedContact = $this->selectedContactId
-                ? Lead::query()
-                    ->with(['assignedUser'])
-                    ->withCount('opportunities')
+                ? Contact::query()
+                    ->with([
+                        'account',
+                        'leads' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
+                        'opportunities' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
+                        'quotes' => fn ($query) => $query->orderByDesc('quoted_at')->orderByDesc('created_at')->limit(6),
+                        'shipmentJobs' => fn ($query) => $query->orderByDesc('estimated_departure_at')->orderByDesc('created_at')->limit(6),
+                        'bookings' => fn ($query) => $query->orderByDesc('requested_etd')->orderByDesc('created_at')->limit(6),
+                        'invoices' => fn ($query) => $query->orderByDesc('issue_date')->orderByDesc('created_at')->limit(6),
+                    ])
+                    ->withCount(['leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedContactId)
                 : null;
 
             $selectedCustomer = $this->selectedCustomerId
-                ? Opportunity::query()
-                    ->with(['lead', 'assignedUser'])
+                ? Account::query()
+                    ->with([
+                        'contacts' => fn ($query) => $query->orderByDesc('last_activity_at')->orderBy('full_name')->limit(8),
+                        'leads' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
+                        'opportunities' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
+                        'quotes' => fn ($query) => $query->orderByDesc('quoted_at')->orderByDesc('created_at')->limit(6),
+                        'shipmentJobs' => fn ($query) => $query->orderByDesc('estimated_departure_at')->orderByDesc('created_at')->limit(6),
+                        'bookings' => fn ($query) => $query->orderByDesc('requested_etd')->orderByDesc('created_at')->limit(6),
+                        'invoices' => fn ($query) => $query->orderByDesc('issue_date')->orderByDesc('created_at')->limit(6),
+                    ])
+                    ->withCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
+                    ->withSum('opportunities as opportunity_revenue_sum', 'revenue_potential')
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedCustomerId)
                 : null;
 
+            $selectedRate = $this->selectedRateId
+                ? RateCard::query()
+                    ->with(['carrier', 'assignedUser'])
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedRateId)
+                : null;
+
             $selectedQuote = $this->selectedQuoteId
                 ? Quote::query()
-                    ->with(['lead', 'opportunity', 'assignedUser'])
+                    ->with(['lead', 'opportunity', 'assignedUser', 'rateCard'])
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedQuoteId)
                 : null;
 
             $selectedShipment = $this->selectedShipmentId
                 ? ShipmentJob::query()
-                    ->with(['lead', 'opportunity', 'quote', 'assignedUser'])
+                    ->with(['lead', 'opportunity', 'quote', 'assignedUser', 'milestones', 'documents', 'bookings.carrier', 'jobCostings', 'invoices'])
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedShipmentId)
                 : null;
@@ -3257,6 +5101,34 @@ class CrmDashboard extends Component
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedBookingId)
                 : null;
+            $selectedCosting = $this->selectedCostingId
+                ? JobCosting::query()
+                    ->with(['lines', 'shipmentJob', 'quote', 'assignedUser'])
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedCostingId)
+                : null;
+            $selectedInvoice = $this->selectedInvoiceId
+                ? Invoice::query()
+                    ->with(['lines', 'shipmentJob', 'booking', 'jobCosting.lines', 'quote', 'assignedUser', 'postedByUser'])
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedInvoiceId)
+                : null;
+
+            $selectedBookingInvoices = $selectedBooking
+                ? Invoice::query()
+                    ->with(['shipmentJob'])
+                    ->where('workspace_id', $workspace->id)
+                    ->where(function ($query) use ($selectedBooking) {
+                        $query->where('booking_id', $selectedBooking->id);
+
+                        if ($selectedBooking->shipment_job_id) {
+                            $query->orWhere('shipment_job_id', $selectedBooking->shipment_job_id);
+                        }
+                    })
+                    ->orderByDesc('issue_date')
+                    ->orderByDesc('created_at')
+                    ->get()
+                : collect();
 
             $enrichment = app(WorkspaceEnrichmentService::class);
 
@@ -3275,6 +5147,15 @@ class CrmDashboard extends Component
             $customerInsights = $selectedCustomer
                 ? $enrichment->customerInsights($selectedCustomer)
                 : [];
+
+            if ($selectedShipment) {
+                $this->ensureShipmentExecutionDefaults($selectedShipment);
+                $selectedShipment = $selectedShipment->fresh(['lead', 'opportunity', 'quote', 'assignedUser', 'milestones', 'documents', 'bookings.carrier', 'jobCostings', 'invoices']);
+            }
+
+            $selectedShipmentTimeline = $selectedShipment
+                ? $this->shipmentTimelineRows($selectedShipment)
+                : collect();
         }
 
         return view('livewire.crm-dashboard', [
@@ -3303,6 +5184,9 @@ class CrmDashboard extends Component
             'contactInsights' => $contactInsights,
             'contacts' => $contacts,
             'companies' => $companies,
+            'costingShipmentOptions' => $costingShipmentOptions,
+            'costingStatusOptions' => JobCosting::STATUSES,
+            'costings' => $costings,
             'currentWorkspace' => $workspace,
             'currentWorkspaceTemplateDescription' => $workspace?->templateDescription() ?? data_get(Workspace::templateDefinitionFor(Workspace::defaultTemplateKey()), 'description', ''),
             'currentWorkspaceTemplateModules' => $workspace?->templateModules() ?? Workspace::defaultTemplateModules(),
@@ -3324,10 +5208,19 @@ class CrmDashboard extends Component
             'leadStatusOptions' => $workspace ? $this->leadStatusOptions($workspace) : Workspace::defaultLeadStatusLabels(),
             'leadOptions' => $leadOptions,
             'monthlyReports' => $monthlyReports,
+            'invoiceCostingOptions' => $invoiceCostingOptions,
+            'invoiceBookingOptions' => $invoiceBookingOptions,
+            'invoiceShipmentOptions' => $invoiceShipmentOptions,
+            'invoiceStatusOptions' => Invoice::STATUSES,
+            'invoiceTypeOptions' => Invoice::TYPES,
+            'invoices' => $invoices,
             'opportunities' => $opportunities,
             'opportunityStageOptions' => $workspace ? $this->opportunityStageOptions($workspace) : Workspace::defaultOpportunityStageLabels(),
             'permissions' => $permissions,
             'opportunityOptions' => $opportunityOptions ?? collect(),
+            'rateCardOptions' => $rateCardOptions,
+            'rateModeOptions' => RateCard::MODES,
+            'rates' => $rates,
             'quotes' => $quotes,
             'quoteOptions' => $quoteOptions,
             'quoteCustomerOptions' => $quoteCustomerOptions,
@@ -3336,17 +5229,25 @@ class CrmDashboard extends Component
             'roles' => $roles,
             'selectedLead' => $selectedLead,
             'selectedOpportunity' => $selectedOpportunity,
+            'selectedRate' => $selectedRate,
             'selectedQuote' => $selectedQuote,
             'selectedShipment' => $selectedShipment,
+            'selectedShipmentTimeline' => $selectedShipmentTimeline,
             'selectedContact' => $selectedContact,
             'selectedCustomer' => $selectedCustomer,
             'selectedCarrier' => $selectedCarrier,
             'selectedBooking' => $selectedBooking,
+            'selectedBookingInvoices' => $selectedBookingInvoices,
+            'selectedCosting' => $selectedCosting,
+            'selectedInvoice' => $selectedInvoice,
             'sheetSources' => $sheetSources,
             'shipmentCustomerOptions' => $shipmentCustomerOptions,
             'shipmentOpportunityOptions' => $shipmentOpportunityOptions,
             'shipmentQuoteOptions' => $shipmentQuoteOptions,
             'shipmentStatusOptions' => ShipmentJob::STATUSES,
+            'shipmentMilestoneStatusOptions' => ShipmentMilestone::STATUSES,
+            'shipmentDocumentTypeOptions' => ShipmentDocument::TYPES,
+            'shipmentDocumentStatusOptions' => ShipmentDocument::STATUSES,
             'shipments' => $shipments,
             'sourceBreakdown' => $sourceBreakdown,
             'templateModuleMeta' => $this->templateModuleMeta(),
@@ -3494,6 +5395,23 @@ class CrmDashboard extends Component
             'sell_amount' => '',
             'currency' => 'AED',
             'status' => ShipmentJob::STATUS_DRAFT,
+            'notes' => '',
+        ];
+
+        $this->shipmentMilestoneForm = [
+            'label' => '',
+            'planned_at' => '',
+            'status' => ShipmentMilestone::STATUS_PENDING,
+            'notes' => '',
+        ];
+
+        $this->shipmentDocumentForm = [
+            'document_type' => ShipmentDocument::TYPE_OTHER,
+            'document_name' => '',
+            'reference_number' => '',
+            'external_url' => '',
+            'status' => ShipmentDocument::STATUS_RECEIVED,
+            'uploaded_at' => now()->format('Y-m-d\TH:i'),
             'notes' => '',
         ];
     }
@@ -3653,17 +5571,15 @@ class CrmDashboard extends Component
 
     protected function quoteCustomerOptions(Workspace $workspace)
     {
-        return Opportunity::query()
+        return Account::query()
             ->where('workspace_id', $workspace->id)
-            ->whereNotNull('company_name')
-            ->orderByDesc('submission_date')
+            ->whereNotNull('name')
+            ->orderByDesc('last_activity_at')
             ->orderByDesc('created_at')
-            ->get(['id', 'company_name', 'contact_email', 'required_service', 'lead_id'])
-            ->unique(fn (Opportunity $opportunity) => Str::lower(trim(($opportunity->company_name ?: '').'|'.($opportunity->contact_email ?: ''))))
-            ->values();
+            ->get(['id', 'name', 'primary_email', 'latest_service']);
     }
 
-    protected function quoteOpportunityOptions(Workspace $workspace, ?Opportunity $customer = null)
+    protected function quoteOpportunityOptions(Workspace $workspace, ?Account $customer = null)
     {
         $query = Opportunity::query()
             ->where('workspace_id', $workspace->id)
@@ -3671,17 +5587,53 @@ class CrmDashboard extends Component
             ->orderByDesc('created_at');
 
         if ($customer) {
-            $query->where('company_name', $customer->company_name);
-
-            if (filled($customer->contact_email)) {
-                $query->where(function ($builder) use ($customer) {
-                    $builder->where('contact_email', $customer->contact_email)
-                        ->orWhereNull('contact_email');
-                });
-            }
+            $query->where('account_id', $customer->id);
         }
 
         return $query->get(['id', 'company_name', 'contact_email', 'external_key', 'lead_id']);
+    }
+
+    protected function quoteRateCardOptions(Workspace $workspace, ?Account $customer = null)
+    {
+        $query = RateCard::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('is_active', true)
+            ->orderByDesc('valid_until')
+            ->orderByDesc('created_at');
+
+        if ($customer && filled($customer->name)) {
+            $query->where(function ($builder) use ($customer) {
+                $builder->where('customer_name', $customer->name)
+                    ->orWhereNull('customer_name');
+            });
+        }
+
+        return $query->get(['id', 'rate_code', 'customer_name', 'service_mode', 'origin', 'destination', 'currency', 'sell_amount']);
+    }
+
+    protected function buildRateQuery(Workspace $workspace)
+    {
+        $query = RateCard::query()
+            ->with(['carrier', 'assignedUser'])
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->rateSearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('rate_code', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('origin', 'like', "%{$search}%")
+                    ->orWhere('destination', 'like', "%{$search}%")
+                    ->orWhere('commodity', 'like', "%{$search}%");
+            });
+        }
+
+        if ($this->rateModeFilter !== '') {
+            $query->where('service_mode', $this->rateModeFilter);
+        }
+
+        return $query;
     }
 
     protected function buildOpportunityQuery(Workspace $workspace)
@@ -3710,7 +5662,7 @@ class CrmDashboard extends Component
     protected function buildQuoteQuery(Workspace $workspace)
     {
         $query = Quote::query()
-            ->with(['assignedUser', 'lead', 'opportunity'])
+            ->with(['assignedUser', 'lead', 'opportunity', 'rateCard'])
             ->where('workspace_id', $workspace->id);
 
         $search = trim($this->quoteSearch);
@@ -3735,17 +5687,15 @@ class CrmDashboard extends Component
 
     protected function shipmentCustomerOptions(Workspace $workspace)
     {
-        return Opportunity::query()
+        return Account::query()
             ->where('workspace_id', $workspace->id)
-            ->whereNotNull('company_name')
-            ->orderByDesc('submission_date')
+            ->whereNotNull('name')
+            ->orderByDesc('last_activity_at')
             ->orderByDesc('created_at')
-            ->get(['id', 'company_name', 'contact_email', 'required_service', 'lead_id'])
-            ->unique(fn (Opportunity $opportunity) => Str::lower(trim(($opportunity->company_name ?: '').'|'.($opportunity->contact_email ?: ''))))
-            ->values();
+            ->get(['id', 'name', 'primary_email', 'latest_service']);
     }
 
-    protected function selectedManualQuoteCustomer(Workspace $workspace): ?Opportunity
+    protected function selectedManualQuoteCustomer(Workspace $workspace): ?Account
     {
         $customerId = (int) data_get($this->manualQuoteForm, 'customer_record_id');
 
@@ -3753,12 +5703,22 @@ class CrmDashboard extends Component
             return null;
         }
 
-        return Opportunity::query()
+        $account = Account::query()
             ->where('workspace_id', $workspace->id)
             ->find($customerId);
+
+        if ($account) {
+            return $account;
+        }
+
+        $opportunity = Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->find($customerId);
+
+        return $opportunity?->account;
     }
 
-    protected function shipmentOpportunityOptions(Workspace $workspace, ?Opportunity $customer = null)
+    protected function shipmentOpportunityOptions(Workspace $workspace, ?Account $customer = null)
     {
         $query = Opportunity::query()
             ->where('workspace_id', $workspace->id)
@@ -3766,20 +5726,13 @@ class CrmDashboard extends Component
             ->orderByDesc('created_at');
 
         if ($customer) {
-            $query->where('company_name', $customer->company_name);
-
-            if (filled($customer->contact_email)) {
-                $query->where(function ($builder) use ($customer) {
-                    $builder->where('contact_email', $customer->contact_email)
-                        ->orWhereNull('contact_email');
-                });
-            }
+            $query->where('account_id', $customer->id);
         }
 
         return $query->get(['id', 'company_name', 'contact_email', 'external_key', 'lead_id']);
     }
 
-    protected function shipmentQuoteOptions(Workspace $workspace, ?Opportunity $customer = null, ?Opportunity $opportunity = null)
+    protected function shipmentQuoteOptions(Workspace $workspace, ?Account $customer = null, ?Opportunity $opportunity = null)
     {
         $query = Quote::query()
             ->where('workspace_id', $workspace->id)
@@ -3789,13 +5742,44 @@ class CrmDashboard extends Component
         if ($opportunity) {
             $query->where('opportunity_id', $opportunity->id);
         } elseif ($customer) {
-            $query->where('company_name', $customer->company_name);
+            $query->where('account_id', $customer->id);
         }
 
         return $query->get(['id', 'quote_number', 'company_name', 'opportunity_id']);
     }
 
-    protected function selectedManualShipmentCustomer(Workspace $workspace): ?Opportunity
+    protected function costingShipmentOptions(Workspace $workspace)
+    {
+        return ShipmentJob::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderByDesc('estimated_departure_at')
+            ->orderByDesc('created_at')
+            ->get(['id', 'job_number', 'company_name']);
+    }
+
+    protected function invoiceShipmentOptions(Workspace $workspace)
+    {
+        return ShipmentJob::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderByDesc('estimated_departure_at')
+            ->orderByDesc('created_at')
+            ->get(['id', 'job_number', 'company_name']);
+    }
+
+    protected function invoiceCostingOptions(Workspace $workspace, ?ShipmentJob $shipment = null)
+    {
+        $query = JobCosting::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderByDesc('created_at');
+
+        if ($shipment) {
+            $query->where('shipment_job_id', $shipment->id);
+        }
+
+        return $query->get(['id', 'costing_number', 'customer_name', 'shipment_job_id']);
+    }
+
+    protected function selectedManualShipmentCustomer(Workspace $workspace): ?Account
     {
         $customerId = (int) data_get($this->manualShipmentForm, 'customer_record_id');
 
@@ -3803,9 +5787,32 @@ class CrmDashboard extends Component
             return null;
         }
 
-        return Opportunity::query()
+        $account = Account::query()
             ->where('workspace_id', $workspace->id)
             ->find($customerId);
+
+        if ($account) {
+            return $account;
+        }
+
+        $opportunity = Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->find($customerId);
+
+        return $opportunity?->account;
+    }
+
+    protected function selectedManualInvoiceShipment(Workspace $workspace): ?ShipmentJob
+    {
+        $shipmentId = (int) data_get($this->manualInvoiceForm, 'shipment_job_id');
+
+        if ($shipmentId < 1) {
+            return null;
+        }
+
+        return ShipmentJob::query()
+            ->where('workspace_id', $workspace->id)
+            ->find($shipmentId);
     }
 
     protected function selectedManualShipmentOpportunity(Workspace $workspace): ?Opportunity
@@ -3905,29 +5912,86 @@ class CrmDashboard extends Component
         return $query;
     }
 
+    protected function buildCostingQuery(Workspace $workspace)
+    {
+        $query = JobCosting::query()
+            ->with(['shipmentJob', 'quote'])
+            ->withCount('lines')
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->costingSearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('costing_number', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('service_mode', 'like', "%{$search}%");
+            });
+        }
+
+        if ($this->costingStatusFilter !== '') {
+            $query->where('status', $this->costingStatusFilter);
+        }
+
+        return $query;
+    }
+
+    protected function buildInvoiceQuery(Workspace $workspace)
+    {
+        $query = Invoice::query()
+            ->with(['shipmentJob', 'booking', 'jobCosting', 'quote'])
+            ->withCount('lines')
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->invoiceSearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('invoice_number', 'like', "%{$search}%")
+                    ->orWhere('bill_to_name', 'like', "%{$search}%")
+                    ->orWhere('contact_email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($this->invoiceStatusFilter !== '') {
+            $query->where('status', $this->invoiceStatusFilter);
+        }
+
+        if ($this->invoiceBookingFilter !== '') {
+            $selectedBooking = Booking::query()
+                ->where('workspace_id', $workspace->id)
+                ->find((int) $this->invoiceBookingFilter);
+
+            if ($selectedBooking) {
+                $query->where(function ($builder) use ($selectedBooking) {
+                    $builder->where('booking_id', $selectedBooking->id);
+
+                    if ($selectedBooking->shipment_job_id) {
+                        $builder->orWhere('shipment_job_id', $selectedBooking->shipment_job_id);
+                    }
+                });
+            }
+        }
+
+        return $query;
+    }
+
     protected function buildContactsQuery(Workspace $workspace)
     {
-        $query = Lead::query()
-            ->with(['assignedUser'])
-            ->withCount('opportunities')
+        $query = Contact::query()
+            ->with('account')
+            ->withCount(['leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
             ->where('workspace_id', $workspace->id)
-            ->whereDoesntHave('opportunities')
-            ->where(function ($builder) {
-                $builder->whereNotNull('contact_name')
-                    ->orWhereNotNull('company_name')
-                    ->orWhereNotNull('email')
-                    ->orWhereNotNull('phone');
-            });
+            ->whereDoesntHave('opportunities');
 
         $contactSearch = trim($this->contactSearch);
 
         if ($contactSearch !== '') {
             $query->where(function ($builder) use ($contactSearch) {
-                $builder->where('contact_name', 'like', "%{$contactSearch}%")
-                    ->orWhere('company_name', 'like', "%{$contactSearch}%")
+                $builder->where('full_name', 'like', "%{$contactSearch}%")
                     ->orWhere('email', 'like', "%{$contactSearch}%")
                     ->orWhere('phone', 'like', "%{$contactSearch}%")
-                    ->orWhere('lead_id', 'like', "%{$contactSearch}%");
+                    ->orWhereHas('account', fn ($accountQuery) => $accountQuery->where('name', 'like', "%{$contactSearch}%"));
             });
         }
 
@@ -3936,18 +6000,23 @@ class CrmDashboard extends Component
 
     protected function buildCustomersQuery(Workspace $workspace)
     {
-        $query = Opportunity::query()
-            ->with(['lead', 'assignedUser'])
-            ->where('workspace_id', $workspace->id);
+        $query = Account::query()
+            ->with('contacts')
+            ->withCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
+            ->withSum('opportunities as opportunity_revenue_sum', 'revenue_potential')
+            ->where('workspace_id', $workspace->id)
+            ->whereHas('opportunities');
 
         $customerSearch = trim($this->customerSearch);
 
         if ($customerSearch !== '') {
             $query->where(function ($builder) use ($customerSearch) {
-                $builder->where('company_name', 'like', "%{$customerSearch}%")
-                    ->orWhere('contact_email', 'like', "%{$customerSearch}%")
-                    ->orWhere('required_service', 'like', "%{$customerSearch}%")
-                    ->orWhere('external_key', 'like', "%{$customerSearch}%");
+                $builder->where('name', 'like', "%{$customerSearch}%")
+                    ->orWhere('primary_email', 'like', "%{$customerSearch}%")
+                    ->orWhere('latest_service', 'like', "%{$customerSearch}%")
+                    ->orWhereHas('contacts', fn ($contactQuery) => $contactQuery
+                        ->where('full_name', 'like', "%{$customerSearch}%")
+                        ->orWhere('email', 'like', "%{$customerSearch}%"));
             });
         }
 
@@ -4140,24 +6209,41 @@ class CrmDashboard extends Component
     protected function applyContactSorting($query)
     {
         return match ($this->contactSort) {
-            'oldest' => $query->orderBy('submission_date')->orderBy('created_at'),
-            'name_asc' => $query->orderBy('contact_name')->orderByDesc('submission_date'),
-            'name_desc' => $query->orderByDesc('contact_name')->orderByDesc('submission_date'),
-            'company_asc' => $query->orderBy('company_name')->orderByDesc('submission_date'),
-            'company_desc' => $query->orderByDesc('company_name')->orderByDesc('submission_date'),
-            default => $query->orderByDesc('submission_date')->orderByDesc('created_at'),
+            'oldest' => $query->orderBy('last_activity_at')->orderBy('created_at'),
+            'name_asc' => $query->orderBy('full_name')->orderByDesc('last_activity_at'),
+            'name_desc' => $query->orderByDesc('full_name')->orderByDesc('last_activity_at'),
+            'company_asc' => $query->orderBy(
+                Account::query()->select('name')->whereColumn('accounts.id', 'contacts.account_id')->limit(1)
+            )->orderByDesc('last_activity_at'),
+            'company_desc' => $query->orderByDesc(
+                Account::query()->select('name')->whereColumn('accounts.id', 'contacts.account_id')->limit(1)
+            )->orderByDesc('last_activity_at'),
+            default => $query->orderByDesc('last_activity_at')->orderByDesc('created_at'),
         };
     }
 
     protected function applyCustomerSorting($query)
     {
         return match ($this->customerSort) {
-            'oldest' => $query->orderBy('submission_date')->orderBy('created_at'),
-            'company_asc' => $query->orderBy('company_name')->orderByDesc('submission_date'),
-            'company_desc' => $query->orderByDesc('company_name')->orderByDesc('submission_date'),
-            'value_desc' => $query->orderByDesc('revenue_potential')->orderByDesc('submission_date'),
-            'value_asc' => $query->orderBy('revenue_potential')->orderByDesc('submission_date'),
-            default => $query->orderByDesc('submission_date')->orderByDesc('created_at'),
+            'oldest' => $query->orderBy('last_activity_at')->orderBy('created_at'),
+            'company_asc' => $query->orderBy('name')->orderByDesc('last_activity_at'),
+            'company_desc' => $query->orderByDesc('name')->orderByDesc('last_activity_at'),
+            'value_desc' => $query->orderByDesc('opportunity_revenue_sum')->orderByDesc('last_activity_at'),
+            'value_asc' => $query->orderBy('opportunity_revenue_sum')->orderByDesc('last_activity_at'),
+            default => $query->orderByDesc('last_activity_at')->orderByDesc('created_at'),
+        };
+    }
+
+    protected function applyRateSorting($query)
+    {
+        return match ($this->rateSort) {
+            'oldest' => $query->orderBy('created_at'),
+            'customer_asc' => $query->orderBy('customer_name')->orderByDesc('created_at'),
+            'customer_desc' => $query->orderByDesc('customer_name')->orderByDesc('created_at'),
+            'sell_desc' => $query->orderByDesc('sell_amount')->orderByDesc('created_at'),
+            'sell_asc' => $query->orderBy('sell_amount')->orderByDesc('created_at'),
+            'expiry_asc' => $query->orderBy('valid_until')->orderByDesc('created_at'),
+            default => $query->orderByDesc('valid_until')->orderByDesc('created_at'),
         };
     }
 
@@ -4204,6 +6290,30 @@ class CrmDashboard extends Component
             'customer_desc' => $query->orderByDesc('customer_name')->orderByDesc('requested_etd'),
             'status_asc' => $query->orderBy('status')->orderByDesc('requested_etd'),
             default => $query->orderByDesc('requested_etd')->orderByDesc('created_at'),
+        };
+    }
+
+    protected function applyCostingSorting($query)
+    {
+        return match ($this->costingSort) {
+            'oldest' => $query->orderBy('created_at'),
+            'customer_asc' => $query->orderBy('customer_name')->orderByDesc('created_at'),
+            'customer_desc' => $query->orderByDesc('customer_name')->orderByDesc('created_at'),
+            'margin_desc' => $query->orderByDesc('margin_amount')->orderByDesc('created_at'),
+            'margin_asc' => $query->orderBy('margin_amount')->orderByDesc('created_at'),
+            default => $query->orderByDesc('created_at'),
+        };
+    }
+
+    protected function applyInvoiceSorting($query)
+    {
+        return match ($this->invoiceSort) {
+            'oldest' => $query->orderBy('issue_date')->orderBy('created_at'),
+            'customer_asc' => $query->orderBy('bill_to_name')->orderByDesc('issue_date'),
+            'customer_desc' => $query->orderByDesc('bill_to_name')->orderByDesc('issue_date'),
+            'amount_desc' => $query->orderByDesc('total_amount')->orderByDesc('issue_date'),
+            'amount_asc' => $query->orderBy('total_amount')->orderByDesc('issue_date'),
+            default => $query->orderByDesc('issue_date')->orderByDesc('created_at'),
         };
     }
 
@@ -4483,6 +6593,25 @@ class CrmDashboard extends Component
         };
     }
 
+    public function costingStatusClasses(string $status): string
+    {
+        return match ($status) {
+            JobCosting::STATUS_READY_TO_INVOICE, JobCosting::STATUS_FINALIZED, JobCosting::STATUS_CLOSED => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            JobCosting::STATUS_IN_PROGRESS => 'border-sky-200 bg-sky-50 text-sky-800',
+            default => 'border-amber-200 bg-amber-50 text-amber-800',
+        };
+    }
+
+    public function invoiceStatusClasses(string $status): string
+    {
+        return match ($status) {
+            Invoice::STATUS_PAID => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            Invoice::STATUS_PARTIALLY_PAID => 'border-sky-200 bg-sky-50 text-sky-800',
+            Invoice::STATUS_OVERDUE, Invoice::STATUS_CANCELLED => 'border-rose-200 bg-rose-50 text-rose-700',
+            default => 'border-amber-200 bg-amber-50 text-amber-800',
+        };
+    }
+
     public function sourceStatusClasses(?string $status): string
     {
         return match ($status) {
@@ -4500,6 +6629,13 @@ class CrmDashboard extends Component
         return 'QT-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
     }
 
+    protected function nextRateCode(Workspace $workspace): string
+    {
+        $nextId = ((int) RateCard::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
+
+        return 'RT-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+    }
+
     protected function nextShipmentJobNumber(Workspace $workspace): string
     {
         $nextId = ((int) ShipmentJob::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
@@ -4512,6 +6648,21 @@ class CrmDashboard extends Component
         $nextId = ((int) Booking::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
 
         return 'BK-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+    }
+
+    protected function nextCostingNumber(Workspace $workspace): string
+    {
+        $nextId = ((int) JobCosting::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
+
+        return 'JC-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+    }
+
+    protected function nextInvoiceNumber(Workspace $workspace, string $type): string
+    {
+        $nextId = ((int) Invoice::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
+        $prefix = $type === Invoice::TYPE_ACCOUNTS_PAYABLE ? 'AP' : 'AR';
+
+        return $prefix.'-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
     }
 
     protected function applyBookingShipmentConnection(Booking $booking): void
@@ -4570,6 +6721,178 @@ class CrmDashboard extends Component
         return (float) $sell - (float) $buy;
     }
 
+    protected function costingTotalsFromLines(array $lines): array
+    {
+        $totalCost = 0.0;
+        $totalSell = 0.0;
+
+        foreach ($lines as $line) {
+            $quantity = (float) ($line['quantity'] ?: 0);
+            $unitAmount = (float) ($line['unit_amount'] ?: 0);
+            $lineTotal = $quantity > 0 ? $quantity * $unitAmount : $unitAmount;
+
+            if (($line['line_type'] ?? null) === JobCostingLine::TYPE_REVENUE) {
+                $totalSell += $lineTotal;
+            } else {
+                $totalCost += $lineTotal;
+            }
+        }
+
+        $margin = $totalSell - $totalCost;
+
+        return [
+            'total_cost_amount' => $totalCost,
+            'total_sell_amount' => $totalSell,
+            'margin_amount' => $margin,
+            'margin_percent' => $totalSell > 0 ? round(($margin / $totalSell) * 100, 2) : null,
+        ];
+    }
+
+    protected function invoiceLinesFromCosting(?JobCosting $costing, string $invoiceType): array
+    {
+        if (! $costing) {
+            return $this->blankInvoiceLines();
+        }
+
+        $sourceLines = $costing->lines
+            ->filter(function (JobCostingLine $line) use ($invoiceType) {
+                if ($invoiceType === Invoice::TYPE_ACCOUNTS_PAYABLE) {
+                    return $line->line_type === JobCostingLine::TYPE_COST;
+                }
+
+                return $line->line_type === JobCostingLine::TYPE_REVENUE && $line->is_billable;
+            })
+            ->values();
+
+        if ($sourceLines->isEmpty()) {
+            return $this->blankInvoiceLines();
+        }
+
+        return $sourceLines->map(fn (JobCostingLine $line) => [
+            'job_costing_line_id' => (string) $line->id,
+            'charge_code' => $line->charge_code ?: '',
+            'description' => $line->description ?: '',
+            'quantity' => $line->quantity !== null ? (string) $line->quantity : '1',
+            'unit_amount' => $line->unit_amount !== null ? (string) $line->unit_amount : '',
+            'notes' => $line->notes ?: '',
+        ])->all();
+    }
+
+    protected function invoiceLineSubtotal(array $lines): float
+    {
+        $subtotal = 0.0;
+
+        foreach ($lines as $line) {
+            $quantity = (float) ($line['quantity'] ?? 0);
+            $unitAmount = (float) ($line['unit_amount'] ?? 0);
+            $lineTotal = $quantity > 0 ? $quantity * $unitAmount : $unitAmount;
+            $subtotal += $lineTotal;
+        }
+
+        return round($subtotal, 2);
+    }
+
+    protected function syncCostingLines(JobCosting $costing, array $lines): void
+    {
+        $costing->lines()->delete();
+
+        foreach ($lines as $line) {
+            $quantity = (float) ($line['quantity'] ?: 0);
+            $unitAmount = (float) ($line['unit_amount'] ?: 0);
+            $totalAmount = $quantity > 0 ? $quantity * $unitAmount : $unitAmount;
+
+            $costing->lines()->create([
+                'line_type' => $line['line_type'],
+                'charge_code' => $line['charge_code'] ?: null,
+                'description' => $line['description'],
+                'vendor_name' => $line['vendor_name'] ?: null,
+                'quantity' => $quantity > 0 ? $quantity : 1,
+                'unit_amount' => $unitAmount,
+                'total_amount' => $totalAmount,
+                'is_billable' => (bool) ($line['is_billable'] ?? true),
+                'notes' => $line['notes'] ?: null,
+            ]);
+        }
+    }
+
+    protected function syncInvoiceLines(Invoice $invoice, array $lines): void
+    {
+        $invoice->lines()->delete();
+
+        foreach ($lines as $line) {
+            $quantity = (float) ($line['quantity'] ?? 0);
+            $unitAmount = (float) ($line['unit_amount'] ?? 0);
+            $totalAmount = $quantity > 0 ? $quantity * $unitAmount : $unitAmount;
+
+            $invoice->lines()->create([
+                'job_costing_line_id' => filled($line['job_costing_line_id'] ?? null) ? $line['job_costing_line_id'] : null,
+                'charge_code' => $line['charge_code'] ?: null,
+                'description' => $line['description'],
+                'quantity' => $quantity > 0 ? $quantity : 1,
+                'unit_amount' => $unitAmount,
+                'total_amount' => $totalAmount,
+                'notes' => $line['notes'] ?: null,
+            ]);
+        }
+    }
+
+    protected function applyInvoiceLineTotalsToForm(string $formKey): void
+    {
+        $lines = data_get($this->{$formKey}, 'lines', []);
+        $subtotal = $this->invoiceLineSubtotal($lines);
+        $tax = (float) data_get($this->{$formKey}, 'tax_amount', 0);
+        $paid = (float) data_get($this->{$formKey}, 'paid_amount', 0);
+        $total = $subtotal + $tax;
+
+        data_set($this->{$formKey}, 'subtotal_amount', $subtotal > 0 ? (string) $subtotal : '');
+        data_set($this->{$formKey}, 'total_amount', $total > 0 ? (string) $total : '');
+        data_set($this->{$formKey}, 'balance_amount', $total > 0 ? (string) max($total - $paid, 0) : '');
+    }
+
+    protected function applyCostingShipmentConnection(JobCosting $costing): void
+    {
+        if (! $costing->shipment_job_id) {
+            return;
+        }
+
+        $shipment = ShipmentJob::query()
+            ->where('workspace_id', $costing->workspace_id)
+            ->find($costing->shipment_job_id);
+
+        if (! $shipment) {
+            return;
+        }
+
+        $shipment->forceFill([
+            'buy_amount' => $costing->total_cost_amount,
+            'sell_amount' => $costing->total_sell_amount,
+            'margin_amount' => $costing->margin_amount,
+            'currency' => $costing->currency ?: $shipment->currency,
+        ])->save();
+    }
+
+    protected function syncCostingInvoiceState(?JobCosting $costing): void
+    {
+        if (! $costing) {
+            return;
+        }
+
+        $costing->loadMissing('invoices');
+
+        $hasPostedInvoice = $costing->invoices->contains(fn (Invoice $invoice) => $invoice->posted_at !== null);
+        $hasDraftInvoice = $costing->invoices->contains(fn (Invoice $invoice) => $invoice->status === Invoice::STATUS_DRAFT);
+
+        $targetStatus = match (true) {
+            $hasPostedInvoice => JobCosting::STATUS_FINALIZED,
+            $hasDraftInvoice => JobCosting::STATUS_READY_TO_INVOICE,
+            default => $costing->status,
+        };
+
+        if ($targetStatus && $costing->status !== $targetStatus) {
+            $costing->forceFill(['status' => $targetStatus])->save();
+        }
+    }
+
     protected function flash(string $message): void
     {
         session()->flash('status', $message);
@@ -4588,6 +6911,10 @@ class CrmDashboard extends Component
     protected function templateModuleMeta(): array
     {
         return [
+            'rates' => [
+                'label' => 'Rates',
+                'description' => 'Maintain lane-based buy and sell rates, transit days, and validity windows for quoting.',
+            ],
             'quotes' => [
                 'label' => 'Quotes',
                 'description' => 'Build freight quotes, compare buy and sell rates, and keep revisions in one place.',
@@ -4627,6 +6954,14 @@ class CrmDashboard extends Component
             'bookings' => [
                 'label' => 'Bookings',
                 'description' => 'Track liner booking requests, confirmations, and customer shipping allocations.',
+            ],
+            'costings' => [
+                'label' => 'Job Costing',
+                'description' => 'Track buy, sell, and margin per shipment job.',
+            ],
+            'invoices' => [
+                'label' => 'Invoices',
+                'description' => 'Manage AR and AP invoices linked to freight jobs and costings.',
             ],
             'sailings' => [
                 'label' => 'Sailings',

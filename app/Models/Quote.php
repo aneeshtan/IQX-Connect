@@ -30,6 +30,9 @@ class Quote extends Model
         'company_id',
         'workspace_id',
         'sheet_source_id',
+        'account_id',
+        'contact_id',
+        'rate_card_id',
         'opportunity_id',
         'lead_id',
         'assigned_user_id',
@@ -85,6 +88,21 @@ class Quote extends Model
         return $this->belongsTo(SheetSource::class);
     }
 
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
+    public function rateCard(): BelongsTo
+    {
+        return $this->belongsTo(RateCard::class);
+    }
+
     public function opportunity(): BelongsTo
     {
         return $this->belongsTo(Opportunity::class);
@@ -108,5 +126,15 @@ class Quote extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function jobCostings(): HasMany
+    {
+        return $this->hasMany(JobCosting::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
     }
 }

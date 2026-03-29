@@ -29,15 +29,15 @@
                 <main class="mt-8 grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
                     <section class="space-y-8">
                         <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">
-                            Built for maritime sales, marketing, and operations teams
+                            Built for freight forwarders, shipping teams, and maritime operators
                         </div>
 
                         <div class="space-y-5">
                             <h1 class="max-w-4xl text-5xl font-semibold tracking-tight text-zinc-950 sm:text-6xl">
-                                One-page CRM clarity for leads, pipeline, and reporting.
+                                Maritime CRM, quoting, shipment jobs, and reporting in one workspace.
                             </h1>
                             <p class="max-w-2xl text-lg leading-8 text-zinc-600">
-                                IQX Connect gives maritime teams a simple workspace to sync lead sources, update statuses inline, track conversions, and review benchmark-style reports without bouncing between tools.
+                                IQX Connect gives maritime companies one operating surface for inbound leads, customer accounts, quotes, bookings, shipment jobs, costing, invoices, and benchmark-style reporting without forcing teams into a bloated ERP workflow.
                             </p>
                         </div>
 
@@ -52,19 +52,19 @@
 
                         <div class="grid gap-4 sm:grid-cols-3">
                             <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Setup</div>
-                                <div class="mt-3 text-2xl font-semibold text-zinc-950">Minutes</div>
-                                <p class="mt-2 text-sm text-zinc-500">Connect Google Sheets, upload CSVs, or add leads manually from day one.</p>
+                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Workspace Modes</div>
+                                <div class="mt-3 text-2xl font-semibold text-zinc-950">7</div>
+                                <p class="mt-2 text-sm text-zinc-500">Freight forwarding, ship chandling, container conversion, liner, ship management, leasing, and general maritime.</p>
                             </article>
                             <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
-                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Workflow</div>
-                                <div class="mt-3 text-2xl font-semibold text-zinc-950">One Page</div>
-                                <p class="mt-2 text-sm text-zinc-500">Users switch tabs instead of changing pages to manage the pipeline.</p>
+                                <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Freight Flow</div>
+                                <div class="mt-3 text-2xl font-semibold text-zinc-950">Lead To Job</div>
+                                <p class="mt-2 text-sm text-zinc-500">Move from lead to opportunity, quote, booking, shipment, costing, and invoice inside one connected workflow.</p>
                             </article>
                             <article class="rounded-[1.5rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
                                 <div class="text-xs uppercase tracking-[0.25em] text-zinc-400">Visibility</div>
                                 <div class="mt-3 text-2xl font-semibold text-zinc-950">Live</div>
-                                <p class="mt-2 text-sm text-zinc-500">Admins and users see real reporting windows, trend blocks, and revenue signals.</p>
+                                <p class="mt-2 text-sm text-zinc-500">Track pipeline, shipment activity, booking-linked invoices, and margin signals from one mobile-friendly dashboard.</p>
                             </article>
                         </div>
                     </section>
@@ -157,22 +157,111 @@
                     </section>
                 </main>
 
-                <section id="features" class="mt-24 grid gap-6 lg:grid-cols-3">
+                <section id="features" class="mt-24 grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
+                    <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+                        <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Workspace Templates</div>
+                        <h2 class="mt-5 text-3xl font-semibold tracking-tight">Choose the maritime mode that fits the business.</h2>
+                        <p class="mt-3 text-base leading-7 text-zinc-600">
+                            IQX Connect is not a one-template CRM. Workspace owners can activate the operating mode that matches the company model, then expose the right modules, labels, and workflows for that team.
+                        </p>
+                        <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Freight Forwarder</div>
+                                <div class="mt-2 text-sm text-zinc-500">Quotes, bookings, shipment jobs, costing, invoices, carriers, and rates.</div>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Ship Chandling</div>
+                                <div class="mt-2 text-sm text-zinc-500">Customer demand tracking, supply orders, and vessel-call style workflows.</div>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Container Conversion</div>
+                                <div class="mt-2 text-sm text-zinc-500">Simpler pipeline for project-led sales and repeat commercial follow-up.</div>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">General Maritime</div>
+                                <div class="mt-2 text-sm text-zinc-500">Start with core CRM, then expand only the modules the team really needs.</div>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+                        <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Core Platform</div>
+                        <h2 class="mt-5 text-3xl font-semibold tracking-tight">Built around the real freight and maritime workflow.</h2>
+                        <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Lead And Opportunity CRM</div>
+                                <p class="mt-2 text-sm leading-6 text-zinc-500">Spreadsheet-simple lead handling, opportunity conversion, inline stage updates, and owner-based workspace access.</p>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Accounts And Contacts</div>
+                                <p class="mt-2 text-sm leading-6 text-zinc-500">First-class customer accounts and contacts with linked history across leads, quotes, shipments, bookings, and invoices.</p>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Quotes, Rates, And Carriers</div>
+                                <p class="mt-2 text-sm leading-6 text-zinc-500">Build lane-based freight quotes, store sell and buy rates, manage carrier options, and prepare deals for execution.</p>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Bookings And Shipment Jobs</div>
+                                <p class="mt-2 text-sm leading-6 text-zinc-500">Move accepted work into bookings and operational shipment jobs with milestones, documents, and timeline tracking.</p>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Job Costing And Invoicing</div>
+                                <p class="mt-2 text-sm leading-6 text-zinc-500">Track margin, costing lines, AP/AR invoice types, posting status, and booking-linked or shipment-linked finance records.</p>
+                            </div>
+                            <div id="reporting" class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Time-Bound Analytics</div>
+                                <p class="mt-2 text-sm leading-6 text-zinc-500">Review last month, rolling windows, or specific months with benchmark-style cards and charts for SQL, revenue, ROMI, and conversions.</p>
+                            </div>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="mt-24 grid gap-6 lg:grid-cols-3">
                     <article class="rounded-[1.9rem] border border-zinc-200 bg-white p-6 shadow-sm">
-                        <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Live Sources</div>
-                        <h2 class="mt-5 text-2xl font-semibold tracking-tight">Connect lead sources without engineering overhead.</h2>
-                        <p class="mt-3 text-base leading-7 text-zinc-600">Use authenticated Google Sheets, public sheet links, uploaded CSVs, and manual entries in the same CRM. Keep your team in one workspace while the data keeps moving.</p>
+                        <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Live Integrations</div>
+                        <h2 class="mt-5 text-2xl font-semibold tracking-tight">Connect operational data without waiting on IT.</h2>
+                        <p class="mt-3 text-base leading-7 text-zinc-600">Use Google Sheets, public CSV-style sheet links, uploaded CSV files, manual entry, and configurable API sources including CargoWise-style endpoints.</p>
                     </article>
                     <article class="rounded-[1.9rem] border border-zinc-200 bg-white p-6 shadow-sm">
-                        <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Simple Workflow</div>
-                        <h2 class="mt-5 text-2xl font-semibold tracking-tight">Spreadsheet-simple for users, structured enough for management.</h2>
-                        <p class="mt-3 text-base leading-7 text-zinc-600">Switch between tabs, update lead and opportunity status inline, and avoid sending teams into a maze of forms and pages just to move a deal.</p>
+                        <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Mobile Friendly</div>
+                        <h2 class="mt-5 text-2xl font-semibold tracking-tight">Work on the move without losing context.</h2>
+                        <p class="mt-3 text-base leading-7 text-zinc-600">The CRM is now shaped for mobile web-app use with responsive cards, bottom navigation, safe-area support, and quick popup-driven editing.</p>
                     </article>
-                    <article id="reporting" class="rounded-[1.9rem] border border-zinc-200 bg-white p-6 shadow-sm">
-                        <div class="inline-flex rounded-2xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-800">Benchmark Reporting</div>
-                        <h2 class="mt-5 text-2xl font-semibold tracking-tight">Show pipeline, conversions, ads efficiency, and ROMI in one story.</h2>
-                        <p class="mt-3 text-base leading-7 text-zinc-600">Benchmark-style panels turn raw lead tables into decision-ready summaries for users and admins, with time windows that actually match the business conversation.</p>
+                    <article class="rounded-[1.9rem] border border-zinc-200 bg-white p-6 shadow-sm">
+                        <div class="inline-flex rounded-2xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-800">Admin Control</div>
+                        <h2 class="mt-5 text-2xl font-semibold tracking-tight">Let each workspace speak the company’s language.</h2>
+                        <p class="mt-3 text-base leading-7 text-zinc-600">Workspace owners can control roles, source connections, templates, editable CRM labels, statuses, reasons, and maritime-specific vocabulary.</p>
                     </article>
+                </section>
+
+                <section class="mt-24 rounded-[2rem] border border-zinc-200 bg-white p-7 shadow-sm">
+                    <div class="grid gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
+                        <div>
+                            <div class="inline-flex rounded-2xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-800">Benefits</div>
+                            <h2 class="mt-5 text-3xl font-semibold tracking-tight">What maritime teams gain from using IQX Connect.</h2>
+                            <p class="mt-3 max-w-xl text-base leading-7 text-zinc-600">
+                                The platform is designed to reduce handoff friction between marketing, sales, and execution without dropping your team into a full CargoWise-scale operating system on day one.
+                            </p>
+                        </div>
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Faster Qualification</div>
+                                <div class="mt-2 text-sm leading-6 text-zinc-500">Teams can see which leads are worth pursuing, convert qualified demand into opportunities, and move quickly into pricing.</div>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Cleaner Handoffs</div>
+                                <div class="mt-2 text-sm leading-6 text-zinc-500">Quotes, bookings, shipment jobs, costing, and invoicing all stay connected to the same customer and commercial record.</div>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Better Customer Memory</div>
+                                <div class="mt-2 text-sm leading-6 text-zinc-500">Accounts and contacts keep the relationship history visible instead of scattering it across leads, inboxes, and spreadsheets.</div>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-4">
+                                <div class="text-sm font-semibold text-zinc-950">Decision-Ready Reporting</div>
+                                <div class="mt-2 text-sm leading-6 text-zinc-500">Managers can read benchmark-style analytics across deal value, won business, spend efficiency, and operational follow-through.</div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <section class="mt-24 rounded-[2.2rem] border border-emerald-200 bg-[linear-gradient(135deg,_#06281f,_#0f766e_58%,_#16a34a)] px-8 py-10 text-white shadow-2xl shadow-emerald-950/15">

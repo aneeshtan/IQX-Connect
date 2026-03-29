@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Booking extends Model
 {
@@ -35,6 +36,8 @@ class Booking extends Model
         'company_id',
         'workspace_id',
         'sheet_source_id',
+        'account_id',
+        'contact_id',
         'carrier_id',
         'shipment_job_id',
         'quote_id',
@@ -94,6 +97,16 @@ class Booking extends Model
         return $this->belongsTo(SheetSource::class);
     }
 
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
     public function carrier(): BelongsTo
     {
         return $this->belongsTo(Carrier::class);
@@ -122,5 +135,10 @@ class Booking extends Model
     public function assignedUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_user_id');
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
     }
 }

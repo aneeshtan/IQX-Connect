@@ -1,4 +1,4 @@
-<div class="space-y-6">
+<div class="space-y-6 pb-24 lg:pb-0">
     @if (session('status'))
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {{ session('status') }}
@@ -142,7 +142,7 @@
 
         <section class="overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white shadow-sm">
             <div class="border-b border-zinc-200 bg-zinc-50 px-4">
-                <div class="py-3">
+                <div class="hidden py-3 lg:block">
                     @php
                         $orderedTabs = collect($tabs);
 
@@ -228,7 +228,79 @@
                         </select>
                     </div>
 
-                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                    <div class="space-y-3 md:hidden">
+                        @forelse ($leads as $lead)
+                            @php
+                                $displayedLeadStatus = $this->displayedLeadStatus($lead);
+                            @endphp
+                            <div
+                                wire:click="selectLead({{ $lead->id }})"
+                                class="mobile-record-card cursor-pointer transition hover:border-sky-200 hover:bg-sky-50/60 {{ $selectedLead?->id === $lead->id ? 'border-sky-200 bg-sky-50/70' : '' }}"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="mobile-record-card-label">Lead</div>
+                                        <div class="mobile-record-card-value">{{ $lead->lead_id ?: $lead->external_key }}</div>
+                                    </div>
+                                    <div class="text-right text-xs text-zinc-500">{{ $lead->submission_date?->format('d M Y') ?: '-' }}</div>
+                                </div>
+
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <div class="mobile-record-card-label">Company</div>
+                                        <div class="mobile-record-card-value">{{ $lead->company_name ?: 'Unknown company' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Contact</div>
+                                        <div class="mobile-record-card-value">{{ $lead->contact_name ?: 'No contact' }}</div>
+                                        <div class="mt-1 text-xs text-zinc-400">{{ $lead->email ?: 'No email' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Source</div>
+                                        <div class="mobile-record-card-value">{{ $lead->lead_source ?: 'Unknown' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Service</div>
+                                        <div class="mobile-record-card-value">{{ $lead->service ?: 'Not set' }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 space-y-2" wire:click.stop>
+                                    <select
+                                        wire:change="updateLeadStatus({{ $lead->id }}, $event.target.value)"
+                                        class="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none {{ $this->leadStatusClasses($displayedLeadStatus) }}"
+                                    >
+                                        @foreach ($leadStatusOptions as $status => $label)
+                                            <option value="{{ $status }}" @selected($displayedLeadStatus === $status)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+
+                                    @if ($this->showsDisqualificationReasonSelector($lead))
+                                        @php
+                                            $leadDisqualificationReasons = collect($disqualificationReasons)
+                                                ->prepend($lead->disqualification_reason)
+                                                ->filter()
+                                                ->unique()
+                                                ->values();
+                                        @endphp
+                                        <select
+                                            wire:change="saveDisqualificationReason({{ $lead->id }}, $event.target.value)"
+                                            class="w-full rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 outline-none"
+                                        >
+                                            <option value="">Select disqualification reason</option>
+                                            @foreach ($leadDisqualificationReasons as $reason)
+                                                <option value="{{ $reason }}" @selected($lead->disqualification_reason === $reason)>{{ $reason }}</option>
+                                            @endforeach
+                                        </select>
+                                    @endif
+                                </div>
+                            </div>
+                        @empty
+                            <div class="mobile-record-card text-sm text-zinc-500">No leads match the current filters.</div>
+                        @endforelse
+                    </div>
+
+                    <div class="hidden overflow-x-auto rounded-[1.5rem] border border-zinc-200 md:block">
                         <table class="min-w-full border-separate border-spacing-0 text-sm">
                             <thead>
                                 <tr class="bg-zinc-50 text-left text-zinc-500">
@@ -568,7 +640,58 @@
                         </select>
                     </div>
 
-                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                    <div class="space-y-3 md:hidden">
+                        @forelse ($opportunities as $opportunity)
+                            <div
+                                wire:click="selectOpportunity({{ $opportunity->id }})"
+                                class="mobile-record-card cursor-pointer transition hover:border-sky-200 hover:bg-sky-50/60 {{ $selectedOpportunity?->id === $opportunity->id ? 'border-sky-200 bg-sky-50/70' : '' }}"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="mobile-record-card-label">Company</div>
+                                        <div class="mobile-record-card-value">{{ $opportunity->company_name ?: 'Unknown company' }}</div>
+                                    </div>
+                                    <div class="text-right text-xs text-zinc-500">
+                                        {{ $opportunity->submission_date?->format('d M Y') ?: '-' }}
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <div class="mobile-record-card-label">Service</div>
+                                        <div class="mobile-record-card-value">{{ $opportunity->required_service ?: 'Not set' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Source</div>
+                                        <div class="mobile-record-card-value">{{ $opportunity->lead_source ?: 'Unknown' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Revenue</div>
+                                        <div class="mobile-record-card-value">{{ $opportunity->revenue_potential ? 'AED '.number_format((float) $opportunity->revenue_potential, 0) : '-' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Timeline</div>
+                                        <div class="mobile-record-card-value">{{ $opportunity->project_timeline_days ? $opportunity->project_timeline_days.' days' : '-' }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4" wire:click.stop>
+                                    <select
+                                        wire:change="updateOpportunityStage({{ $opportunity->id }}, $event.target.value)"
+                                        class="w-full rounded-lg px-3 py-2 text-sm font-medium outline-none {{ $this->opportunityStageClasses($opportunity->sales_stage) }}"
+                                    >
+                                        @foreach ($opportunityStageOptions as $stage => $label)
+                                            <option value="{{ $stage }}" @selected($opportunity->sales_stage === $stage)>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="mobile-record-card text-sm text-zinc-500">No opportunities match the current filters.</div>
+                        @endforelse
+                    </div>
+
+                    <div class="hidden overflow-x-auto rounded-[1.5rem] border border-zinc-200 md:block">
                         <table class="min-w-full border-separate border-spacing-0 text-sm">
                             <thead>
                                 <tr class="bg-zinc-50 text-left text-zinc-500">
@@ -694,6 +817,208 @@
                                                 Save Opportunity
                                             </button>
                                             <button wire:click="closeOpportunityDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($activeTab === 'rates')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="ios-tab-strip">
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                Rate List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-rate')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                New Rate
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="rateSearch"
+                            type="text"
+                            placeholder="Search rate, customer, lane"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="rateModeFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All modes</option>
+                            @foreach ($rateModeOptions as $rateMode)
+                                <option value="{{ $rateMode }}">{{ $rateMode }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                            {{ $currentWorkspace->company->name }}
+                        </div>
+                        <select wire:model.live="rateSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Latest expiry</option>
+                            <option value="oldest">Oldest created</option>
+                            <option value="customer_asc">Customer A-Z</option>
+                            <option value="customer_desc">Customer Z-A</option>
+                            <option value="sell_desc">Highest sell value</option>
+                            <option value="sell_asc">Lowest sell value</option>
+                            <option value="expiry_asc">Earliest expiry</option>
+                        </select>
+                        <select wire:model.live="ratePerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">
+                            Lane-based buy and sell tariffs
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Rate</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Customer</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Lane</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Mode</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Sell</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Validity</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($rates as $rate)
+                                    <tr
+                                        wire:click="selectRate({{ $rate->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedRate?->id === $rate->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $rate->rate_code }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $rate->carrier?->name ?: 'No carrier linked' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $rate->customer_name ?: 'General tariff' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $rate->commodity ?: 'No commodity filter' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ collect([$rate->origin, $rate->destination])->filter()->join(' -> ') ?: 'Lane not set' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">
+                                                {{ collect([$rate->via_port ? 'Via '.$rate->via_port : null, $rate->equipment_type])->filter()->join(' · ') ?: 'Direct lane' }}
+                                            </div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $rate->service_mode ?: 'Not set' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            {{ $rate->sell_amount !== null ? ($rate->currency.' '.number_format((float) $rate->sell_amount, 0)) : '-' }}
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ $rate->valid_from?->format('d M Y') ?: 'Open start' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $rate->valid_until?->format('d M Y') ?: 'No expiry' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $rate->is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-zinc-200 bg-zinc-100 text-zinc-500' }}">
+                                                {{ $rate->is_active ? 'Active' : 'Inactive' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-10 text-center text-zinc-500">No rate cards created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $rates->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedRate)
+                    <div
+                        wire:click.self="closeRateDetails"
+                        class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm"
+                    >
+                        <div class="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Rate Card</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedRate->rate_code }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedRate->customer_name ?: 'General tariff' }}</p>
+                                </div>
+                                <button
+                                    wire:click="closeRateDetails"
+                                    type="button"
+                                    class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50"
+                                >
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="max-h-[calc(90vh-92px)] overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Mode</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedRate->service_mode ?: 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Sell</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedRate->sell_amount !== null ? ($selectedRate->currency.' '.number_format((float) $selectedRate->sell_amount, 0)) : 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Margin</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedRate->margin_amount !== null ? ($selectedRate->currency.' '.number_format((float) $selectedRate->margin_amount, 0)) : 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Validity</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedRate->valid_until?->format('d M Y') ?: 'No expiry' }}</div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveRateDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <select wire:model="rateEditForm.carrier_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            <option value="">No carrier linked</option>
+                                            @foreach ($carrierOptions as $carrierOption)
+                                                <option value="{{ $carrierOption->id }}">{{ $carrierOption->name }}{{ $carrierOption->mode ? ' / '.$carrierOption->mode : '' }}</option>
+                                            @endforeach
+                                        </select>
+                                        <input wire:model="rateEditForm.customer_name" type="text" placeholder="Customer name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <select wire:model="rateEditForm.service_mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            @foreach ($rateModeOptions as $rateMode)
+                                                <option value="{{ $rateMode }}">{{ $rateMode }}</option>
+                                            @endforeach
+                                        </select>
+                                        <input wire:model="rateEditForm.origin" type="text" placeholder="Origin" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.destination" type="text" placeholder="Destination" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.via_port" type="text" placeholder="Via port" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.incoterm" type="text" placeholder="Incoterm" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.commodity" type="text" placeholder="Commodity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.equipment_type" type="text" placeholder="Equipment type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.transit_days" type="number" min="0" placeholder="Transit days" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.buy_amount" type="number" step="0.01" placeholder="Buy amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.sell_amount" type="number" step="0.01" placeholder="Sell amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.valid_from" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="rateEditForm.valid_until" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <label class="flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-700">
+                                            <input wire:model="rateEditForm.is_active" type="checkbox" class="rounded border-zinc-300 text-sky-600 focus:ring-sky-500" />
+                                            Active rate card
+                                        </label>
+                                        <textarea wire:model="rateEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                                                Save Rate
+                                            </button>
+                                            <button wire:click="closeRateDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
                                                 Cancel
                                             </button>
                                         </div>
@@ -861,6 +1186,14 @@
                                     </div>
 
                                     <form wire:submit="saveQuoteDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <select wire:model="quoteEditForm.rate_card_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                            <option value="">No linked rate card</option>
+                                            @foreach ($rateCardOptions as $rateCardOption)
+                                                <option value="{{ $rateCardOption->id }}">
+                                                    {{ $rateCardOption->rate_code }} / {{ $rateCardOption->customer_name ?: 'General tariff' }} / {{ collect([$rateCardOption->origin, $rateCardOption->destination])->filter()->join(' -> ') ?: 'No lane' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                         <input wire:model="quoteEditForm.company_name" type="text" placeholder="Company name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                         <input wire:model="quoteEditForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                         <input wire:model="quoteEditForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
@@ -1051,6 +1384,155 @@
                                         <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
                                             <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Linked quote</div>
                                             <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedShipment->quote?->quote_number ?: 'No linked quote' }}</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-5 xl:grid-cols-[1.2fr,1.2fr,1fr]">
+                                        <div class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50/70 p-4">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Milestones</div>
+                                                    <div class="mt-1 text-sm text-zinc-500">Run the shipment through core execution checkpoints.</div>
+                                                </div>
+                                                <div class="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                                                    {{ $selectedShipment->milestones->count() }} steps
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-4 space-y-3">
+                                                @foreach ($selectedShipment->milestones as $milestone)
+                                                    <div class="rounded-[1.25rem] border border-zinc-200 bg-white p-4">
+                                                        <div class="flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <div class="font-medium text-zinc-950">{{ $milestone->label }}</div>
+                                                                <div class="mt-1 text-xs text-zinc-400">
+                                                                    @if ($milestone->completed_at)
+                                                                        Completed {{ $milestone->completed_at->format('d M Y H:i') }}
+                                                                    @elseif ($milestone->planned_at)
+                                                                        Planned {{ $milestone->planned_at->format('d M Y H:i') }}
+                                                                    @else
+                                                                        No planned date
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->shipmentMilestoneStatusClasses($milestone->status) }}">
+                                                                {{ $milestone->status }}
+                                                            </span>
+                                                        </div>
+                                                        @if ($milestone->notes)
+                                                            <div class="mt-2 text-sm text-zinc-500">{{ $milestone->notes }}</div>
+                                                        @endif
+                                                        <div class="mt-3 flex flex-wrap gap-2">
+                                                            <button wire:click="updateShipmentMilestoneStatus({{ $milestone->id }}, '{{ \App\Models\ShipmentMilestone::STATUS_PENDING }}')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">Pending</button>
+                                                            <button wire:click="updateShipmentMilestoneStatus({{ $milestone->id }}, '{{ \App\Models\ShipmentMilestone::STATUS_IN_PROGRESS }}')" type="button" class="rounded-xl border border-sky-200 px-3 py-2 text-xs font-medium text-sky-700 transition hover:bg-sky-50">In Progress</button>
+                                                            <button wire:click="updateShipmentMilestoneStatus({{ $milestone->id }}, '{{ \App\Models\ShipmentMilestone::STATUS_COMPLETED }}')" type="button" class="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50">Complete</button>
+                                                            <button wire:click="updateShipmentMilestoneStatus({{ $milestone->id }}, '{{ \App\Models\ShipmentMilestone::STATUS_EXCEPTION }}')" type="button" class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700 transition hover:bg-rose-50">Exception</button>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+
+                                            <div class="mt-4 rounded-[1.25rem] border border-zinc-200 bg-white p-4">
+                                                <div class="text-sm font-semibold text-zinc-950">Add milestone</div>
+                                                <div class="mt-3 grid gap-3">
+                                                    <input wire:model="shipmentMilestoneForm.label" type="text" placeholder="Milestone label" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="shipmentMilestoneForm.planned_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                    <select wire:model="shipmentMilestoneForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                        @foreach ($shipmentMilestoneStatusOptions as $milestoneStatus)
+                                                            <option value="{{ $milestoneStatus }}">{{ $milestoneStatus }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <textarea wire:model="shipmentMilestoneForm.notes" rows="3" placeholder="Milestone notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"></textarea>
+                                                    <button wire:click="addShipmentMilestone" type="button" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Add Milestone</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50/70 p-4">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Documents</div>
+                                                    <div class="mt-1 text-sm text-zinc-500">Track mandatory shipment paperwork and references.</div>
+                                                </div>
+                                                <div class="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                                                    {{ $selectedShipment->documents->count() }} docs
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-4 space-y-3">
+                                                @foreach ($selectedShipment->documents as $document)
+                                                    <div class="rounded-[1.25rem] border border-zinc-200 bg-white p-4">
+                                                        <div class="flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <div class="font-medium text-zinc-950">{{ $document->document_name }}</div>
+                                                                <div class="mt-1 text-xs text-zinc-400">{{ $document->document_type }}</div>
+                                                            </div>
+                                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->shipmentDocumentStatusClasses($document->status) }}">
+                                                                {{ $document->status }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="mt-2 space-y-1 text-sm text-zinc-500">
+                                                            <div>{{ $document->reference_number ?: 'No reference number' }}</div>
+                                                            <div>{{ $document->uploaded_at?->format('d M Y H:i') ?: 'No upload date' }}</div>
+                                                            @if ($document->external_url)
+                                                                <a href="{{ $document->external_url }}" target="_blank" rel="noreferrer" class="text-sky-700 underline decoration-sky-200 underline-offset-4">Open document link</a>
+                                                            @endif
+                                                        </div>
+                                                        @if ($document->notes)
+                                                            <div class="mt-2 text-sm text-zinc-500">{{ $document->notes }}</div>
+                                                        @endif
+                                                        <div class="mt-3 flex flex-wrap gap-2">
+                                                            <button wire:click="updateShipmentDocumentStatus({{ $document->id }}, '{{ \App\Models\ShipmentDocument::STATUS_MISSING }}')" type="button" class="rounded-xl border border-rose-200 px-3 py-2 text-xs font-medium text-rose-700 transition hover:bg-rose-50">Missing</button>
+                                                            <button wire:click="updateShipmentDocumentStatus({{ $document->id }}, '{{ \App\Models\ShipmentDocument::STATUS_RECEIVED }}')" type="button" class="rounded-xl border border-sky-200 px-3 py-2 text-xs font-medium text-sky-700 transition hover:bg-sky-50">Received</button>
+                                                            <button wire:click="updateShipmentDocumentStatus({{ $document->id }}, '{{ \App\Models\ShipmentDocument::STATUS_APPROVED }}')" type="button" class="rounded-xl border border-emerald-200 px-3 py-2 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50">Approved</button>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+
+                                            <div class="mt-4 rounded-[1.25rem] border border-zinc-200 bg-white p-4">
+                                                <div class="text-sm font-semibold text-zinc-950">Add document</div>
+                                                <div class="mt-3 grid gap-3">
+                                                    <select wire:model="shipmentDocumentForm.document_type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                        @foreach ($shipmentDocumentTypeOptions as $documentType)
+                                                            <option value="{{ $documentType }}">{{ $documentType }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <input wire:model="shipmentDocumentForm.document_name" type="text" placeholder="Document name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="shipmentDocumentForm.reference_number" type="text" placeholder="Reference number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="shipmentDocumentForm.external_url" type="url" placeholder="External URL" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="shipmentDocumentForm.uploaded_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                    <select wire:model="shipmentDocumentForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                        @foreach ($shipmentDocumentStatusOptions as $documentStatus)
+                                                            <option value="{{ $documentStatus }}">{{ $documentStatus }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <textarea wire:model="shipmentDocumentForm.notes" rows="3" placeholder="Document notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"></textarea>
+                                                    <button wire:click="addShipmentDocument" type="button" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Add Document</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50/70 p-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Operational timeline</div>
+                                            <div class="mt-1 text-sm text-zinc-500">Bookings, milestones, docs, costing, and invoices in one execution feed.</div>
+
+                                            <div class="mt-4 space-y-3">
+                                                @foreach ($selectedShipmentTimeline as $timelineRow)
+                                                    <div class="rounded-[1.25rem] border border-zinc-200 bg-white p-4">
+                                                        <div class="flex items-start justify-between gap-3">
+                                                            <div>
+                                                                <div class="font-medium text-zinc-950">{{ $timelineRow['title'] }}</div>
+                                                                <div class="mt-1 text-sm text-zinc-500">{{ $timelineRow['detail'] }}</div>
+                                                            </div>
+                                                            <div class="text-right">
+                                                                <div class="text-xs uppercase tracking-[0.18em] text-zinc-400">{{ \Illuminate\Support\Carbon::parse($timelineRow['at'])->format('d M Y') }}</div>
+                                                                <div class="mt-1 text-xs text-zinc-400">{{ \Illuminate\Support\Carbon::parse($timelineRow['at'])->format('H:i') }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1419,6 +1901,55 @@
                                         </div>
                                     </div>
 
+                                    <div class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50/80 p-4">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div>
+                                                <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Related invoices</div>
+                                                <div class="mt-1 text-sm text-zinc-500">Invoices linked directly to this booking or to the same shipment job.</div>
+                                            </div>
+                                            <div class="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                                                {{ $selectedBookingInvoices->count() }} invoice{{ $selectedBookingInvoices->count() === 1 ? '' : 's' }}
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-4 overflow-hidden rounded-[1.25rem] border border-zinc-200 bg-white">
+                                            <table class="min-w-full border-separate border-spacing-0 text-sm">
+                                                <thead>
+                                                    <tr class="bg-zinc-50 text-left text-zinc-500">
+                                                        <th class="border-b border-zinc-200 px-4 py-3 font-medium">Invoice</th>
+                                                        <th class="border-b border-zinc-200 px-4 py-3 font-medium">Type</th>
+                                                        <th class="border-b border-zinc-200 px-4 py-3 font-medium">Shipment</th>
+                                                        <th class="border-b border-zinc-200 px-4 py-3 font-medium">Total</th>
+                                                        <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @forelse ($selectedBookingInvoices as $bookingInvoice)
+                                                        <tr
+                                                            wire:click="selectInvoice({{ $bookingInvoice->id }})"
+                                                            class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80"
+                                                        >
+                                                            <td class="border-b border-zinc-100 px-4 py-3">
+                                                                <div class="font-medium text-zinc-900">{{ $bookingInvoice->invoice_number }}</div>
+                                                                <div class="mt-1 text-xs text-zinc-400">{{ $bookingInvoice->issue_date?->format('d M Y') ?: 'No issue date' }}</div>
+                                                            </td>
+                                                            <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $bookingInvoice->invoice_type }}</td>
+                                                            <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $bookingInvoice->shipmentJob?->job_number ?: 'No shipment linked' }}</td>
+                                                            <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $bookingInvoice->currency }} {{ number_format((float) $bookingInvoice->total_amount, 0) }}</td>
+                                                            <td class="border-b border-zinc-100 px-4 py-3">
+                                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->invoiceStatusClasses($bookingInvoice->status) }}">{{ $bookingInvoice->status }}</span>
+                                                            </td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr>
+                                                            <td colspan="5" class="px-4 py-8 text-center text-zinc-500">No invoices linked to this booking yet.</td>
+                                                        </tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
                                     <form wire:submit="saveBookingDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                                         <select wire:model="bookingEditForm.carrier_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                                             <option value="">Select carrier</option>
@@ -1452,6 +1983,443 @@
                                         <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
                                             <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Save Booking</button>
                                             <button wire:click="closeBookingDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($activeTab === 'costings')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Costing List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-costing')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Job Costing
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="costingSearch"
+                            type="text"
+                            placeholder="Search costing, customer, service"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="costingStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All statuses</option>
+                            @foreach ($costingStatusOptions as $costingStatus)
+                                <option value="{{ $costingStatus }}">{{ $costingStatus }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">{{ $currentWorkspace->company->name }}</div>
+                        <select wire:model.live="costingSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Newest costing</option>
+                            <option value="oldest">Oldest costing</option>
+                            <option value="customer_asc">Customer A-Z</option>
+                            <option value="customer_desc">Customer Z-A</option>
+                            <option value="margin_desc">Highest margin</option>
+                            <option value="margin_asc">Lowest margin</option>
+                        </select>
+                        <select wire:model.live="costingPerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">Shipment cost and margin control</div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Costing</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Customer</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Shipment</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Cost</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Sell</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Margin</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($costings as $costing)
+                                    <tr
+                                        wire:click="selectCosting({{ $costing->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedCosting?->id === $costing->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $costing->costing_number }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $costing->created_at?->format('d M Y') ?: 'No date' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $costing->customer_name ?: 'Unknown customer' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $costing->service_mode ?: 'No service mode' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $costing->shipmentJob?->job_number ?: 'No shipment linked' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $costing->currency }} {{ number_format((float) $costing->total_cost_amount, 0) }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $costing->currency }} {{ number_format((float) $costing->total_sell_amount, 0) }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ $costing->currency }} {{ number_format((float) $costing->margin_amount, 0) }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $costing->margin_percent !== null ? number_format((float) $costing->margin_percent, 1).'%' : 'No %' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->costingStatusClasses($costing->status) }}">{{ $costing->status }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="7" class="px-4 py-10 text-center text-zinc-500">No job costings created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $costings->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedCosting)
+                    <div wire:click.self="closeCostingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                        <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Job Costing</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedCosting->costing_number }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedCosting->customer_name ?: 'Unknown customer' }}</p>
+                                </div>
+                                <button wire:click="closeCostingDetails" type="button" class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->costingStatusClasses($selectedCosting->status) }}">{{ $selectedCosting->status }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Shipment</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedCosting->shipmentJob?->job_number ?: 'Not linked' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Total Margin</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedCosting->currency }} {{ number_format((float) $selectedCosting->margin_amount, 0) }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Margin %</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedCosting->margin_percent !== null ? number_format((float) $selectedCosting->margin_percent, 1).'%' : 'Not set' }}</div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveCostingDetails" class="space-y-4">
+                                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                            <input wire:model="costingEditForm.customer_name" type="text" placeholder="Customer name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                            <input wire:model="costingEditForm.service_mode" type="text" placeholder="Service mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                            <input wire:model="costingEditForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                            <select wire:model="costingEditForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                                @foreach ($costingStatusOptions as $costingStatus)
+                                                    <option value="{{ $costingStatus }}">{{ $costingStatus }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div class="space-y-3">
+                                            <div class="flex items-center justify-between">
+                                                <div class="text-sm font-semibold text-zinc-950">Costing lines</div>
+                                                <button wire:click="addCostingLine('edit')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                                    Add line
+                                                </button>
+                                            </div>
+
+                                            @foreach ($costingEditForm['lines'] ?? [] as $index => $line)
+                                                <div class="grid gap-3 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-2 xl:grid-cols-6">
+                                                    <select wire:model="costingEditForm.lines.{{ $index }}.line_type" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                                        @foreach (\App\Models\JobCostingLine::TYPES as $lineType)
+                                                            <option value="{{ $lineType }}">{{ $lineType }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <input wire:model="costingEditForm.lines.{{ $index }}.charge_code" type="text" placeholder="Charge code" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="costingEditForm.lines.{{ $index }}.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                                                    <input wire:model="costingEditForm.lines.{{ $index }}.vendor_name" type="text" placeholder="Vendor / payee" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                    <label class="inline-flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700">
+                                                        <input wire:model="costingEditForm.lines.{{ $index }}.is_billable" type="checkbox" class="size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-900" />
+                                                        Billable
+                                                    </label>
+                                                    <input wire:model="costingEditForm.lines.{{ $index }}.quantity" type="number" step="0.01" min="0" placeholder="Qty" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="costingEditForm.lines.{{ $index }}.unit_amount" type="number" step="0.01" min="0" placeholder="Unit amount" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="costingEditForm.lines.{{ $index }}.notes" type="text" placeholder="Line notes" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-3" />
+                                                    <div class="xl:col-span-1">
+                                                        <button wire:click="removeCostingLine('edit', {{ $index }})" type="button" class="rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-50">
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+
+                                        <textarea wire:model="costingEditForm.notes" rows="4" placeholder="Notes" class="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"></textarea>
+
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Save Job Costing</button>
+                                            <button wire:click="closeCostingDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($activeTab === 'invoices')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Invoice List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-invoice')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Invoice
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="invoiceSearch"
+                            type="text"
+                            placeholder="Search invoice, customer, email"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="invoiceStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All statuses</option>
+                            @foreach ($invoiceStatusOptions as $invoiceStatus)
+                                <option value="{{ $invoiceStatus }}">{{ $invoiceStatus }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="invoiceBookingFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All bookings</option>
+                            @foreach ($invoiceBookingOptions as $bookingOption)
+                                <option value="{{ $bookingOption->id }}">{{ $bookingOption->booking_number }} / {{ $bookingOption->customer_name ?: 'Unknown customer' }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="invoiceSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Newest invoice</option>
+                            <option value="oldest">Oldest invoice</option>
+                            <option value="customer_asc">Customer A-Z</option>
+                            <option value="customer_desc">Customer Z-A</option>
+                            <option value="amount_desc">Highest amount</option>
+                            <option value="amount_asc">Lowest amount</option>
+                        </select>
+                        <select wire:model.live="invoicePerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">AR and AP invoice control</div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Invoice</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Type</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Customer</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Booking</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Shipment</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Total</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Balance</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($invoices as $invoice)
+                                    <tr
+                                        wire:click="selectInvoice({{ $invoice->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedInvoice?->id === $invoice->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $invoice->invoice_number }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $invoice->issue_date?->format('d M Y') ?: 'No issue date' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $invoice->lines_count }} lines{{ $invoice->posted_at ? ' / Posted' : '' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $invoice->invoice_type }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $invoice->bill_to_name ?: 'Unknown customer' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $invoice->contact_email ?: 'No email' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            {{ $invoice->booking?->booking_number ?: 'No booking linked' }}
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $invoice->shipmentJob?->job_number ?: 'No shipment linked' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $invoice->currency }} {{ number_format((float) $invoice->total_amount, 0) }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $invoice->currency }} {{ number_format((float) $invoice->balance_amount, 0) }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->invoiceStatusClasses($invoice->status) }}">{{ $invoice->status }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="8" class="px-4 py-10 text-center text-zinc-500">No invoices created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $invoices->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedInvoice)
+                    <div wire:click.self="closeInvoiceDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                        <div class="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Invoice Details</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedInvoice->invoice_number }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedInvoice->bill_to_name ?: 'Unknown customer' }}</p>
+                                </div>
+                                <button wire:click="closeInvoiceDetails" type="button" class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->invoiceStatusClasses($selectedInvoice->status) }}">{{ $selectedInvoice->status }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Shipment</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedInvoice->shipmentJob?->job_number ?: 'Not linked' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Booking</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedInvoice->booking?->booking_number ?: 'Not linked' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Total</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedInvoice->currency }} {{ number_format((float) $selectedInvoice->total_amount, 0) }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Balance</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedInvoice->currency }} {{ number_format((float) $selectedInvoice->balance_amount, 0) }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Posting</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedInvoice->posted_at ? 'Posted' : 'Draft only' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">
+                                                {{ $selectedInvoice->posted_at ? $selectedInvoice->posted_at->format('d M Y H:i') : 'Not posted yet' }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveInvoiceDetails" class="space-y-4">
+                                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <select wire:model="invoiceEditForm.booking_id" @disabled($selectedInvoice->posted_at) class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none disabled:bg-zinc-100 disabled:text-zinc-500">
+                                            <option value="">Optional linked booking</option>
+                                            @foreach ($invoiceBookingOptions as $bookingOption)
+                                                <option value="{{ $bookingOption->id }}">{{ $bookingOption->booking_number }} / {{ $bookingOption->customer_name ?: 'Unknown customer' }}</option>
+                                            @endforeach
+                                        </select>
+                                        <select wire:model="invoiceEditForm.invoice_type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            @foreach ($invoiceTypeOptions as $invoiceType)
+                                                <option value="{{ $invoiceType }}">{{ $invoiceType }}</option>
+                                            @endforeach
+                                        </select>
+                                        <input wire:model="invoiceEditForm.bill_to_name" type="text" placeholder="Bill to name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="invoiceEditForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="invoiceEditForm.issue_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="invoiceEditForm.due_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="invoiceEditForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="invoiceEditForm.tax_amount" type="number" step="0.01" min="0" placeholder="Tax" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="invoiceEditForm.paid_amount" type="number" step="0.01" min="0" placeholder="Paid amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <select wire:model="invoiceEditForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                            @foreach ($invoiceStatusOptions as $invoiceStatus)
+                                                <option value="{{ $invoiceStatus }}">{{ $invoiceStatus }}</option>
+                                            @endforeach
+                                        </select>
+                                        </div>
+
+                                        <div class="space-y-3">
+                                            <div class="flex items-center justify-between">
+                                                <div class="text-sm font-semibold text-zinc-950">Invoice lines</div>
+                                                @if (! $selectedInvoice->posted_at)
+                                                    <button wire:click="addInvoiceLine('edit')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                                        Add line
+                                                    </button>
+                                                @endif
+                                            </div>
+
+                                            @foreach ($invoiceEditForm['lines'] ?? [] as $index => $line)
+                                                <div class="grid gap-3 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-2 xl:grid-cols-6">
+                                                    <input wire:model="invoiceEditForm.lines.{{ $index }}.charge_code" type="text" placeholder="Charge code" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="invoiceEditForm.lines.{{ $index }}.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                                                    <input wire:model="invoiceEditForm.lines.{{ $index }}.quantity" type="number" step="0.01" min="0" placeholder="Qty" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                    <input wire:model="invoiceEditForm.lines.{{ $index }}.unit_amount" type="number" step="0.01" min="0" placeholder="Unit amount" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                                    <input value="{{ is_numeric(data_get($invoiceEditForm, 'lines.'.$index.'.quantity')) && is_numeric(data_get($invoiceEditForm, 'lines.'.$index.'.unit_amount')) ? number_format((float) data_get($invoiceEditForm, 'lines.'.$index.'.quantity') * (float) data_get($invoiceEditForm, 'lines.'.$index.'.unit_amount'), 2, '.', '') : '' }}" readonly type="text" placeholder="Line total" class="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-600 outline-none" />
+                                                    <input wire:model="invoiceEditForm.lines.{{ $index }}.notes" type="text" placeholder="Line notes" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-5" />
+                                                    @if (! $selectedInvoice->posted_at)
+                                                        <div class="xl:col-span-1">
+                                                            <button wire:click="removeInvoiceLine('edit', {{ $index }})" type="button" class="rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-50">
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        </div>
+
+                                        <div class="grid gap-3 md:grid-cols-3">
+                                            <input wire:model="invoiceEditForm.subtotal_amount" readonly type="text" placeholder="Subtotal" class="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-600 outline-none" />
+                                            <input wire:model="invoiceEditForm.total_amount" readonly type="text" placeholder="Total" class="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-600 outline-none" />
+                                            <input wire:model="invoiceEditForm.balance_amount" readonly type="text" placeholder="Balance" class="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-600 outline-none" />
+                                        </div>
+
+                                        <textarea wire:model="invoiceEditForm.notes" rows="4" placeholder="Notes" class="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"></textarea>
+
+                                        @if ($selectedInvoice->posted_at)
+                                            <div class="rounded-[1.25rem] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900">
+                                                This invoice was posted by {{ $selectedInvoice->postedByUser?->name ?: 'a workspace user' }} on {{ $selectedInvoice->posted_at->format('d M Y H:i') }}. Line items and totals are now locked.
+                                            </div>
+                                        @endif
+
+                                        <div class="flex flex-wrap gap-2">
+                                            @if (! $selectedInvoice->posted_at)
+                                                <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Save Invoice</button>
+                                                <button wire:click="postInvoice({{ $selectedInvoice->id }})" type="button" class="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800">Post Invoice</button>
+                                            @endif
+                                            <button wire:click="closeInvoiceDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Close</button>
                                         </div>
                                     </form>
                                 </div>
@@ -1497,15 +2465,52 @@
                         </div>
                     @endif
 
-                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                    <div class="space-y-3 md:hidden">
+                        @forelse ($contacts as $contact)
+                            <div
+                                wire:click="selectContact({{ $contact->id }})"
+                                class="mobile-record-card cursor-pointer transition hover:border-emerald-200 hover:bg-emerald-50/60 {{ $selectedContact?->id === $contact->id ? 'border-emerald-200 bg-emerald-50/70' : '' }}"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="mobile-record-card-label">Contact</div>
+                                        <div class="mobile-record-card-value">{{ $contact->full_name ?: 'Unnamed contact' }}</div>
+                                        <div class="mt-1 text-xs text-zinc-400">{{ $contact->email ?: ($contact->phone ?: 'No direct contact info') }}</div>
+                                    </div>
+                                    <div class="text-right text-xs text-zinc-500">{{ $contact->last_activity_at?->format('d M Y') ?: '-' }}</div>
+                                </div>
+
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <div class="mobile-record-card-label">Account</div>
+                                        <div class="mobile-record-card-value">{{ $contact->account?->name ?: 'No linked account' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Activity</div>
+                                        <div class="mobile-record-card-value">{{ number_format((int) $contact->leads_count) }} leads</div>
+                                        <div class="mt-1 text-xs text-zinc-400">{{ number_format((int) $contact->opportunities_count) }} opportunities</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Pipeline</div>
+                                        <div class="mobile-record-card-value">{{ number_format((int) $contact->quotes_count) }} quotes</div>
+                                        <div class="mt-1 text-xs text-zinc-400">{{ number_format((int) $contact->shipment_jobs_count) }} shipments</div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="mobile-record-card text-sm text-zinc-500">No contacts are available for this workspace yet.</div>
+                        @endforelse
+                    </div>
+
+                    <div class="hidden overflow-x-auto rounded-[1.5rem] border border-zinc-200 md:block">
                         <table class="min-w-full text-sm">
                             <thead>
                                 <tr class="bg-zinc-50 text-left text-zinc-500">
                                     <th class="border-b border-zinc-200 px-4 py-3 font-medium">Contact</th>
-                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Company</th>
-                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
-                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Source</th>
-                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Date</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Account</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Activity</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Pipeline</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Last Activity</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1515,17 +2520,19 @@
                                         class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-emerald-50/80 {{ $selectedContact?->id === $contact->id ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : '' }}"
                                     >
                                         <td class="border-b border-zinc-100 px-4 py-3">
-                                            <div class="font-medium text-zinc-900">{{ $contact->contact_name ?: 'Unnamed contact' }}</div>
+                                            <div class="font-medium text-zinc-900">{{ $contact->full_name ?: 'Unnamed contact' }}</div>
                                             <div class="text-xs text-zinc-400">{{ $contact->email ?: ($contact->phone ?: 'No direct contact info') }}</div>
                                         </td>
-                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $contact->company_name ?: 'Unknown company' }}</td>
-                                        <td class="border-b border-zinc-100 px-4 py-3">
-                                            <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $this->leadStatusClasses($contact->status) }}">
-                                                {{ $this->leadStatusLabel($contact->status, $currentWorkspace) }}
-                                            </span>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $contact->account?->name ?: 'No linked account' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ number_format((int) $contact->leads_count) }} leads</div>
+                                            <div class="text-xs text-zinc-400">{{ number_format((int) $contact->opportunities_count) }} opportunities</div>
                                         </td>
-                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $contact->lead_source ?: 'Unknown' }}</td>
-                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $contact->submission_date?->format('d M Y') ?: '-' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ number_format((int) $contact->quotes_count) }} quotes</div>
+                                            <div class="text-xs text-zinc-400">{{ number_format((int) $contact->shipment_jobs_count) }} shipments</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $contact->last_activity_at?->format('d M Y') ?: '-' }}</td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -1550,8 +2557,8 @@
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-emerald-50/70 px-6 py-5">
                                 <div>
                                     <p class="text-xs uppercase tracking-[0.3em] text-emerald-700">AI Contact Brief</p>
-                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedContact->contact_name ?: 'Unnamed contact' }}</h2>
-                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedContact->company_name ?: 'Unknown company' }}</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedContact->full_name ?: 'Unnamed contact' }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedContact->account?->name ?: 'Unknown company' }}</p>
                                 </div>
                                 <button
                                     wire:click="closeContactDetails"
@@ -1570,16 +2577,16 @@
                                             <div class="mt-2 text-lg font-semibold text-zinc-950">{{ $contactInsights['readiness'] ?? 'Pending' }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Data Coverage</div>
-                                            <div class="mt-2 text-lg font-semibold text-zinc-950">{{ $contactInsights['coverage'] ?? '0/6 core fields present' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Account</div>
+                                            <div class="mt-2 text-lg font-semibold text-zinc-950">{{ $selectedContact->account?->name ?: 'Unlinked' }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Email</div>
-                                            <div class="mt-2 text-sm font-semibold text-zinc-950">{{ $selectedContact->email ?: 'Not provided' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Leads</div>
+                                            <div class="mt-2 text-lg font-semibold text-zinc-950">{{ number_format((int) $selectedContact->leads_count) }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Phone</div>
-                                            <div class="mt-2 text-sm font-semibold text-zinc-950">{{ $selectedContact->phone ?: 'Not provided' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Shipments</div>
+                                            <div class="mt-2 text-lg font-semibold text-zinc-950">{{ number_format((int) $selectedContact->shipment_jobs_count) }}</div>
                                         </div>
                                     </div>
 
@@ -1590,16 +2597,16 @@
 
                                     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                         <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Company</div>
-                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedContact->company_name ?: 'Unknown company' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Email</div>
+                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedContact->email ?: 'Not provided' }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Source</div>
-                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedContact->lead_source ?: 'Unknown' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Phone</div>
+                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedContact->phone ?: 'Not provided' }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Service</div>
-                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedContact->service ?: 'Not set' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Last Activity</div>
+                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedContact->last_activity_at?->format('d M Y H:i') ?: 'Unknown' }}</div>
                                         </div>
                                     </div>
 
@@ -1633,6 +2640,75 @@
                                             @empty
                                                 <span class="text-sm text-zinc-500">The contact record is well filled out.</span>
                                             @endforelse
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-4 xl:grid-cols-2">
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Related Leads</div>
+                                            <div class="mt-3 space-y-2">
+                                                @forelse ($selectedContact->leads as $lead)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $lead->lead_id ?: $lead->external_key }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $lead->company_name ?: 'Unknown company' }} · {{ $lead->lead_source ?: 'Unknown source' }}</div>
+                                                    </div>
+                                                @empty
+                                                    <div class="text-sm text-zinc-500">No linked leads yet.</div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Related Opportunities</div>
+                                            <div class="mt-3 space-y-2">
+                                                @forelse ($selectedContact->opportunities as $opportunity)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $opportunity->company_name ?: 'Unknown company' }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $opportunity->required_service ?: 'No service' }} · {{ $this->opportunityStageLabel($opportunity->sales_stage, $currentWorkspace) }}</div>
+                                                    </div>
+                                                @empty
+                                                    <div class="text-sm text-zinc-500">No linked opportunities yet.</div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Related Quotes And Shipments</div>
+                                            <div class="mt-3 space-y-2">
+                                                @foreach ($selectedContact->quotes as $quote)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $quote->quote_number }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ collect([$quote->origin, $quote->destination])->filter()->join(' -> ') ?: 'No lane' }}</div>
+                                                    </div>
+                                                @endforeach
+                                                @foreach ($selectedContact->shipmentJobs as $shipment)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $shipment->job_number }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $shipment->status }} · {{ collect([$shipment->origin, $shipment->destination])->filter()->join(' -> ') ?: 'No lane' }}</div>
+                                                    </div>
+                                                @endforeach
+                                                @if ($selectedContact->quotes->isEmpty() && $selectedContact->shipmentJobs->isEmpty())
+                                                    <div class="text-sm text-zinc-500">No linked quotes or shipments yet.</div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Related Bookings And Invoices</div>
+                                            <div class="mt-3 space-y-2">
+                                                @foreach ($selectedContact->bookings as $booking)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $booking->booking_number }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $booking->status }} · {{ $booking->customer_name ?: 'Unknown customer' }}</div>
+                                                    </div>
+                                                @endforeach
+                                                @foreach ($selectedContact->invoices as $invoice)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $invoice->invoice_number }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $invoice->status }} · {{ $invoice->currency }} {{ number_format((float) $invoice->total_amount, 0) }}</div>
+                                                    </div>
+                                                @endforeach
+                                                @if ($selectedContact->bookings->isEmpty() && $selectedContact->invoices->isEmpty())
+                                                    <div class="text-sm text-zinc-500">No linked bookings or invoices yet.</div>
+                                                @endif
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1678,15 +2754,55 @@
                         </div>
                     @endif
 
-                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                    <div class="space-y-3 md:hidden">
+                        @forelse ($customers as $customer)
+                            <div
+                                wire:click="selectCustomer({{ $customer->id }})"
+                                class="mobile-record-card cursor-pointer transition hover:border-sky-200 hover:bg-sky-50/60 {{ $selectedCustomer?->id === $customer->id ? 'border-sky-200 bg-sky-50/70' : '' }}"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="mobile-record-card-label">Customer</div>
+                                        <div class="mobile-record-card-value">{{ $customer->name ?: 'Unknown customer' }}</div>
+                                        <div class="mt-1 text-xs text-zinc-400">{{ $customer->primary_email ?: 'No customer email' }}</div>
+                                    </div>
+                                    <div class="text-right text-xs text-zinc-500">{{ $customer->last_activity_at?->format('d M Y') ?: '-' }}</div>
+                                </div>
+
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <div class="mobile-record-card-label">Primary Contact</div>
+                                        <div class="mobile-record-card-value">{{ $customer->contacts->first()?->full_name ?: 'No contact linked' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Service</div>
+                                        <div class="mobile-record-card-value">{{ $customer->latest_service ?: 'Not set' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Revenue</div>
+                                        <div class="mobile-record-card-value">{{ $customer->opportunity_revenue_sum ? 'AED '.number_format((float) $customer->opportunity_revenue_sum, 0) : '-' }}</div>
+                                    </div>
+                                    <div>
+                                        <div class="mobile-record-card-label">Records</div>
+                                        <div class="mobile-record-card-value">{{ number_format((int) $customer->shipment_jobs_count) }} shipments</div>
+                                        <div class="mt-1 text-xs text-zinc-400">{{ number_format((int) $customer->invoices_count) }} invoices</div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="mobile-record-card text-sm text-zinc-500">No opportunity customers are available yet.</div>
+                        @endforelse
+                    </div>
+
+                    <div class="hidden overflow-x-auto rounded-[1.5rem] border border-zinc-200 md:block">
                         <table class="min-w-full text-sm">
                             <thead>
                                 <tr class="bg-zinc-50 text-left text-zinc-500">
                                     <th class="border-b border-zinc-200 px-4 py-3 font-medium">Customer</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Primary Contact</th>
                                     <th class="border-b border-zinc-200 px-4 py-3 font-medium">Service</th>
-                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Value</th>
-                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Source</th>
-                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Opportunity Date</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Revenue</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Last Activity</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1696,15 +2812,15 @@
                                         class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedCustomer?->id === $customer->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
                                     >
                                         <td class="border-b border-zinc-100 px-4 py-3">
-                                            <div class="font-medium text-zinc-900">{{ $customer->company_name ?: 'Unknown customer' }}</div>
-                                            <div class="text-xs text-zinc-400">{{ $customer->contact_email ?: 'No customer email' }}</div>
+                                            <div class="font-medium text-zinc-900">{{ $customer->name ?: 'Unknown customer' }}</div>
+                                            <div class="text-xs text-zinc-400">{{ $customer->primary_email ?: 'No customer email' }}</div>
                                         </td>
-                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->required_service ?: 'Not set' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->contacts->first()?->full_name ?: 'No contact linked' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->latest_service ?: 'Not set' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
-                                            {{ $customer->revenue_potential ? 'AED '.number_format((float) $customer->revenue_potential, 0) : '-' }}
+                                            {{ $customer->opportunity_revenue_sum ? 'AED '.number_format((float) $customer->opportunity_revenue_sum, 0) : '-' }}
                                         </td>
-                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->lead_source ?: 'Unknown' }}</td>
-                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->submission_date?->format('d M Y') ?: '-' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->last_activity_at?->format('d M Y') ?: '-' }}</td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -1729,8 +2845,8 @@
                             <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
                                 <div>
                                     <p class="text-xs uppercase tracking-[0.3em] text-sky-700">AI Customer Brief</p>
-                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedCustomer->company_name ?: 'Unknown customer' }}</h2>
-                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedCustomer->contact_email ?: 'No customer email' }}</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedCustomer->name ?: 'Unknown customer' }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedCustomer->primary_email ?: 'No customer email' }}</p>
                                 </div>
                                 <button
                                     wire:click="closeCustomerDetails"
@@ -1749,18 +2865,18 @@
                                             <div class="mt-2 text-lg font-semibold text-zinc-950">{{ $customerInsights['tier'] ?? 'Standard account' }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Converted Value</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Tracked Revenue</div>
                                             <div class="mt-2 text-lg font-semibold text-zinc-950">
-                                                {{ $selectedCustomer->revenue_potential ? 'AED '.number_format((float) $selectedCustomer->revenue_potential, 0) : 'N/A' }}
+                                                {{ $selectedCustomer->opportunity_revenue_sum ? 'AED '.number_format((float) $selectedCustomer->opportunity_revenue_sum, 0) : 'N/A' }}
                                             </div>
                                         </div>
                                         <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Service</div>
-                                            <div class="mt-2 text-sm font-semibold text-zinc-950">{{ $selectedCustomer->required_service ?: 'Not set' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Shipments</div>
+                                            <div class="mt-2 text-lg font-semibold text-zinc-950">{{ number_format((int) $selectedCustomer->shipment_jobs_count) }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Opportunity Date</div>
-                                            <div class="mt-2 text-sm font-semibold text-zinc-950">{{ $selectedCustomer->submission_date?->format('d M Y') ?: 'Unknown' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Invoices</div>
+                                            <div class="mt-2 text-lg font-semibold text-zinc-950">{{ number_format((int) $selectedCustomer->invoices_count) }}</div>
                                         </div>
                                     </div>
 
@@ -1771,16 +2887,16 @@
 
                                     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                         <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Source</div>
-                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedCustomer->lead_source ?: 'Unknown' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Primary Email</div>
+                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedCustomer->primary_email ?: 'Unknown' }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Assigned Owner</div>
-                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedCustomer->assignedUser?->name ?: 'Unassigned' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Primary Phone</div>
+                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedCustomer->primary_phone ?: 'Not provided' }}</div>
                                         </div>
                                         <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
-                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Lead Link</div>
-                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedCustomer->lead?->lead_id ?: 'No linked lead' }}</div>
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Last Activity</div>
+                                            <div class="mt-2 text-sm font-medium text-zinc-900">{{ $selectedCustomer->last_activity_at?->format('d M Y H:i') ?: 'Unknown' }}</div>
                                         </div>
                                     </div>
 
@@ -1814,6 +2930,75 @@
                                             @empty
                                                 <span class="text-sm text-zinc-500">The customer record has the core post-win details.</span>
                                             @endforelse
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-4 xl:grid-cols-2">
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Contacts And Opportunities</div>
+                                            <div class="mt-3 space-y-2">
+                                                @foreach ($selectedCustomer->contacts as $contact)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $contact->full_name }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $contact->email ?: ($contact->phone ?: 'No direct contact info') }}</div>
+                                                    </div>
+                                                @endforeach
+                                                @foreach ($selectedCustomer->opportunities as $opportunity)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $opportunity->company_name ?: $selectedCustomer->name }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $opportunity->required_service ?: 'No service' }} · {{ $this->opportunityStageLabel($opportunity->sales_stage, $currentWorkspace) }}</div>
+                                                    </div>
+                                                @endforeach
+                                                @if ($selectedCustomer->contacts->isEmpty() && $selectedCustomer->opportunities->isEmpty())
+                                                    <div class="text-sm text-zinc-500">No contacts or opportunities linked yet.</div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Quotes And Shipments</div>
+                                            <div class="mt-3 space-y-2">
+                                                @foreach ($selectedCustomer->quotes as $quote)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $quote->quote_number }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ collect([$quote->origin, $quote->destination])->filter()->join(' -> ') ?: 'No lane' }}</div>
+                                                    </div>
+                                                @endforeach
+                                                @foreach ($selectedCustomer->shipmentJobs as $shipment)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $shipment->job_number }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $shipment->status }} · {{ collect([$shipment->origin, $shipment->destination])->filter()->join(' -> ') ?: 'No lane' }}</div>
+                                                    </div>
+                                                @endforeach
+                                                @if ($selectedCustomer->quotes->isEmpty() && $selectedCustomer->shipmentJobs->isEmpty())
+                                                    <div class="text-sm text-zinc-500">No quotes or shipments linked yet.</div>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Bookings</div>
+                                            <div class="mt-3 space-y-2">
+                                                @forelse ($selectedCustomer->bookings as $booking)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $booking->booking_number }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $booking->status }} · {{ $booking->service_mode ?: 'No mode' }}</div>
+                                                    </div>
+                                                @empty
+                                                    <div class="text-sm text-zinc-500">No bookings linked yet.</div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4">
+                                            <div class="text-sm font-semibold text-zinc-950">Invoices</div>
+                                            <div class="mt-3 space-y-2">
+                                                @forelse ($selectedCustomer->invoices as $invoice)
+                                                    <div class="rounded-xl bg-zinc-50 px-3 py-3 text-sm">
+                                                        <div class="font-medium text-zinc-900">{{ $invoice->invoice_number }}</div>
+                                                        <div class="mt-1 text-zinc-500">{{ $invoice->status }} · {{ $invoice->currency }} {{ number_format((float) $invoice->total_amount, 0) }}</div>
+                                                    </div>
+                                                @empty
+                                                    <div class="text-sm text-zinc-500">No invoices linked yet.</div>
+                                                @endforelse
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -2625,7 +3810,7 @@
                 </div>
             @endif
 
-            @if ($currentWorkspaceExtraModules->contains($activeTab) && ! in_array($activeTab, ['quotes', 'shipments', 'carriers', 'bookings'], true))
+            @if ($currentWorkspaceExtraModules->contains($activeTab) && ! in_array($activeTab, ['rates', 'quotes', 'shipments', 'carriers', 'bookings', 'costings', 'invoices'], true))
                 <div class="space-y-6 p-4">
                     <section class="rounded-[1.5rem] border border-emerald-200 bg-[linear-gradient(135deg,_#f0fdf4,_#ecfeff)] p-6">
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -2915,6 +4100,66 @@
                 </div>
             @endif
 
+            @if ($activeTab === 'manual-rate')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'rates')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Rate List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Rate
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingRateId ? 'Rate Draft' : 'Rate Card' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingRateId ? 'Update rate card' : 'Create a rate card' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Keep a reusable lane tariff with buy, sell, transit days, and validity so quotes inherit consistent commercial pricing.</p>
+                    </div>
+
+                    <form wire:submit="addManualRate" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <select wire:model="manualRateForm.carrier_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">No carrier linked</option>
+                            @foreach ($carrierOptions as $carrierOption)
+                                <option value="{{ $carrierOption->id }}">{{ $carrierOption->name }}{{ $carrierOption->mode ? ' / '.$carrierOption->mode : '' }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualRateForm.customer_name" type="text" placeholder="Customer name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <select wire:model="manualRateForm.service_mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            @foreach ($rateModeOptions as $rateMode)
+                                <option value="{{ $rateMode }}">{{ $rateMode }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualRateForm.origin" type="text" placeholder="Origin" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.destination" type="text" placeholder="Destination" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.via_port" type="text" placeholder="Via port" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.incoterm" type="text" placeholder="Incoterm" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.commodity" type="text" placeholder="Commodity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.equipment_type" type="text" placeholder="Equipment type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.transit_days" type="number" min="0" placeholder="Transit days" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.buy_amount" type="number" step="0.01" placeholder="Buy amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.sell_amount" type="number" step="0.01" placeholder="Sell amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.valid_from" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualRateForm.valid_until" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <label class="flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-700">
+                            <input wire:model="manualRateForm.is_active" type="checkbox" class="rounded border-zinc-300 text-sky-600 focus:ring-sky-500" />
+                            Active rate card
+                        </label>
+                        <textarea wire:model="manualRateForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
+                            {{ $editingRateId ? 'Save Rate' : 'Create Rate' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
             @if ($activeTab === 'manual-quote')
                 <div class="p-4">
                     <div class="mb-4 flex flex-wrap items-center gap-2">
@@ -2942,13 +4187,21 @@
                         <select wire:model.live="manualQuoteForm.customer_record_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
                             <option value="">Select customer</option>
                             @foreach ($quoteCustomerOptions as $customerOption)
-                                <option value="{{ $customerOption->id }}">{{ $customerOption->company_name ?: 'Unknown company' }}{{ $customerOption->contact_email ? ' / '.$customerOption->contact_email : '' }}</option>
+                                <option value="{{ $customerOption->id }}">{{ $customerOption->name ?: 'Unknown company' }}{{ $customerOption->primary_email ? ' / '.$customerOption->primary_email : '' }}</option>
                             @endforeach
                         </select>
                         <select wire:model.live="manualQuoteForm.opportunity_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
                             <option value="">Optional linked opportunity</option>
                             @foreach ($quoteOpportunityOptions as $opportunityOption)
                                 <option value="{{ $opportunityOption->id }}">{{ $opportunityOption->company_name ?: 'Unknown company' }} / {{ $opportunityOption->external_key }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="manualQuoteForm.rate_card_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked rate card</option>
+                            @foreach ($rateCardOptions as $rateCardOption)
+                                <option value="{{ $rateCardOption->id }}">
+                                    {{ $rateCardOption->rate_code }} / {{ $rateCardOption->customer_name ?: 'General tariff' }} / {{ collect([$rateCardOption->origin, $rateCardOption->destination])->filter()->join(' -> ') ?: 'No lane' }}
+                                </option>
                             @endforeach
                         </select>
                         <input wire:model="manualQuoteForm.lead_id" type="hidden" />
@@ -3007,7 +4260,7 @@
                         <select wire:model.live="manualShipmentForm.customer_record_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
                             <option value="">Select customer</option>
                             @foreach ($shipmentCustomerOptions as $customerOption)
-                                <option value="{{ $customerOption->id }}">{{ $customerOption->company_name ?: 'Unknown company' }}{{ $customerOption->contact_email ? ' / '.$customerOption->contact_email : '' }}</option>
+                                <option value="{{ $customerOption->id }}">{{ $customerOption->name ?: 'Unknown company' }}{{ $customerOption->primary_email ? ' / '.$customerOption->primary_email : '' }}</option>
                             @endforeach
                         </select>
                         <select wire:model.live="manualShipmentForm.opportunity_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
@@ -3176,7 +4429,241 @@
                     </form>
                 </div>
             @endif
+
+            @if ($activeTab === 'manual-costing')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'costings')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Costing List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Job Costing
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingCostingId ? 'Costing Draft' : 'Job Costing' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingCostingId ? 'Update job costing' : 'Create a job costing' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Start from the shipment job so cost, sell, and margin stay tied to the live forwarding file.</p>
+                    </div>
+
+                    <form wire:submit="addManualCosting" class="space-y-4">
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            <select wire:model.live="manualCostingForm.shipment_job_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                <option value="">Optional linked shipment</option>
+                                @foreach ($costingShipmentOptions as $shipmentOption)
+                                    <option value="{{ $shipmentOption->id }}">{{ $shipmentOption->job_number }} / {{ $shipmentOption->company_name ?: 'Unknown company' }}</option>
+                                @endforeach
+                            </select>
+                            <input wire:model="manualCostingForm.quote_id" type="hidden" />
+                            <input wire:model="manualCostingForm.opportunity_id" type="hidden" />
+                            <input wire:model="manualCostingForm.lead_id" type="hidden" />
+                            <input wire:model="manualCostingForm.customer_name" type="text" placeholder="Customer name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                            <input wire:model="manualCostingForm.service_mode" type="text" placeholder="Service mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                            <input wire:model="manualCostingForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                            <select wire:model="manualCostingForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                @foreach ($costingStatusOptions as $costingStatus)
+                                    <option value="{{ $costingStatus }}">{{ $costingStatus }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm font-semibold text-zinc-950">Costing lines</div>
+                                <button wire:click="addCostingLine('manual')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                    Add line
+                                </button>
+                            </div>
+
+                            @foreach ($manualCostingForm['lines'] ?? [] as $index => $line)
+                                <div class="grid gap-3 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-2 xl:grid-cols-6">
+                                    <select wire:model="manualCostingForm.lines.{{ $index }}.line_type" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                        @foreach (\App\Models\JobCostingLine::TYPES as $lineType)
+                                            <option value="{{ $lineType }}">{{ $lineType }}</option>
+                                        @endforeach
+                                    </select>
+                                    <input wire:model="manualCostingForm.lines.{{ $index }}.charge_code" type="text" placeholder="Charge code" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <input wire:model="manualCostingForm.lines.{{ $index }}.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                                    <input wire:model="manualCostingForm.lines.{{ $index }}.vendor_name" type="text" placeholder="Vendor / payee" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <label class="inline-flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700">
+                                        <input wire:model="manualCostingForm.lines.{{ $index }}.is_billable" type="checkbox" class="size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-900" />
+                                        Billable
+                                    </label>
+                                    <input wire:model="manualCostingForm.lines.{{ $index }}.quantity" type="number" step="0.01" min="0" placeholder="Qty" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <input wire:model="manualCostingForm.lines.{{ $index }}.unit_amount" type="number" step="0.01" min="0" placeholder="Unit amount" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <input wire:model="manualCostingForm.lines.{{ $index }}.notes" type="text" placeholder="Line notes" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-3" />
+                                    <div class="xl:col-span-1">
+                                        <button wire:click="removeCostingLine('manual', {{ $index }})" type="button" class="rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-50">
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <textarea wire:model="manualCostingForm.notes" rows="4" placeholder="Notes" class="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"></textarea>
+
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                            {{ $editingCostingId ? 'Save Job Costing' : 'Create Job Costing' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
+            @if ($activeTab === 'manual-invoice')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'invoices')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Invoice List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Invoice
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingInvoiceId ? 'Invoice Draft' : 'Invoicing' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingInvoiceId ? 'Update invoice' : 'Create an invoice' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Start from the booking or shipment, then tie the invoice to the right job costing so billing follows the executed margin.</p>
+                    </div>
+
+                    <form wire:submit="addManualInvoice" class="space-y-4">
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <select wire:model.live="manualInvoiceForm.booking_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked booking</option>
+                            @foreach ($invoiceBookingOptions as $bookingOption)
+                                <option value="{{ $bookingOption->id }}">{{ $bookingOption->booking_number }} / {{ $bookingOption->customer_name ?: 'Unknown customer' }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="manualInvoiceForm.shipment_job_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked shipment</option>
+                            @foreach ($invoiceShipmentOptions as $shipmentOption)
+                                <option value="{{ $shipmentOption->id }}">{{ $shipmentOption->job_number }} / {{ $shipmentOption->company_name ?: 'Unknown company' }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="manualInvoiceForm.job_costing_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked job costing</option>
+                            @foreach ($invoiceCostingOptions as $costingOption)
+                                <option value="{{ $costingOption->id }}">{{ $costingOption->costing_number }} / {{ $costingOption->customer_name ?: 'Unknown customer' }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualInvoiceForm.quote_id" type="hidden" />
+                        <input wire:model="manualInvoiceForm.opportunity_id" type="hidden" />
+                        <input wire:model="manualInvoiceForm.lead_id" type="hidden" />
+                        <select wire:model="manualInvoiceForm.invoice_type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            @foreach ($invoiceTypeOptions as $invoiceType)
+                                <option value="{{ $invoiceType }}">{{ $invoiceType }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualInvoiceForm.bill_to_name" type="text" placeholder="Bill to name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualInvoiceForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualInvoiceForm.issue_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualInvoiceForm.due_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualInvoiceForm.currency" type="text" placeholder="Currency" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualInvoiceForm.tax_amount" type="number" step="0.01" min="0" placeholder="Tax" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualInvoiceForm.paid_amount" type="number" step="0.01" min="0" placeholder="Paid amount" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <select wire:model="manualInvoiceForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            @foreach ($invoiceStatusOptions as $invoiceStatus)
+                                <option value="{{ $invoiceStatus }}">{{ $invoiceStatus }}</option>
+                            @endforeach
+                        </select>
+                        </div>
+
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm font-semibold text-zinc-950">Invoice lines</div>
+                                <button wire:click="addInvoiceLine('manual')" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                    Add line
+                                </button>
+                            </div>
+
+                            @foreach ($manualInvoiceForm['lines'] ?? [] as $index => $line)
+                                <div class="grid gap-3 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-2 xl:grid-cols-6">
+                                    <input wire:model="manualInvoiceForm.lines.{{ $index }}.charge_code" type="text" placeholder="Charge code" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <input wire:model="manualInvoiceForm.lines.{{ $index }}.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                                    <input wire:model="manualInvoiceForm.lines.{{ $index }}.quantity" type="number" step="0.01" min="0" placeholder="Qty" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <input wire:model="manualInvoiceForm.lines.{{ $index }}.unit_amount" type="number" step="0.01" min="0" placeholder="Unit amount" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <input value="{{ is_numeric(data_get($manualInvoiceForm, 'lines.'.$index.'.quantity')) && is_numeric(data_get($manualInvoiceForm, 'lines.'.$index.'.unit_amount')) ? number_format((float) data_get($manualInvoiceForm, 'lines.'.$index.'.quantity') * (float) data_get($manualInvoiceForm, 'lines.'.$index.'.unit_amount'), 2, '.', '') : '' }}" readonly type="text" placeholder="Line total" class="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-600 outline-none" />
+                                    <input wire:model="manualInvoiceForm.lines.{{ $index }}.notes" type="text" placeholder="Line notes" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-5" />
+                                    <div class="xl:col-span-1">
+                                        <button wire:click="removeInvoiceLine('manual', {{ $index }})" type="button" class="rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-50">
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-3">
+                            <input wire:model="manualInvoiceForm.subtotal_amount" readonly type="text" placeholder="Subtotal" class="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-600 outline-none" />
+                            <input wire:model="manualInvoiceForm.total_amount" readonly type="text" placeholder="Total" class="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-600 outline-none" />
+                            <input wire:model="manualInvoiceForm.balance_amount" readonly type="text" placeholder="Balance" class="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-600 outline-none" />
+                        </div>
+
+                        <textarea wire:model="manualInvoiceForm.notes" rows="4" placeholder="Notes" class="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"></textarea>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
+                            {{ $editingInvoiceId ? 'Save Invoice' : 'Create Invoice' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
         </section>
+
+        @php
+            $mobileActiveTab = match ($activeTab) {
+                'manual-lead' => 'leads',
+                'manual-opportunity' => 'opportunities',
+                'manual-quote' => 'quotes',
+                'manual-shipment' => 'shipments',
+                'manual-booking' => 'bookings',
+                'manual-costing' => 'costings',
+                'manual-invoice' => 'invoices',
+                'sources', 'access' => 'settings',
+                default => $activeTab,
+            };
+
+            $mobileNavTabs = collect([
+                'leads' => 'Leads',
+                'opportunities' => 'Deals',
+                'customers' => 'Customers',
+                'analytics' => 'Analytics',
+                'settings' => 'Settings',
+            ])->filter(fn ($label, $tabKey) => array_key_exists($tabKey, $tabs) || $tabKey === 'settings');
+
+            if (! $mobileNavTabs->has($mobileActiveTab) && array_key_exists($mobileActiveTab, $tabs)) {
+                $mobileNavTabs = $mobileNavTabs->take(4);
+                $mobileNavTabs->put($mobileActiveTab, $tabs[$mobileActiveTab]);
+            }
+        @endphp
+
+        @if ($currentWorkspace)
+            <nav class="mobile-dashboard-nav" aria-label="Mobile workspace navigation">
+                <div class="mobile-dashboard-nav-grid">
+                    @foreach ($mobileNavTabs as $tabKey => $label)
+                        <button
+                            wire:click="$set('activeTab', '{{ $tabKey }}')"
+                            type="button"
+                            class="mobile-dashboard-nav-item {{ $mobileActiveTab === $tabKey ? 'mobile-dashboard-nav-item-active' : '' }}"
+                        >
+                            <span>{{ $label }}</span>
+                        </button>
+                    @endforeach
+                </div>
+            </nav>
+        @endif
 
         <datalist id="workspace-lead-sources">
             @foreach ($leadSources as $sourceName)

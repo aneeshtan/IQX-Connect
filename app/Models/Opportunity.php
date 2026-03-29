@@ -39,6 +39,8 @@ class Opportunity extends Model
         'company_id',
         'workspace_id',
         'sheet_source_id',
+        'account_id',
+        'contact_id',
         'lead_id',
         'assigned_user_id',
         'external_key',
@@ -84,6 +86,16 @@ class Opportunity extends Model
         return $this->belongsTo(SheetSource::class);
     }
 
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
     public function lead(): BelongsTo
     {
         return $this->belongsTo(Lead::class);
@@ -107,5 +119,15 @@ class Opportunity extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function jobCostings(): HasMany
+    {
+        return $this->hasMany(JobCosting::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
     }
 }

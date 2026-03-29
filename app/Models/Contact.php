@@ -1,0 +1,74 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Contact extends Model
+{
+    protected $fillable = [
+        'company_id',
+        'workspace_id',
+        'account_id',
+        'full_name',
+        'email',
+        'phone',
+        'job_title',
+        'notes',
+        'last_activity_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'last_activity_at' => 'datetime',
+        ];
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    public function leads(): HasMany
+    {
+        return $this->hasMany(Lead::class);
+    }
+
+    public function opportunities(): HasMany
+    {
+        return $this->hasMany(Opportunity::class);
+    }
+
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class);
+    }
+
+    public function shipmentJobs(): HasMany
+    {
+        return $this->hasMany(ShipmentJob::class);
+    }
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(Booking::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+}

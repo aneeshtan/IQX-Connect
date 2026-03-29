@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Account;
+use App\Models\Contact;
 use App\Models\Lead;
 use App\Models\Opportunity;
 
@@ -11,8 +13,60 @@ class WorkspaceEnrichmentService
         protected LeadScoringService $leadScoringService,
     ) {}
 
-    public function contactInsights(Lead $lead): array
+    public function contactInsights(Lead|Contact $lead): array
     {
+        if ($lead instanceof Contact) {
+            $lead->loadMissing('account');
+            $lead->loadCount(['leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices']);
+
+            $knownFields = collect([
+                $lead->full_name,
+                $lead->account?->name,
+                $lead->email,
+                $lead->phone,
+            ])->filter(fn ($value) => filled($value))->count();
+
+            return [
+                'headline' => $lead->opportunities_count > 0
+                    ? 'Contact linked to active commercial records.'
+                    : 'Contact record ready for qualification and follow-up.',
+                'summary' => trim(implode(' ', array_filter([
+                    $lead->full_name ? "{$lead->full_name} is attached to ".($lead->account?->name ?: 'an account').'.' : null,
+                    $lead->quotes_count > 0 ? "{$lead->quotes_count} quote records are linked." : null,
+                    $lead->shipment_jobs_count > 0 ? "{$lead->shipment_jobs_count} shipment jobs are already tied to this contact." : null,
+                    $lead->invoices_count > 0 ? "{$lead->invoices_count} invoices reference this contact." : null,
+                ]))),
+                'readiness' => match (true) {
+                    $lead->shipment_jobs_count > 0 => 'Operational',
+                    $lead->opportunities_count > 0 => 'Commercial',
+                    $lead->leads_count > 0 => 'Qualified history',
+                    default => 'Early stage',
+                },
+                'coverage' => "{$knownFields}/4 contact fields present",
+                'signals' => array_values(array_filter([
+                    $lead->account?->name ? "Account: {$lead->account->name}" : null,
+                    $lead->email ? "Email: {$lead->email}" : null,
+                    $lead->phone ? "Phone: {$lead->phone}" : null,
+                    $lead->leads_count > 0 ? "{$lead->leads_count} leads" : null,
+                    $lead->opportunities_count > 0 ? "{$lead->opportunities_count} opportunities" : null,
+                    $lead->quotes_count > 0 ? "{$lead->quotes_count} quotes" : null,
+                    $lead->shipment_jobs_count > 0 ? "{$lead->shipment_jobs_count} shipments" : null,
+                ])),
+                'recommendations' => array_values(array_filter([
+                    blank($lead->email) ? 'Add a direct email for quoting and billing communication.' : null,
+                    blank($lead->phone) ? 'Capture a phone number for urgent shipment coordination.' : null,
+                    $lead->quotes_count === 0 && $lead->opportunities_count > 0 ? 'Create a quote if the commercial discussion is progressing.' : null,
+                    $lead->shipment_jobs_count > 0 && $lead->invoices_count === 0 ? 'Review whether the related jobs are ready for invoicing.' : null,
+                ])),
+                'missing_fields' => array_values(array_filter([
+                    blank($lead->full_name) ? 'Contact name' : null,
+                    blank($lead->account?->name) ? 'Account link' : null,
+                    blank($lead->email) ? 'Email' : null,
+                    blank($lead->phone) ? 'Phone' : null,
+                ])),
+            ];
+        }
+
         $lead->loadMissing('assignedUser');
         $lead->loadCount('opportunities');
         $leadScore = $this->leadScoringService->score($lead);
@@ -86,8 +140,52 @@ class WorkspaceEnrichmentService
         ];
     }
 
-    public function customerInsights(Opportunity $opportunity): array
+    public function customerInsights(Opportunity|Account $opportunity): array
     {
+        if ($opportunity instanceof Account) {
+            $opportunity->loadMissing('contacts');
+            $opportunity->loadCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices']);
+            $revenue = (float) $opportunity->opportunities()->sum('revenue_potential');
+
+            return [
+                'headline' => $revenue >= 250000
+                    ? 'High-value freight account with meaningful commercial history.'
+                    : 'Customer account with linked sales and execution activity.',
+                'summary' => trim(implode(' ', array_filter([
+                    "{$opportunity->name} is now a first-class customer account.",
+                    $opportunity->quotes_count > 0 ? "{$opportunity->quotes_count} quotes are linked." : null,
+                    $opportunity->shipment_jobs_count > 0 ? "{$opportunity->shipment_jobs_count} shipment jobs are linked." : null,
+                    $opportunity->invoices_count > 0 ? "{$opportunity->invoices_count} invoices are linked." : null,
+                    $revenue > 0 ? 'Tracked opportunity value is AED '.number_format($revenue, 0).'.' : null,
+                ]))),
+                'tier' => match (true) {
+                    $revenue >= 250000 => 'Strategic account',
+                    $revenue >= 75000 => 'Expansion candidate',
+                    default => 'Standard account',
+                },
+                'signals' => array_values(array_filter([
+                    $opportunity->primary_email ? "Primary email: {$opportunity->primary_email}" : null,
+                    $opportunity->latest_service ? "Latest service: {$opportunity->latest_service}" : null,
+                    $opportunity->contacts_count > 0 ? "{$opportunity->contacts_count} linked contacts" : null,
+                    $opportunity->opportunities_count > 0 ? "{$opportunity->opportunities_count} opportunities" : null,
+                    $opportunity->quotes_count > 0 ? "{$opportunity->quotes_count} quotes" : null,
+                    $opportunity->shipment_jobs_count > 0 ? "{$opportunity->shipment_jobs_count} shipments" : null,
+                    $opportunity->invoices_count > 0 ? "{$opportunity->invoices_count} invoices" : null,
+                ])),
+                'recommendations' => array_values(array_filter([
+                    blank($opportunity->primary_email) ? 'Capture a shared commercial email for this account.' : null,
+                    $opportunity->contacts_count === 0 ? 'Create at least one named contact under this account.' : null,
+                    $opportunity->shipment_jobs_count > 0 && $opportunity->invoices_count === 0 ? 'Review operational jobs that may be ready for billing.' : null,
+                    $opportunity->quotes_count === 0 && $opportunity->opportunities_count > 0 ? 'Turn active opportunities into priced quotes sooner.' : null,
+                ])),
+                'missing_fields' => array_values(array_filter([
+                    blank($opportunity->primary_email) ? 'Primary email' : null,
+                    blank($opportunity->primary_phone) ? 'Primary phone' : null,
+                    blank($opportunity->latest_service) ? 'Service profile' : null,
+                ])),
+            ];
+        }
+
         $opportunity->loadMissing(['lead', 'assignedUser']);
 
         $expansionTier = match (true) {

@@ -36,6 +36,8 @@ class ShipmentJob extends Model
         'company_id',
         'workspace_id',
         'sheet_source_id',
+        'account_id',
+        'contact_id',
         'opportunity_id',
         'quote_id',
         'lead_id',
@@ -104,6 +106,16 @@ class ShipmentJob extends Model
         return $this->belongsTo(SheetSource::class);
     }
 
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
+
+    public function contact(): BelongsTo
+    {
+        return $this->belongsTo(Contact::class);
+    }
+
     public function opportunity(): BelongsTo
     {
         return $this->belongsTo(Opportunity::class);
@@ -127,5 +139,25 @@ class ShipmentJob extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function jobCostings(): HasMany
+    {
+        return $this->hasMany(JobCosting::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(ShipmentMilestone::class)->orderBy('sequence')->orderBy('id');
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(ShipmentDocument::class)->orderByDesc('uploaded_at')->orderByDesc('created_at');
     }
 }

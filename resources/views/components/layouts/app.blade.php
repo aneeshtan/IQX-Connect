@@ -30,7 +30,7 @@
                         ];
 
                         foreach ($sidebarWorkspace->templateModules() as $module) {
-                            if (in_array($module, ['quotes', 'shipments', 'carriers', 'projects', 'drawings', 'delivery_tracking', 'vessel_calls', 'supply_orders', 'delivery_tasks', 'bookings', 'sailings', 'customer_accounts', 'fleet', 'technical_management', 'crewing', 'inventory', 'leasing', 'depots'], true)) {
+                            if (in_array($module, ['rates', 'quotes', 'shipments', 'carriers', 'projects', 'drawings', 'delivery_tracking', 'vessel_calls', 'supply_orders', 'delivery_tasks', 'bookings', 'sailings', 'customer_accounts', 'fleet', 'technical_management', 'crewing', 'inventory', 'leasing', 'depots'], true)) {
                                 $sidebarWorkspaceTabs[$module] = str($module)->replace('_', ' ')->title();
                             }
                         }
@@ -195,7 +195,7 @@
             </flux:dropdown>
         </flux:header>
 
-        <flux:main>
+        <flux:main class="pb-[calc(6.5rem+env(safe-area-inset-bottom))] lg:pb-0">
             {{ $slot }}
 
             @include('partials.site-footer', [

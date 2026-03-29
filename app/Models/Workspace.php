@@ -80,6 +80,16 @@ class Workspace extends Model
         return $this->hasMany(Booking::class);
     }
 
+    public function jobCostings(): HasMany
+    {
+        return $this->hasMany(JobCosting::class);
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
     public function monthlyReports(): HasMany
     {
         return $this->hasMany(MonthlyReport::class);

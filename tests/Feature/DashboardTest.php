@@ -6,11 +6,17 @@ use App\Livewire\CrmDashboard;
 use App\Models\Booking;
 use App\Models\Carrier;
 use App\Models\Company;
+use App\Models\Invoice;
+use App\Models\JobCosting;
+use App\Models\JobCostingLine;
 use App\Models\Lead;
 use App\Models\Opportunity;
 use App\Models\Quote;
+use App\Models\RateCard;
 use App\Models\SheetSource;
+use App\Models\ShipmentDocument;
 use App\Models\ShipmentJob;
+use App\Models\ShipmentMilestone;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\GoogleSheetsService;
@@ -243,7 +249,7 @@ class DashboardTest extends TestCase
             'status' => Lead::STATUS_SALES_QUALIFIED,
         ]);
 
-        Opportunity::create([
+        $opportunity = Opportunity::create([
             'company_id' => $company->id,
             'workspace_id' => $workspace->id,
             'lead_id' => $lead->id,
@@ -264,7 +270,7 @@ class DashboardTest extends TestCase
         Livewire::test(CrmDashboard::class)
             ->set('activeTab', 'customers')
             ->assertSee('Jetty Lines')
-            ->assertSee('Opportunity Date');
+            ->assertSee('Customers created from opportunities');
     }
 
     public function test_workspace_users_can_open_and_edit_opportunities_from_popup(): void
@@ -646,6 +652,18 @@ class DashboardTest extends TestCase
             'destination' => 'Hamburg',
             'status' => ShipmentJob::STATUS_DRAFT,
         ]);
+
+        $shipment = ShipmentJob::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('opportunity_id', $opportunity->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertDatabaseHas('shipment_milestones', [
+            'shipment_job_id' => $shipment->id,
+            'event_key' => 'booking_requested',
+            'label' => 'Booking Requested',
+        ]);
     }
 
     public function test_selecting_an_opportunity_autofills_the_manual_shipment_form(): void
@@ -726,6 +744,8 @@ class DashboardTest extends TestCase
             'quoted_at' => now()->subHours(4),
         ]);
 
+        $accountId = (string) $opportunity->fresh()->account_id;
+
         $this->actingAs($user);
 
         Livewire::test(CrmDashboard::class)
@@ -733,11 +753,12 @@ class DashboardTest extends TestCase
             ->set('manualShipmentForm.customer_record_id', (string) $opportunity->id)
             ->assertSet('manualShipmentForm.opportunity_id', '')
             ->assertSet('manualShipmentForm.quote_id', '')
+            ->assertSet('manualShipmentForm.customer_record_id', $accountId)
             ->assertSet('manualShipmentForm.company_name', 'Northstar Cargo')
             ->assertSet('manualShipmentForm.contact_name', 'Layla Noor')
-            ->assertSet('manualShipmentForm.contact_email', 'ops@northstar.test')
+            ->assertSet('manualShipmentForm.contact_email', 'layla@northstar.test')
             ->set('manualShipmentForm.opportunity_id', (string) $opportunity->id)
-            ->assertSet('manualShipmentForm.customer_record_id', (string) $opportunity->id)
+            ->assertSet('manualShipmentForm.customer_record_id', $accountId)
             ->assertSet('manualShipmentForm.lead_id', (string) $lead->id)
             ->assertSet('manualShipmentForm.quote_id', (string) $quote->id)
             ->assertSet('manualShipmentForm.company_name', 'Northstar Cargo')
@@ -754,6 +775,616 @@ class DashboardTest extends TestCase
             ->assertSet('manualShipmentForm.buy_amount', '18000.00')
             ->assertSet('manualShipmentForm.sell_amount', '22000.00')
             ->assertSet('manualShipmentForm.notes', 'Approved by customer.');
+    }
+
+    public function test_shipment_popup_supports_milestones_documents_and_timeline(): void
+    {
+        $company = Company::create([
+            'name' => 'Execution Marine',
+            'slug' => 'execution-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Execution Workspace',
+            'slug' => 'execution-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Operations']);
+
+        $shipment = ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'job_number' => 'SJ-EXEC-1',
+            'company_name' => 'Execution Harbor Co',
+            'service_mode' => 'Ocean Freight',
+            'status' => ShipmentJob::STATUS_BOOKING_REQUESTED,
+            'currency' => 'AED',
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'shipments')
+            ->call('selectShipment', $shipment->id)
+            ->assertSee('Operational timeline')
+            ->assertSee('Booking Requested')
+            ->assertSee('Booking Confirmation')
+            ->set('shipmentMilestoneForm.label', 'Cargo Received At Origin')
+            ->set('shipmentMilestoneForm.status', ShipmentMilestone::STATUS_IN_PROGRESS)
+            ->call('addShipmentMilestone')
+            ->assertSee('Cargo Received At Origin')
+            ->set('shipmentDocumentForm.document_type', ShipmentDocument::TYPE_CUSTOMS)
+            ->set('shipmentDocumentForm.document_name', 'Import Customs Entry')
+            ->set('shipmentDocumentForm.reference_number', 'CUS-7781')
+            ->set('shipmentDocumentForm.status', ShipmentDocument::STATUS_RECEIVED)
+            ->call('addShipmentDocument')
+            ->assertSee('Import Customs Entry');
+
+        $this->assertDatabaseHas('shipment_milestones', [
+            'shipment_job_id' => $shipment->id,
+            'label' => 'Cargo Received At Origin',
+            'status' => ShipmentMilestone::STATUS_IN_PROGRESS,
+        ]);
+
+        $this->assertDatabaseHas('shipment_documents', [
+            'shipment_job_id' => $shipment->id,
+            'document_name' => 'Import Customs Entry',
+            'reference_number' => 'CUS-7781',
+            'status' => ShipmentDocument::STATUS_RECEIVED,
+        ]);
+    }
+
+    public function test_freight_forwarder_workspace_can_create_job_costing_and_update_the_shipment_margin(): void
+    {
+        $company = Company::create([
+            'name' => 'Costing Marine',
+            'slug' => 'costing-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Costing Workspace',
+            'slug' => 'costing-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+
+        $shipment = ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'job_number' => 'SJ-COST-1',
+            'company_name' => 'Harbor Costing Co',
+            'service_mode' => 'Ocean Freight',
+            'currency' => 'AED',
+            'status' => ShipmentJob::STATUS_DRAFT,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-costing')
+            ->set('manualCostingForm.shipment_job_id', (string) $shipment->id)
+            ->assertSet('manualCostingForm.customer_name', 'Harbor Costing Co')
+            ->assertSet('manualCostingForm.service_mode', 'Ocean Freight')
+            ->set('manualCostingForm.lines', [
+                [
+                    'line_type' => 'Cost',
+                    'charge_code' => 'FRT-BUY',
+                    'description' => 'Carrier buy rate',
+                    'vendor_name' => 'Ocean Carrier',
+                    'quantity' => '1',
+                    'unit_amount' => '1200',
+                    'is_billable' => true,
+                    'notes' => '',
+                ],
+                [
+                    'line_type' => 'Revenue',
+                    'charge_code' => 'FRT-SELL',
+                    'description' => 'Customer sell rate',
+                    'vendor_name' => '',
+                    'quantity' => '1',
+                    'unit_amount' => '1800',
+                    'is_billable' => true,
+                    'notes' => '',
+                ],
+            ])
+            ->call('addManualCosting')
+            ->assertSet('activeTab', 'costings')
+            ->assertSee('Job costing added.');
+
+        $this->assertDatabaseHas('job_costings', [
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'customer_name' => 'Harbor Costing Co',
+            'total_cost_amount' => 1200,
+            'total_sell_amount' => 1800,
+            'margin_amount' => 600,
+        ]);
+
+        $this->assertDatabaseHas('shipment_jobs', [
+            'id' => $shipment->id,
+            'buy_amount' => 1200,
+            'sell_amount' => 1800,
+            'margin_amount' => 600,
+        ]);
+    }
+
+    public function test_selecting_a_shipment_autofills_the_manual_invoice_form_from_the_latest_costing(): void
+    {
+        $company = Company::create([
+            'name' => 'Invoice Marine',
+            'slug' => 'invoice-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Invoice Workspace',
+            'slug' => 'invoice-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+
+        $shipment = ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'job_number' => 'SJ-INV-1',
+            'company_name' => 'Invoice Harbor Co',
+            'contact_email' => 'billing@invoice.test',
+            'currency' => 'AED',
+            'sell_amount' => 2500,
+            'status' => ShipmentJob::STATUS_BOOKED,
+        ]);
+
+        $costing = JobCosting::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'costing_number' => 'JC-00001',
+            'customer_name' => 'Invoice Harbor Co',
+            'currency' => 'AED',
+            'total_cost_amount' => 1800,
+            'total_sell_amount' => 2500,
+            'margin_amount' => 700,
+            'margin_percent' => 28,
+            'status' => JobCosting::STATUS_READY_TO_INVOICE,
+        ]);
+
+        JobCostingLine::create([
+            'job_costing_id' => $costing->id,
+            'line_type' => JobCostingLine::TYPE_REVENUE,
+            'charge_code' => 'FRT-SELL',
+            'description' => 'Ocean freight sell rate',
+            'quantity' => 1,
+            'unit_amount' => 2500,
+            'total_amount' => 2500,
+            'is_billable' => true,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-invoice')
+            ->set('manualInvoiceForm.shipment_job_id', (string) $shipment->id)
+            ->assertSet('manualInvoiceForm.job_costing_id', (string) $costing->id)
+            ->assertSet('manualInvoiceForm.bill_to_name', 'Invoice Harbor Co')
+            ->assertSet('manualInvoiceForm.contact_email', 'billing@invoice.test')
+            ->assertSet('manualInvoiceForm.subtotal_amount', '2500')
+            ->assertSet('manualInvoiceForm.lines.0.description', 'Ocean freight sell rate')
+            ->set('manualInvoiceForm.invoice_type', Invoice::TYPE_ACCOUNTS_RECEIVABLE)
+            ->set('manualInvoiceForm.issue_date', now()->toDateString())
+            ->set('manualInvoiceForm.due_date', now()->addDays(14)->toDateString())
+            ->set('manualInvoiceForm.tax_amount', '125')
+            ->call('addManualInvoice')
+            ->assertHasNoErrors()
+            ->assertSet('activeTab', 'invoices')
+            ->assertSee('Invoice added.');
+
+        $this->assertDatabaseHas('invoices', [
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'job_costing_id' => $costing->id,
+            'bill_to_name' => 'Invoice Harbor Co',
+            'subtotal_amount' => 2500,
+            'tax_amount' => 125,
+            'total_amount' => 2625,
+            'balance_amount' => 2625,
+        ]);
+    }
+
+    public function test_selecting_a_booking_autofills_the_manual_invoice_form_and_links_the_invoice(): void
+    {
+        $company = Company::create([
+            'name' => 'Booking Invoice Marine',
+            'slug' => 'booking-invoice-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Booking Invoice Workspace',
+            'slug' => 'booking-invoice-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Finance']);
+
+        $shipment = ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'job_number' => 'SJ-BKG-INV-1',
+            'company_name' => 'Harbor Billing Co',
+            'contact_email' => 'accounts@harbor.test',
+            'currency' => 'AED',
+            'status' => ShipmentJob::STATUS_BOOKED,
+        ]);
+
+        $booking = Booking::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'booking_number' => 'BK-INV-1',
+            'customer_name' => 'Harbor Billing Co',
+            'contact_email' => 'booking@harbor.test',
+            'service_mode' => 'Ocean Freight',
+            'status' => Booking::STATUS_CONFIRMED,
+        ]);
+
+        $costing = JobCosting::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'costing_number' => 'JC-BKG-1',
+            'customer_name' => 'Harbor Billing Co',
+            'currency' => 'AED',
+            'total_cost_amount' => 1200,
+            'total_sell_amount' => 1600,
+            'margin_amount' => 400,
+            'status' => JobCosting::STATUS_READY_TO_INVOICE,
+        ]);
+
+        JobCostingLine::create([
+            'job_costing_id' => $costing->id,
+            'line_type' => JobCostingLine::TYPE_REVENUE,
+            'charge_code' => 'FRT',
+            'description' => 'Freight charge',
+            'quantity' => 1,
+            'unit_amount' => 1600,
+            'total_amount' => 1600,
+            'is_billable' => true,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-invoice')
+            ->set('manualInvoiceForm.booking_id', (string) $booking->id)
+            ->assertSet('manualInvoiceForm.shipment_job_id', (string) $shipment->id)
+            ->assertSet('manualInvoiceForm.job_costing_id', (string) $costing->id)
+            ->assertSet('manualInvoiceForm.bill_to_name', 'Harbor Billing Co')
+            ->assertSet('manualInvoiceForm.contact_email', 'booking@harbor.test')
+            ->assertSet('manualInvoiceForm.lines.0.description', 'Freight charge')
+            ->set('manualInvoiceForm.invoice_type', Invoice::TYPE_ACCOUNTS_RECEIVABLE)
+            ->set('manualInvoiceForm.issue_date', now()->toDateString())
+            ->set('manualInvoiceForm.due_date', now()->addDays(14)->toDateString())
+            ->call('addManualInvoice')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('invoices', [
+            'workspace_id' => $workspace->id,
+            'booking_id' => $booking->id,
+            'shipment_job_id' => $shipment->id,
+            'job_costing_id' => $costing->id,
+            'bill_to_name' => 'Harbor Billing Co',
+            'contact_email' => 'booking@harbor.test',
+        ]);
+    }
+
+    public function test_invoice_list_can_be_filtered_by_booking(): void
+    {
+        $company = Company::create([
+            'name' => 'Booking Filter Marine',
+            'slug' => 'booking-filter-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Booking Filter Workspace',
+            'slug' => 'booking-filter-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Finance']);
+
+        $shipment = ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'job_number' => 'SJ-FILTER-1',
+            'company_name' => 'Filter Shipping',
+            'currency' => 'AED',
+            'status' => ShipmentJob::STATUS_BOOKED,
+        ]);
+
+        $bookingA = Booking::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'booking_number' => 'BK-FLT-A',
+            'customer_name' => 'Filter Shipping',
+            'service_mode' => 'Ocean Freight',
+            'status' => Booking::STATUS_CONFIRMED,
+        ]);
+
+        $bookingB = Booking::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'booking_number' => 'BK-FLT-B',
+            'customer_name' => 'Other Shipping',
+            'service_mode' => 'Ocean Freight',
+            'status' => Booking::STATUS_CONFIRMED,
+        ]);
+
+        $invoiceForShipment = Invoice::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'booking_id' => $bookingA->id,
+            'invoice_number' => 'AR-FLT-1',
+            'invoice_type' => Invoice::TYPE_ACCOUNTS_RECEIVABLE,
+            'bill_to_name' => 'Filter Shipping',
+            'currency' => 'AED',
+            'subtotal_amount' => 1000,
+            'tax_amount' => 0,
+            'total_amount' => 1000,
+            'paid_amount' => 0,
+            'balance_amount' => 1000,
+            'status' => Invoice::STATUS_DRAFT,
+        ]);
+
+        Invoice::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'booking_id' => $bookingB->id,
+            'invoice_number' => 'AR-FLT-2',
+            'invoice_type' => Invoice::TYPE_ACCOUNTS_RECEIVABLE,
+            'bill_to_name' => 'Other Shipping',
+            'currency' => 'AED',
+            'subtotal_amount' => 500,
+            'tax_amount' => 0,
+            'total_amount' => 500,
+            'paid_amount' => 0,
+            'balance_amount' => 500,
+            'status' => Invoice::STATUS_DRAFT,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'invoices')
+            ->set('invoiceBookingFilter', (string) $bookingA->id)
+            ->assertSee('AR-FLT-1')
+            ->assertDontSee('AR-FLT-2')
+            ->call('selectInvoice', $invoiceForShipment->id)
+            ->assertSee('BK-FLT-A');
+    }
+
+    public function test_booking_popup_shows_related_invoices(): void
+    {
+        $company = Company::create([
+            'name' => 'Booking Popup Marine',
+            'slug' => 'booking-popup-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Booking Popup Workspace',
+            'slug' => 'booking-popup-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Operations']);
+
+        $shipment = ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'job_number' => 'SJ-POPUP-1',
+            'company_name' => 'Popup Shipping',
+            'currency' => 'AED',
+            'status' => ShipmentJob::STATUS_BOOKED,
+        ]);
+
+        $booking = Booking::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'booking_number' => 'BK-POP-1',
+            'customer_name' => 'Popup Shipping',
+            'service_mode' => 'Ocean Freight',
+            'status' => Booking::STATUS_CONFIRMED,
+        ]);
+
+        Invoice::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'booking_id' => $booking->id,
+            'invoice_number' => 'AR-POP-1',
+            'invoice_type' => Invoice::TYPE_ACCOUNTS_RECEIVABLE,
+            'bill_to_name' => 'Popup Shipping',
+            'currency' => 'AED',
+            'subtotal_amount' => 900,
+            'tax_amount' => 0,
+            'total_amount' => 900,
+            'paid_amount' => 0,
+            'balance_amount' => 900,
+            'status' => Invoice::STATUS_DRAFT,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'bookings')
+            ->call('selectBooking', $booking->id)
+            ->assertSee('Related invoices')
+            ->assertSee('AR-POP-1');
+    }
+
+    public function test_posting_an_invoice_marks_it_as_posted_and_finalizes_the_linked_costing(): void
+    {
+        $company = Company::create([
+            'name' => 'Posting Marine',
+            'slug' => 'posting-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Posting Workspace',
+            'slug' => 'posting-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Finance']);
+
+        $shipment = ShipmentJob::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'job_number' => 'SJ-POST-1',
+            'company_name' => 'Posting Harbor Co',
+            'currency' => 'AED',
+            'status' => ShipmentJob::STATUS_BOOKED,
+        ]);
+
+        $costing = JobCosting::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'costing_number' => 'JC-POST-1',
+            'customer_name' => 'Posting Harbor Co',
+            'currency' => 'AED',
+            'status' => JobCosting::STATUS_READY_TO_INVOICE,
+        ]);
+
+        $costingLine = JobCostingLine::create([
+            'job_costing_id' => $costing->id,
+            'line_type' => JobCostingLine::TYPE_REVENUE,
+            'charge_code' => 'DOC',
+            'description' => 'Documentation fee',
+            'quantity' => 1,
+            'unit_amount' => 850,
+            'total_amount' => 850,
+            'is_billable' => true,
+        ]);
+
+        $invoice = Invoice::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'shipment_job_id' => $shipment->id,
+            'job_costing_id' => $costing->id,
+            'invoice_number' => 'AR-POST-1',
+            'invoice_type' => Invoice::TYPE_ACCOUNTS_RECEIVABLE,
+            'bill_to_name' => 'Posting Harbor Co',
+            'currency' => 'AED',
+            'subtotal_amount' => 850,
+            'tax_amount' => 0,
+            'total_amount' => 850,
+            'paid_amount' => 0,
+            'balance_amount' => 850,
+            'status' => Invoice::STATUS_DRAFT,
+        ]);
+
+        $invoice->lines()->create([
+            'job_costing_line_id' => $costingLine->id,
+            'charge_code' => 'DOC',
+            'description' => 'Documentation fee',
+            'quantity' => 1,
+            'unit_amount' => 850,
+            'total_amount' => 850,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'invoices')
+            ->call('postInvoice', $invoice->id)
+            ->assertSee('posted');
+
+        $this->assertDatabaseHas('invoices', [
+            'id' => $invoice->id,
+            'status' => Invoice::STATUS_SENT,
+            'posted_by_user_id' => $user->id,
+        ]);
+
+        $this->assertNotNull($invoice->fresh()->posted_at);
+
+        $this->assertDatabaseHas('job_costings', [
+            'id' => $costing->id,
+            'status' => JobCosting::STATUS_FINALIZED,
+        ]);
     }
 
     public function test_disqualified_lead_requires_a_reason_before_status_is_saved(): void
@@ -1216,6 +1847,7 @@ class DashboardTest extends TestCase
 
         Livewire::test(CrmDashboard::class)
             ->assertSee('Forwarding Workspace Dashboard')
+            ->assertSee('Rates')
             ->assertSee('Quotes')
             ->assertSee('Shipments')
             ->assertSee('Carriers')
@@ -1285,6 +1917,69 @@ class DashboardTest extends TestCase
         $this->assertSame('1300.00', $quote->margin_amount);
     }
 
+    public function test_freight_forwarder_workspace_can_create_a_rate_card(): void
+    {
+        $company = Company::create([
+            'name' => 'Rates Marine',
+            'slug' => 'rates-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Rates Workspace',
+            'slug' => 'rates-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $salesRole = Role::firstOrCreate(
+            ['slug' => 'sales'],
+            ['name' => 'Sales', 'description' => 'Sales role', 'level' => 3],
+        );
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Owner', 'is_owner' => true]);
+        $user->attachRole($salesRole);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-rate')
+            ->set('manualRateForm.customer_name', 'Oceanic Traders')
+            ->set('manualRateForm.service_mode', RateCard::MODE_OCEAN)
+            ->set('manualRateForm.origin', 'Jebel Ali')
+            ->set('manualRateForm.destination', 'Hamburg')
+            ->set('manualRateForm.transit_days', '18')
+            ->set('manualRateForm.buy_amount', '8200')
+            ->set('manualRateForm.sell_amount', '9500')
+            ->set('manualRateForm.currency', 'AED')
+            ->set('manualRateForm.valid_until', now()->addDays(14)->format('Y-m-d'))
+            ->set('manualRateForm.is_active', true)
+            ->call('addManualRate')
+            ->assertHasNoErrors()
+            ->assertSet('activeTab', 'rates')
+            ->assertSee('RT-00001')
+            ->assertSee('Oceanic Traders');
+
+        $this->assertDatabaseHas('rate_cards', [
+            'workspace_id' => $workspace->id,
+            'rate_code' => 'RT-00001',
+            'customer_name' => 'Oceanic Traders',
+            'service_mode' => RateCard::MODE_OCEAN,
+            'origin' => 'Jebel Ali',
+            'destination' => 'Hamburg',
+            'currency' => 'AED',
+            'is_active' => true,
+        ]);
+    }
+
     public function test_selecting_customer_and_opportunity_autofills_the_manual_quote_form(): void
     {
         $company = Company::create([
@@ -1338,22 +2033,88 @@ class DashboardTest extends TestCase
             'submission_date' => now()->subDay(),
         ]);
 
+        $accountId = (string) $opportunity->fresh()->account_id;
+
         $this->actingAs($user);
 
         Livewire::test(CrmDashboard::class)
             ->set('activeTab', 'manual-quote')
             ->set('manualQuoteForm.customer_record_id', (string) $opportunity->id)
             ->assertSet('manualQuoteForm.opportunity_id', '')
-            ->assertSet('manualQuoteForm.lead_id', (string) $lead->id)
+            ->assertSet('manualQuoteForm.customer_record_id', $accountId)
+            ->assertSet('manualQuoteForm.lead_id', '')
             ->assertSet('manualQuoteForm.company_name', 'Oceanic Traders')
             ->assertSet('manualQuoteForm.contact_name', 'Lina Noor')
-            ->assertSet('manualQuoteForm.contact_email', 'pricing@oceanic.test')
+            ->assertSet('manualQuoteForm.contact_email', 'lina@example.com')
             ->assertSet('manualQuoteForm.service_mode', 'Ocean Freight')
             ->set('manualQuoteForm.opportunity_id', (string) $opportunity->id)
-            ->assertSet('manualQuoteForm.customer_record_id', (string) $opportunity->id)
+            ->assertSet('manualQuoteForm.customer_record_id', $accountId)
             ->assertSet('manualQuoteForm.lead_id', (string) $lead->id)
             ->assertSet('manualQuoteForm.sell_amount', '9500.00')
+            ->assertSet('manualQuoteForm.contact_email', 'pricing@oceanic.test')
             ->assertSet('manualQuoteForm.notes', 'Customer asked for fastest routing option.');
+    }
+
+    public function test_selecting_a_rate_card_autofills_the_manual_quote_form(): void
+    {
+        $company = Company::create([
+            'name' => 'Quote Rate Marine',
+            'slug' => 'quote-rate-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Quote Rate Workspace',
+            'slug' => 'quote-rate-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'freight_forwarding'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+
+        $rateCard = RateCard::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'rate_code' => 'RT-00001',
+            'customer_name' => 'Oceanic Traders',
+            'service_mode' => RateCard::MODE_OCEAN,
+            'origin' => 'Jebel Ali',
+            'destination' => 'Rotterdam',
+            'incoterm' => 'FOB',
+            'commodity' => 'General Cargo',
+            'equipment_type' => '40HC',
+            'transit_days' => 21,
+            'buy_amount' => 7800,
+            'sell_amount' => 9300,
+            'currency' => 'AED',
+            'valid_until' => now()->addDays(20),
+            'is_active' => true,
+            'assigned_user_id' => $user->id,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-quote')
+            ->set('manualQuoteForm.rate_card_id', (string) $rateCard->id)
+            ->assertSet('manualQuoteForm.service_mode', RateCard::MODE_OCEAN)
+            ->assertSet('manualQuoteForm.origin', 'Jebel Ali')
+            ->assertSet('manualQuoteForm.destination', 'Rotterdam')
+            ->assertSet('manualQuoteForm.incoterm', 'FOB')
+            ->assertSet('manualQuoteForm.commodity', 'General Cargo')
+            ->assertSet('manualQuoteForm.equipment_type', '40HC')
+            ->assertSet('manualQuoteForm.buy_amount', '7800.00')
+            ->assertSet('manualQuoteForm.sell_amount', '9300.00')
+            ->assertSet('manualQuoteForm.currency', 'AED')
+            ->assertSee('Optional linked rate card');
     }
 
     public function test_non_owner_workspace_users_cannot_manage_workspace_access(): void

@@ -7,7 +7,7 @@ return [
         'freight_forwarding' => [
             'name' => 'Freight Forwarder',
             'description' => 'For air, ocean, road, customs, and rate-driven forwarding teams.',
-            'modules' => ['leads', 'opportunities', 'contacts', 'customers', 'sources', 'analytics', 'access', 'settings', 'exports', 'quotes', 'shipments', 'carriers', 'bookings'],
+            'modules' => ['leads', 'opportunities', 'contacts', 'customers', 'sources', 'analytics', 'access', 'settings', 'exports', 'rates', 'quotes', 'shipments', 'carriers', 'bookings', 'costings', 'invoices'],
             'vocabulary' => [
                 'lead_status_labels' => [
                     'In-progress' => 'Qualification',

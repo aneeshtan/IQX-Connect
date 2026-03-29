@@ -1,0 +1,22 @@
+{
+  "name": "IQX Connect",
+  "short_name": "IQX Connect",
+  "description": "Mobile-friendly maritime CRM for leads, quotes, shipments, bookings, and finance.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/favicon.ico",
+      "type": "image/x-icon",
+      "sizes": "48x48"
+    }
+  ]
+}
