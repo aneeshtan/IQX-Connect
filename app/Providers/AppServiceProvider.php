@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Opportunity;
+use App\Models\Project;
 use App\Models\Quote;
 use App\Models\ShipmentJob;
 use App\Services\WorkspacePartySyncService;
@@ -30,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
         Opportunity::saved(fn (Opportunity $opportunity) => app(WorkspacePartySyncService::class)->syncRecord($opportunity));
         Quote::saved(fn (Quote $quote) => app(WorkspacePartySyncService::class)->syncRecord($quote));
         ShipmentJob::saved(fn (ShipmentJob $shipment) => app(WorkspacePartySyncService::class)->syncRecord($shipment));
+        Project::saved(fn (Project $project) => app(WorkspacePartySyncService::class)->syncRecord($project));
         Booking::saved(fn (Booking $booking) => app(WorkspacePartySyncService::class)->syncRecord($booking));
         Invoice::saved(fn (Invoice $invoice) => app(WorkspacePartySyncService::class)->syncRecord($invoice));
     }

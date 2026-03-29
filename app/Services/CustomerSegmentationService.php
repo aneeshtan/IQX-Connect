@@ -14,12 +14,12 @@ use App\Models\Quote;
 use App\Models\ShipmentJob;
 use App\Models\Workspace;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 
 class CustomerSegmentationService
 {
     public const SNAPSHOT_KEY_CURRENT = 'current';
+
+    public const SNAPSHOT_STALE_AFTER_MINUTES = 30;
 
     public static function presetDefinitionsForTemplate(string $templateKey): array
     {
@@ -194,6 +194,47 @@ class CustomerSegmentationService
         foreach ($accounts as $account) {
             $this->syncAccount($account, $workspace);
         }
+    }
+
+    public function syncWorkspaceIfStale(Workspace $workspace, int $staleAfterMinutes = self::SNAPSHOT_STALE_AFTER_MINUTES): void
+    {
+        $this->ensureDefaultSegments($workspace);
+
+        $accountCount = Account::query()
+            ->where('workspace_id', $workspace->id)
+            ->count();
+
+        if ($accountCount === 0) {
+            return;
+        }
+
+        $cutoff = now()->subMinutes($staleAfterMinutes);
+        $snapshotSummary = AccountMetricSnapshot::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('snapshot_key', self::SNAPSHOT_KEY_CURRENT)
+            ->selectRaw('COUNT(*) as snapshot_count, MIN(evaluated_at) as oldest_evaluated_at')
+            ->first();
+
+        $snapshotCount = (int) ($snapshotSummary?->snapshot_count ?? 0);
+        $oldestEvaluatedAt = $snapshotSummary?->oldest_evaluated_at
+            ? Carbon::parse($snapshotSummary->oldest_evaluated_at)
+            : null;
+
+        if ($snapshotCount === $accountCount && $oldestEvaluatedAt && $oldestEvaluatedAt->gte($cutoff)) {
+            return;
+        }
+
+        Account::query()
+            ->where('workspace_id', $workspace->id)
+            ->with('currentMetricSnapshot')
+            ->get()
+            ->each(function (Account $account) use ($workspace, $cutoff) {
+                $snapshot = $account->currentMetricSnapshot;
+
+                if (! $snapshot || ! $snapshot->evaluated_at || $snapshot->evaluated_at->lt($cutoff)) {
+                    $this->syncAccount($account, $workspace);
+                }
+            });
     }
 
     public function syncAccount(Account $account, ?Workspace $workspace = null): AccountMetricSnapshot

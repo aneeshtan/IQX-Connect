@@ -46,7 +46,7 @@
             </div>
         </section>
     @else
-        @if ($sheetSources->isEmpty() && auth()->user()->hasRole(['admin', 'manager']))
+        @if (! $hasSheetSources && auth()->user()->hasRole(['admin', 'manager']))
             <section class="rounded-[1.75rem] border border-emerald-200 bg-emerald-50/60 p-5 shadow-sm">
                 <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div class="max-w-xl">
@@ -212,15 +212,9 @@
                     @php
                         $orderedTabs = collect($tabs);
 
+                        $orderedTabs->forget('analytics');
                         $orderedTabs->forget('settings');
                         $orderedTabs->forget('sources');
-
-                        if ($orderedTabs->has('analytics') && $orderedTabs->has('settings')) {
-                            $analyticsLabel = $orderedTabs->pull('analytics');
-                            $settingsLabel = $orderedTabs->pull('settings');
-                            $orderedTabs->put('analytics', $analyticsLabel);
-                            $orderedTabs->put('settings', $settingsLabel);
-                        }
                     @endphp
                     <div class="ios-tab-strip">
                     @foreach ($orderedTabs as $tabKey => $label)
@@ -2930,7 +2924,7 @@
                                 <div class="mt-4 grid gap-3 sm:grid-cols-2">
                                     <div>
                                         <div class="mobile-record-card-label">Primary Contact</div>
-                                        <div class="mobile-record-card-value">{{ $customer->contacts->first()?->full_name ?: 'No contact linked' }}</div>
+                                        <div class="mobile-record-card-value">{{ $customer->primary_contact_name ?: 'No contact linked' }}</div>
                                     </div>
                                     <div>
                                         <div class="mobile-record-card-label">Service</div>
@@ -2984,7 +2978,7 @@
                                                 </div>
                                             @endif
                                         </td>
-                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->contacts->first()?->full_name ?: 'No contact linked' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->primary_contact_name ?: 'No contact linked' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $customer->latest_service ?: 'Not set' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
                                             {{ $customer->opportunity_revenue_sum ? 'AED '.number_format((float) $customer->opportunity_revenue_sum, 0) : '-' }}
@@ -3300,22 +3294,22 @@
                     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         <article class="rounded-[1.4rem] border border-zinc-200 bg-white p-4">
                             <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Connected sources</p>
-                            <p class="mt-3 text-3xl font-semibold text-zinc-950">{{ $sheetSources->count() }}</p>
+                            <p class="mt-3 text-3xl font-semibold text-zinc-950">{{ $sheetSourceStats['total'] }}</p>
                             <p class="mt-2 text-sm text-zinc-500">Total integrations on this workspace</p>
                         </article>
                         <article class="rounded-[1.4rem] border border-zinc-200 bg-white p-4">
                             <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Active</p>
-                            <p class="mt-3 text-3xl font-semibold text-emerald-700">{{ $sheetSources->where('is_active', true)->count() }}</p>
+                            <p class="mt-3 text-3xl font-semibold text-emerald-700">{{ $sheetSourceStats['active'] }}</p>
                             <p class="mt-2 text-sm text-zinc-500">Currently enabled sources</p>
                         </article>
                         <article class="rounded-[1.4rem] border border-zinc-200 bg-white p-4">
                             <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Healthy</p>
-                            <p class="mt-3 text-3xl font-semibold text-sky-700">{{ $sheetSources->where('sync_status', 'synced')->count() }}</p>
+                            <p class="mt-3 text-3xl font-semibold text-sky-700">{{ $sheetSourceStats['synced'] }}</p>
                             <p class="mt-2 text-sm text-zinc-500">Sources with successful sync status</p>
                         </article>
                         <article class="rounded-[1.4rem] border border-zinc-200 bg-white p-4">
                             <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">Needs attention</p>
-                            <p class="mt-3 text-3xl font-semibold text-rose-700">{{ $sheetSources->where('sync_status', 'failed')->count() }}</p>
+                            <p class="mt-3 text-3xl font-semibold text-rose-700">{{ $sheetSourceStats['failed'] }}</p>
                             <p class="mt-2 text-sm text-zinc-500">Sources reporting sync failures</p>
                         </article>
                     </div>
@@ -4042,7 +4036,567 @@
                 </div>
             @endif
 
-            @if ($currentWorkspaceExtraModules->contains($activeTab) && ! in_array($activeTab, ['rates', 'quotes', 'shipments', 'carriers', 'bookings', 'costings', 'invoices'], true))
+            @if ($activeTab === 'projects')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Project List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-project')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Project
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="projectSearch"
+                            type="text"
+                            placeholder="Search project, customer, site"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="projectStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All statuses</option>
+                            @foreach ($projectStatusOptions as $projectStatus)
+                                <option value="{{ $projectStatus }}">{{ $projectStatus }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">{{ $currentWorkspace->company->name }}</div>
+                        <select wire:model.live="projectSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Newest target delivery</option>
+                            <option value="oldest">Oldest target delivery</option>
+                            <option value="project_asc">Project A-Z</option>
+                            <option value="project_desc">Project Z-A</option>
+                            <option value="value_desc">Highest value</option>
+                        </select>
+                        <select wire:model.live="projectPerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">Conversion project register</div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Project</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Customer</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Scope</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Delivery</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Execution</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($projects as $project)
+                                    <tr
+                                        wire:click="selectProject({{ $project->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedProject?->id === $project->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $project->project_number }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $project->project_name }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $project->customer_name ?: 'Unknown customer' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $project->contact_name ?: ($project->contact_email ?: 'No contact saved') }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ $project->service_type ?: 'Container Conversion' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">
+                                                {{ collect([$project->container_type, $project->unit_quantity ? $project->unit_quantity.' unit'.($project->unit_quantity === 1 ? '' : 's') : null])->filter()->join(' · ') ?: 'Scope pending' }}
+                                            </div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ $project->target_delivery_date?->format('d M Y') ?: 'No delivery date' }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $project->site_location ?: 'No site location' }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->projectStatusClasses($project->status) }}">{{ $project->status }}</span>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
+                                            <div>{{ number_format((int) $project->drawings_count) }} drawings</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ number_format((int) $project->delivery_milestones_count) }} milestones</div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-4 py-10 text-center text-zinc-500">No projects created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $projects->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedProject)
+                    <div wire:click.self="closeProjectDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                        <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Project Details</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedProject->project_name }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedProject->project_number }} · {{ $selectedProject->customer_name }}</p>
+                                </div>
+                                <button wire:click="closeProjectDetails" type="button" class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->projectStatusClasses($selectedProject->status) }}">{{ $selectedProject->status }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Estimated value</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">AED {{ number_format((float) $selectedProject->estimated_value, 0) }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Delivery target</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedProject->target_delivery_date?->format('d M Y') ?: 'Not set' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Site</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedProject->site_location ?: 'Not set' }}</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-4 xl:grid-cols-2">
+                                        <div class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50/80 p-4">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Drawings</div>
+                                                    <div class="mt-1 text-sm text-zinc-500">Latest drawing revisions linked to this project.</div>
+                                                </div>
+                                                <div class="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                                                    {{ $selectedProject->drawings->count() }} revision{{ $selectedProject->drawings->count() === 1 ? '' : 's' }}
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-4 space-y-3">
+                                                @forelse ($selectedProject->drawings->take(6) as $projectDrawing)
+                                                    <button wire:click="selectDrawing({{ $projectDrawing->id }})" type="button" class="flex w-full items-center justify-between rounded-[1rem] border border-zinc-200 bg-white px-4 py-3 text-left transition hover:border-sky-200 hover:bg-sky-50/60">
+                                                        <div>
+                                                            <div class="text-sm font-medium text-zinc-900">{{ $projectDrawing->revision_number }} · {{ $projectDrawing->drawing_title }}</div>
+                                                            <div class="mt-1 text-xs text-zinc-400">{{ $projectDrawing->submitted_at?->format('d M Y') ?: 'Not submitted yet' }}</div>
+                                                        </div>
+                                                        <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->drawingStatusClasses($projectDrawing->status) }}">{{ $projectDrawing->status }}</span>
+                                                    </button>
+                                                @empty
+                                                    <div class="rounded-[1rem] border border-dashed border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500">No drawings linked yet.</div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50/80 p-4">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Delivery tracking</div>
+                                                    <div class="mt-1 text-sm text-zinc-500">Fabrication, dispatch, delivery, and installation checkpoints.</div>
+                                                </div>
+                                                <div class="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600">
+                                                    {{ $selectedProject->deliveryMilestones->count() }} milestone{{ $selectedProject->deliveryMilestones->count() === 1 ? '' : 's' }}
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-4 space-y-3">
+                                                @forelse ($selectedProject->deliveryMilestones->take(8) as $deliveryMilestone)
+                                                    <button wire:click="selectDelivery({{ $deliveryMilestone->id }})" type="button" class="flex w-full items-center justify-between rounded-[1rem] border border-zinc-200 bg-white px-4 py-3 text-left transition hover:border-sky-200 hover:bg-sky-50/60">
+                                                        <div>
+                                                            <div class="text-sm font-medium text-zinc-900">{{ $deliveryMilestone->milestone_label }}</div>
+                                                            <div class="mt-1 text-xs text-zinc-400">
+                                                                {{ $deliveryMilestone->planned_date?->format('d M Y') ?: 'No planned date' }}{{ $deliveryMilestone->site_location ? ' · '.$deliveryMilestone->site_location : '' }}
+                                                            </div>
+                                                        </div>
+                                                        <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->deliveryStatusClasses($deliveryMilestone->status) }}">{{ $deliveryMilestone->status }}</span>
+                                                    </button>
+                                                @empty
+                                                    <div class="rounded-[1rem] border border-dashed border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500">No delivery milestones linked yet.</div>
+                                                @endforelse
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50/80 p-4">
+                                        <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Project timeline</div>
+                                        <div class="mt-4 space-y-3">
+                                            @forelse ($selectedProjectTimeline as $timelineItem)
+                                                <div class="rounded-[1rem] border border-zinc-200 bg-white px-4 py-3">
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <div class="text-sm font-medium text-zinc-900">{{ $timelineItem['title'] }}</div>
+                                                        <div class="text-xs text-zinc-400">{{ \Illuminate\Support\Carbon::parse($timelineItem['at'])->format('d M Y') }}</div>
+                                                    </div>
+                                                    <div class="mt-1 text-sm text-zinc-500">{{ $timelineItem['detail'] }}</div>
+                                                </div>
+                                            @empty
+                                                <div class="rounded-[1rem] border border-dashed border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500">No timeline events available yet.</div>
+                                            @endforelse
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveProjectDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <input wire:model="projectEditForm.project_name" type="text" placeholder="Project name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.customer_name" type="text" placeholder="Customer name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.service_type" type="text" placeholder="Service type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.container_type" type="text" placeholder="Container type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.unit_quantity" type="number" min="0" placeholder="Unit quantity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.site_location" type="text" placeholder="Site location" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.estimated_value" type="number" step="0.01" placeholder="Estimated value" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.target_delivery_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.target_installation_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.actual_delivery_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="projectEditForm.actual_installation_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <select wire:model="projectEditForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                            @foreach ($projectStatusOptions as $projectStatus)
+                                                <option value="{{ $projectStatus }}">{{ $projectStatus }}</option>
+                                            @endforeach
+                                        </select>
+                                        <textarea wire:model="projectEditForm.scope_summary" rows="4" placeholder="Scope summary" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <textarea wire:model="projectEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Save Project</button>
+                                            <button wire:click="closeProjectDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
+                                        </div>
+                                    </form>
+
+                                    @include('livewire.partials.collaboration-panel', [
+                                        'record' => $selectedProject,
+                                        'recordType' => 'project',
+                                        'recordLabel' => 'project',
+                                        'entries' => $selectedProjectCollaboration,
+                                        'workspaceUsers' => $workspaceUsers,
+                                        'showAssignment' => true,
+                                    ])
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($activeTab === 'drawings')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Drawing List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-drawing')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Drawing
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="drawingSearch"
+                            type="text"
+                            placeholder="Search revision, drawing, project"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="drawingStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All statuses</option>
+                            @foreach ($drawingStatusOptions as $drawingStatus)
+                                <option value="{{ $drawingStatus }}">{{ $drawingStatus }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">{{ $currentWorkspace->company->name }}</div>
+                        <select wire:model.live="drawingSort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Newest submitted</option>
+                            <option value="oldest">Oldest submitted</option>
+                            <option value="revision_asc">Revision A-Z</option>
+                            <option value="revision_desc">Revision Z-A</option>
+                            <option value="status_asc">Status</option>
+                        </select>
+                        <select wire:model.live="drawingPerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">Engineering revision log</div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Revision</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Project</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Submitted</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Approved</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($drawings as $drawing)
+                                    <tr
+                                        wire:click="selectDrawing({{ $drawing->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedDrawing?->id === $drawing->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $drawing->revision_number }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">{{ $drawing->drawing_title }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $drawing->project?->project_number ?: 'No project linked' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $drawing->submitted_at?->format('d M Y H:i') ?: 'Not submitted' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $drawing->approved_at?->format('d M Y H:i') ?: 'Not approved' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->drawingStatusClasses($drawing->status) }}">{{ $drawing->status }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-10 text-center text-zinc-500">No drawings created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $drawings->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedDrawing)
+                    <div wire:click.self="closeDrawingDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                        <div class="flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Drawing Revision</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedDrawing->revision_number }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedDrawing->drawing_title }}</p>
+                                </div>
+                                <button wire:click="closeDrawingDetails" type="button" class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-3">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Project</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedDrawing->project?->project_number ?: 'Not linked' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Submitted</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedDrawing->submitted_at?->format('d M Y H:i') ?: 'Not submitted' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->drawingStatusClasses($selectedDrawing->status) }}">{{ $selectedDrawing->status }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveDrawingDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <input wire:model="drawingEditForm.revision_number" type="text" placeholder="Revision number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="drawingEditForm.drawing_title" type="text" placeholder="Drawing title" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                        <select wire:model="drawingEditForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                            @foreach ($drawingStatusOptions as $drawingStatus)
+                                                <option value="{{ $drawingStatus }}">{{ $drawingStatus }}</option>
+                                            @endforeach
+                                        </select>
+                                        <input wire:model="drawingEditForm.external_url" type="url" placeholder="Drawing URL" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                        <input wire:model="drawingEditForm.submitted_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="drawingEditForm.approved_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <textarea wire:model="drawingEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Save Drawing</button>
+                                            <button wire:click="closeDrawingDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($activeTab === 'delivery_tracking')
+                <div class="space-y-4 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="inline-flex rounded-2xl border border-zinc-200 bg-zinc-50 p-1">
+                            <button type="button" class="rounded-xl bg-white px-4 py-2 text-sm font-medium text-zinc-950 shadow-sm">
+                                Delivery List
+                            </button>
+                            <button
+                                wire:click="$set('activeTab', 'manual-delivery')"
+                                type="button"
+                                class="rounded-xl px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900"
+                            >
+                                New Milestone
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-3 lg:grid-cols-6">
+                        <input
+                            wire:model.live.debounce.300ms="deliverySearch"
+                            type="text"
+                            placeholder="Search milestone, project, site"
+                            class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none"
+                        />
+                        <select wire:model.live="deliveryStatusFilter" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="">All statuses</option>
+                            @foreach ($deliveryStatusOptions as $deliveryStatus)
+                                <option value="{{ $deliveryStatus }}">{{ $deliveryStatus }}</option>
+                            @endforeach
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">{{ $currentWorkspace->company->name }}</div>
+                        <select wire:model.live="deliverySort" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="newest">Newest planned date</option>
+                            <option value="oldest">Oldest planned date</option>
+                            <option value="label_asc">Milestone A-Z</option>
+                            <option value="label_desc">Milestone Z-A</option>
+                            <option value="status_asc">Status</option>
+                        </select>
+                        <select wire:model.live="deliveryPerPage" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            <option value="10">10 rows</option>
+                            <option value="15">15 rows</option>
+                            <option value="25">25 rows</option>
+                            <option value="50">50 rows</option>
+                        </select>
+                        <div class="rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-500">Delivery and installation checkpoints</div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-[1.5rem] border border-zinc-200">
+                        <table class="min-w-full border-separate border-spacing-0 text-sm">
+                            <thead>
+                                <tr class="bg-zinc-50 text-left text-zinc-500">
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Milestone</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Project</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Planned</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Actual</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Site</th>
+                                    <th class="border-b border-zinc-200 px-4 py-3 font-medium">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($deliveryMilestones as $deliveryMilestone)
+                                    <tr
+                                        wire:click="selectDelivery({{ $deliveryMilestone->id }})"
+                                        class="cursor-pointer transition odd:bg-white even:bg-zinc-50/60 hover:bg-sky-50/80 {{ $selectedDelivery?->id === $deliveryMilestone->id ? 'bg-sky-50 ring-1 ring-inset ring-sky-200' : '' }}"
+                                    >
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <div class="font-medium text-zinc-900">{{ $deliveryMilestone->milestone_label }}</div>
+                                            <div class="mt-1 text-xs text-zinc-400">Sequence {{ $deliveryMilestone->sequence }}</div>
+                                        </td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $deliveryMilestone->project?->project_number ?: 'No project linked' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $deliveryMilestone->planned_date?->format('d M Y') ?: 'Not planned' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $deliveryMilestone->actual_date?->format('d M Y') ?: 'Not completed' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $deliveryMilestone->site_location ?: 'Not set' }}</td>
+                                        <td class="border-b border-zinc-100 px-4 py-3">
+                                            <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->deliveryStatusClasses($deliveryMilestone->status) }}">{{ $deliveryMilestone->status }}</span>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-4 py-10 text-center text-zinc-500">No delivery milestones created yet for this workspace.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div>
+                        {{ $deliveryMilestones->links() }}
+                    </div>
+                </div>
+
+                @if ($selectedDelivery)
+                    <div wire:click.self="closeDeliveryDetails" class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 px-4 py-8 backdrop-blur-sm">
+                        <div class="flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-sky-200 bg-white shadow-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-zinc-200 bg-sky-50/70 px-6 py-5">
+                                <div>
+                                    <p class="text-xs uppercase tracking-[0.3em] text-sky-700">Delivery Milestone</p>
+                                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">{{ $selectedDelivery->milestone_label }}</h2>
+                                    <p class="mt-1 text-sm text-zinc-500">{{ $selectedDelivery->project?->project_number ?: 'No project linked' }}</p>
+                                </div>
+                                <button wire:click="closeDeliveryDetails" type="button" class="rounded-full border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-50">
+                                    Close
+                                </button>
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto px-6 py-6">
+                                <div class="space-y-5">
+                                    <div class="grid gap-3 sm:grid-cols-3">
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Project</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedDelivery->project?->project_name ?: 'Not linked' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Planned</div>
+                                            <div class="mt-2 text-base font-semibold text-zinc-950">{{ $selectedDelivery->planned_date?->format('d M Y') ?: 'Not planned' }}</div>
+                                        </div>
+                                        <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
+                                            <div class="text-xs uppercase tracking-[0.2em] text-zinc-400">Status</div>
+                                            <div class="mt-2">
+                                                <span class="inline-flex rounded-full border px-3 py-1 text-xs font-medium {{ $this->deliveryStatusClasses($selectedDelivery->status) }}">{{ $selectedDelivery->status }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <form wire:submit="saveDeliveryDetails" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        <input wire:model="deliveryEditForm.milestone_label" type="text" placeholder="Milestone label" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                        <input wire:model="deliveryEditForm.sequence" type="number" min="0" placeholder="Sequence" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="deliveryEditForm.planned_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="deliveryEditForm.actual_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <input wire:model="deliveryEditForm.site_location" type="text" placeholder="Site location" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                        <select wire:model="deliveryEditForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                                            @foreach ($deliveryStatusOptions as $deliveryStatus)
+                                                <option value="{{ $deliveryStatus }}">{{ $deliveryStatus }}</option>
+                                            @endforeach
+                                        </select>
+                                        <label class="inline-flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700">
+                                            <input wire:model="deliveryEditForm.requires_crane" type="checkbox" class="size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-900" />
+                                            Crane required
+                                        </label>
+                                        <label class="inline-flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700">
+                                            <input wire:model="deliveryEditForm.installation_required" type="checkbox" class="size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-900" />
+                                            Installation required
+                                        </label>
+                                        <div class="hidden xl:block"></div>
+                                        <textarea wire:model="deliveryEditForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                                        <div class="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                                            <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">Save Milestone</button>
+                                            <button wire:click="closeDeliveryDetails" type="button" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endif
+
+            @if ($currentWorkspaceExtraModules->contains($activeTab) && ! in_array($activeTab, ['rates', 'quotes', 'shipments', 'carriers', 'bookings', 'costings', 'invoices', 'projects', 'drawings', 'delivery_tracking'], true))
                 <div class="space-y-6 p-4">
                     <section class="rounded-[1.5rem] border border-emerald-200 bg-[linear-gradient(135deg,_#f0fdf4,_#ecfeff)] p-6">
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -4186,7 +4740,7 @@
                         <section class="rounded-[1.5rem] border border-amber-200 bg-amber-50 p-5">
                             <h3 class="text-base font-semibold text-amber-900">Workspace settings are owner-led</h3>
                             <p class="mt-2 text-sm leading-7 text-amber-800">
-                                Only the workspace owner can change workspace mode, labels, and customer segmentation rules. Your notification preferences above are personal.
+                                Only the workspace owner can change labels and customer segmentation rules. Workspace mode is chosen when the workspace is created. Your notification preferences above are personal.
                             </p>
                         </section>
                     @elseif ($currentSettingsTab === 'segmentations' && $canManageAccess)
@@ -4260,17 +4814,15 @@
                         <form wire:submit="saveWorkspaceSettings" class="grid gap-4 xl:grid-cols-2">
                             <section class="rounded-[1.5rem] border border-zinc-200 bg-white p-5 xl:col-span-2">
                                 <h3 class="text-base font-semibold text-zinc-950">Workspace mode</h3>
-                                <p class="mt-1 text-sm text-zinc-500">Choose the maritime business mode for this workspace. Changing the mode applies that template’s default labels, modules, and workflow wording.</p>
+                                <p class="mt-1 text-sm text-zinc-500">Workspace mode is locked after creation. If this company needs a different operating model, create a new workspace with the correct template.</p>
                                 <div class="mt-4 grid gap-4 xl:grid-cols-[320px_1fr]">
                                     <div class="space-y-3">
-                                        <select wire:model.live="workspaceSettingsForm.template_key" class="w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
-                                            @foreach ($workspaceTemplates as $templateKey => $template)
-                                                <option value="{{ $templateKey }}">{{ $template['name'] }}</option>
-                                            @endforeach
-                                        </select>
                                         <div class="rounded-[1.25rem] bg-zinc-50 px-4 py-4">
                                             <div class="text-sm font-semibold text-zinc-950">{{ data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.name') }}</div>
                                             <p class="mt-2 text-sm leading-7 text-zinc-600">{{ data_get($workspaceTemplates, $workspaceSettingsForm['template_key'].'.description') }}</p>
+                                        </div>
+                                        <div class="rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-7 text-amber-900">
+                                            To use another workspace mode, create a new workspace and choose the template during setup.
                                         </div>
                                     </div>
                                     <div class="rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
@@ -4458,6 +5010,173 @@
                         <textarea wire:model="manualOpportunityForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
                         <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
                             {{ $editingOpportunityId ? 'Save Opportunity Details' : 'Save Manual Opportunity' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
+            @if ($activeTab === 'manual-project')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'projects')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Project List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Project
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingProjectId ? 'Project Draft' : 'Conversion Project' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingProjectId ? 'Complete awarded project' : 'Create a conversion project' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Start from the customer, then optionally link the awarded opportunity so project delivery inherits the right commercial context.</p>
+                    </div>
+
+                    <form wire:submit="addManualProject" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <select wire:model.live="manualProjectForm.customer_record_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Select customer</option>
+                            @foreach ($projectCustomerOptions as $projectCustomerOption)
+                                <option value="{{ $projectCustomerOption->id }}">{{ $projectCustomerOption->name ?: 'Unknown company' }}{{ $projectCustomerOption->primary_email ? ' / '.$projectCustomerOption->primary_email : '' }}</option>
+                            @endforeach
+                        </select>
+                        <select wire:model.live="manualProjectForm.opportunity_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Optional linked opportunity</option>
+                            @foreach ($projectOpportunityOptions as $projectOpportunityOption)
+                                <option value="{{ $projectOpportunityOption->id }}">{{ $projectOpportunityOption->company_name ?: 'Unknown company' }} / {{ $projectOpportunityOption->external_key }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualProjectForm.lead_id" type="hidden" />
+                        <input wire:model="manualProjectForm.project_name" type="text" placeholder="Project name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.customer_name" type="text" placeholder="Customer name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.contact_name" type="text" placeholder="Contact name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.contact_email" type="email" placeholder="Contact email" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.service_type" type="text" placeholder="Service type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.container_type" type="text" placeholder="Container type" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.unit_quantity" type="number" min="0" placeholder="Unit quantity" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.site_location" type="text" placeholder="Site location" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.estimated_value" type="number" step="0.01" placeholder="Estimated value" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.target_delivery_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualProjectForm.target_installation_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <select wire:model="manualProjectForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            @foreach ($projectStatusOptions as $projectStatus)
+                                <option value="{{ $projectStatus }}">{{ $projectStatus }}</option>
+                            @endforeach
+                        </select>
+                        <textarea wire:model="manualProjectForm.scope_summary" rows="4" placeholder="Scope summary" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <textarea wire:model="manualProjectForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
+                            {{ $editingProjectId ? 'Save Project' : 'Create Project' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
+            @if ($activeTab === 'manual-drawing')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'drawings')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Drawing List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Drawing
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingDrawingId ? 'Drawing Draft' : 'Technical Drawing' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingDrawingId ? 'Update drawing revision' : 'Create a drawing revision' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Track client review rounds, revision numbers, and the latest approved drawing for each project.</p>
+                    </div>
+
+                    <form wire:submit="addManualDrawing" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <select wire:model.live="manualDrawingForm.project_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Select project</option>
+                            @foreach ($drawingProjectOptions as $drawingProjectOption)
+                                <option value="{{ $drawingProjectOption->id }}">{{ $drawingProjectOption->project_number }} / {{ $drawingProjectOption->project_name }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualDrawingForm.revision_number" type="text" placeholder="Revision number" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualDrawingForm.drawing_title" type="text" placeholder="Drawing title" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                        <select wire:model="manualDrawingForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            @foreach ($drawingStatusOptions as $drawingStatus)
+                                <option value="{{ $drawingStatus }}">{{ $drawingStatus }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualDrawingForm.external_url" type="url" placeholder="Drawing URL" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                        <input wire:model="manualDrawingForm.submitted_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualDrawingForm.approved_at" type="datetime-local" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <textarea wire:model="manualDrawingForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
+                            {{ $editingDrawingId ? 'Save Drawing' : 'Create Drawing' }}
+                        </button>
+                    </form>
+                </div>
+            @endif
+
+            @if ($activeTab === 'manual-delivery')
+                <div class="p-4">
+                    <div class="mb-4 flex flex-wrap items-center gap-2">
+                        <div class="ios-tab-strip">
+                            <button
+                                wire:click="$set('activeTab', 'delivery_tracking')"
+                                type="button"
+                                class="ios-tab-pill"
+                            >
+                                Delivery List
+                            </button>
+                            <button type="button" class="ios-tab-pill ios-tab-pill-active">
+                                New Milestone
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 rounded-[1.25rem] border border-zinc-200 bg-zinc-50 px-4 py-4">
+                        <p class="text-xs uppercase tracking-[0.2em] text-zinc-400">{{ $editingDeliveryId ? 'Delivery Draft' : 'Delivery Tracking' }}</p>
+                        <h2 class="mt-2 text-lg font-semibold text-zinc-950">{{ $editingDeliveryId ? 'Update delivery milestone' : 'Create a delivery milestone' }}</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Capture fabrication, dispatch, delivery, and installation checkpoints with site-specific requirements.</p>
+                    </div>
+
+                    <form wire:submit="addManualDelivery" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <select wire:model.live="manualDeliveryForm.project_id" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3">
+                            <option value="">Select project</option>
+                            @foreach ($deliveryProjectOptions as $deliveryProjectOption)
+                                <option value="{{ $deliveryProjectOption->id }}">{{ $deliveryProjectOption->project_number }} / {{ $deliveryProjectOption->project_name }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualDeliveryForm.milestone_label" type="text" placeholder="Milestone label" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                        <input wire:model="manualDeliveryForm.sequence" type="number" min="0" placeholder="Sequence" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualDeliveryForm.planned_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="manualDeliveryForm.actual_date" type="date" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <select wire:model="manualDeliveryForm.status" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                            @foreach ($deliveryStatusOptions as $deliveryStatus)
+                                <option value="{{ $deliveryStatus }}">{{ $deliveryStatus }}</option>
+                            @endforeach
+                        </select>
+                        <input wire:model="manualDeliveryForm.site_location" type="text" placeholder="Site location" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3" />
+                        <label class="inline-flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700">
+                            <input wire:model="manualDeliveryForm.requires_crane" type="checkbox" class="size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-900" />
+                            Crane required
+                        </label>
+                        <label class="inline-flex items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700">
+                            <input wire:model="manualDeliveryForm.installation_required" type="checkbox" class="size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-900" />
+                            Installation required
+                        </label>
+                        <div class="hidden xl:block"></div>
+                        <textarea wire:model="manualDeliveryForm.notes" rows="4" placeholder="Notes" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2 xl:col-span-3"></textarea>
+                        <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 md:col-span-2 xl:col-span-3">
+                            {{ $editingDeliveryId ? 'Save Milestone' : 'Create Milestone' }}
                         </button>
                     </form>
                 </div>
@@ -4991,6 +5710,9 @@
                 'manual-opportunity' => 'opportunities',
                 'manual-quote' => 'quotes',
                 'manual-shipment' => 'shipments',
+                'manual-project' => 'projects',
+                'manual-drawing' => 'drawings',
+                'manual-delivery' => 'delivery_tracking',
                 'manual-booking' => 'bookings',
                 'manual-costing' => 'costings',
                 'manual-invoice' => 'invoices',

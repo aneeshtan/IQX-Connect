@@ -19,6 +19,13 @@ new #[Layout('layouts.auth')] class extends Component {
 
     public bool $remember = false;
 
+    public function useDemoCredentials(): void
+    {
+        $this->email = 'demo@iqxconnect.demo';
+        $this->password = 'demo123';
+        $this->remember = false;
+    }
+
     /**
      * Handle an incoming authentication request.
      */
@@ -127,8 +134,19 @@ new #[Layout('layouts.auth')] class extends Component {
         </div>
     </form>
 
-    <div class="space-x-1 text-center text-sm text-zinc-600 dark:text-zinc-400">
-        Don't have an account?
-        <x-text-link href="{{ route('register') }}">Sign up</x-text-link>
+    <div class="text-center text-sm text-zinc-600 dark:text-zinc-400">
+        <span class="space-x-1">
+            <span>Don't have an account?</span>
+            <x-text-link href="{{ route('register') }}">Sign up</x-text-link>
+        </span>
+        <div class="mt-2">
+            <button
+                type="button"
+                wire:click="useDemoCredentials"
+                class="font-medium text-emerald-700 transition hover:text-emerald-800"
+            >
+                Use demo account
+            </button>
+        </div>
     </div>
 </div>

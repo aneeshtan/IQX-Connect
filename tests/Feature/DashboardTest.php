@@ -16,6 +16,9 @@ use App\Models\JobCosting;
 use App\Models\JobCostingLine;
 use App\Models\Lead;
 use App\Models\Opportunity;
+use App\Models\Project;
+use App\Models\ProjectDeliveryMilestone;
+use App\Models\ProjectDrawing;
 use App\Models\Quote;
 use App\Models\RateCard;
 use App\Models\SheetSource;
@@ -1035,6 +1038,233 @@ class DashboardTest extends TestCase
             ->assertSet('manualShipmentForm.buy_amount', '18000.00')
             ->assertSet('manualShipmentForm.sell_amount', '22000.00')
             ->assertSet('manualShipmentForm.notes', 'Approved by customer.');
+    }
+
+    public function test_container_conversion_workspace_can_create_a_project(): void
+    {
+        $company = Company::create([
+            'name' => 'GreenBox Containers',
+            'slug' => 'greenbox-containers',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'GreenBox',
+            'slug' => 'greenbox',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'container_conversion'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Projects', 'is_owner' => true]);
+
+        $account = Account::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'name' => 'Desert Retail Holdings',
+            'slug' => 'desert-retail-holdings',
+            'primary_email' => 'procurement@desertretail.test',
+            'latest_service' => 'Container Conversion',
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-project')
+            ->set('manualProjectForm.customer_record_id', (string) $account->id)
+            ->assertSet('manualProjectForm.customer_name', 'Desert Retail Holdings')
+            ->set('manualProjectForm.project_name', 'Site Office Conversion')
+            ->set('manualProjectForm.service_type', 'Container Conversion')
+            ->set('manualProjectForm.container_type', '40HC')
+            ->set('manualProjectForm.unit_quantity', '2')
+            ->set('manualProjectForm.scope_summary', 'Office fit-out with HVAC and power distribution.')
+            ->set('manualProjectForm.site_location', 'Abu Dhabi Industrial City')
+            ->set('manualProjectForm.target_delivery_date', now()->addDays(30)->toDateString())
+            ->set('manualProjectForm.target_installation_date', now()->addDays(37)->toDateString())
+            ->set('manualProjectForm.estimated_value', '285000')
+            ->call('addManualProject')
+            ->assertHasNoErrors()
+            ->assertSet('activeTab', 'projects')
+            ->assertSee('Project added.');
+
+        $project = Project::query()->where('workspace_id', $workspace->id)->first();
+
+        $this->assertNotNull($project);
+        $this->assertSame('Site Office Conversion', $project->project_name);
+        $this->assertSame('Desert Retail Holdings', $project->customer_name);
+        $this->assertSame('40HC', $project->container_type);
+        $this->assertSame(2, $project->unit_quantity);
+        $this->assertDatabaseCount('project_delivery_milestones', 8);
+    }
+
+    public function test_closed_won_opportunity_in_container_conversion_workspace_creates_project_draft_not_shipment(): void
+    {
+        $company = Company::create([
+            'name' => 'GreenBox Deals',
+            'slug' => 'greenbox-deals',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'GreenBox Projects',
+            'slug' => 'greenbox-projects',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'container_conversion'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Sales']);
+
+        $lead = Lead::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'assigned_user_id' => $user->id,
+            'external_key' => 'gb-lead-1',
+            'lead_id' => 'LD-GB-1',
+            'contact_name' => 'Hadi Kareem',
+            'company_name' => 'Mall Development Group',
+            'email' => 'hadi@malldev.test',
+            'lead_source' => 'Website Quote Form',
+            'service' => 'Container Conversion',
+            'status' => Lead::STATUS_SALES_QUALIFIED,
+            'submission_date' => now()->subDays(2),
+        ]);
+
+        $opportunity = Opportunity::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'lead_id' => $lead->id,
+            'assigned_user_id' => $user->id,
+            'external_key' => 'opp-gb-1',
+            'company_name' => 'Mall Development Group',
+            'contact_email' => 'projects@malldev.test',
+            'lead_source' => 'Website Quote Form',
+            'required_service' => 'Container Conversion',
+            'revenue_potential' => 420000,
+            'sales_stage' => Opportunity::STAGE_PROPOSAL_SENT,
+            'submission_date' => now()->subDay(),
+            'notes' => 'Awaiting final site approval.',
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->call('updateOpportunityStage', $opportunity->id, Opportunity::STAGE_CLOSED_WON)
+            ->assertSet('activeTab', 'manual-project')
+            ->assertSet('manualProjectForm.opportunity_id', (string) $opportunity->id)
+            ->assertSet('manualProjectForm.lead_id', (string) $lead->id)
+            ->assertSet('manualProjectForm.customer_name', 'Mall Development Group')
+            ->assertSee('Project draft is ready');
+
+        $project = Project::query()
+            ->where('workspace_id', $workspace->id)
+            ->where('opportunity_id', $opportunity->id)
+            ->first();
+
+        $this->assertNotNull($project);
+        $this->assertSame(Project::STATUS_DRAFT, $project->status);
+        $this->assertDatabaseMissing('shipment_jobs', [
+            'workspace_id' => $workspace->id,
+            'opportunity_id' => $opportunity->id,
+        ]);
+    }
+
+    public function test_container_conversion_workspace_can_create_drawings_and_delivery_milestones(): void
+    {
+        $company = Company::create([
+            'name' => 'GreenBox Delivery',
+            'slug' => 'greenbox-delivery',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'GreenBox Delivery Workspace',
+            'slug' => 'greenbox-delivery-workspace',
+            'is_default' => true,
+            'settings' => Workspace::applyTemplateSettings(null, 'container_conversion'),
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Engineering']);
+
+        $project = Project::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'assigned_user_id' => $user->id,
+            'project_number' => 'PRJ-00001',
+            'project_name' => 'Coffee Kiosk Rollout',
+            'customer_name' => 'Metro Hospitality',
+            'service_type' => 'Container Conversion',
+            'container_type' => '20DC',
+            'unit_quantity' => 1,
+            'status' => Project::STATUS_DESIGN_REVIEW,
+        ]);
+
+        $this->actingAs($user);
+
+        Livewire::test(CrmDashboard::class)
+            ->set('activeTab', 'manual-drawing')
+            ->set('manualDrawingForm.project_id', (string) $project->id)
+            ->set('manualDrawingForm.revision_number', 'REV-2')
+            ->set('manualDrawingForm.drawing_title', 'Coffee kiosk elevation')
+            ->set('manualDrawingForm.status', ProjectDrawing::STATUS_SUBMITTED)
+            ->set('manualDrawingForm.submitted_at', now()->format('Y-m-d\TH:i'))
+            ->call('addManualDrawing')
+            ->assertHasNoErrors()
+            ->assertSet('activeTab', 'drawings')
+            ->assertSee('Drawing added.')
+            ->set('activeTab', 'manual-delivery')
+            ->set('manualDeliveryForm.project_id', (string) $project->id)
+            ->set('manualDeliveryForm.milestone_label', 'Site delivery confirmed')
+            ->set('manualDeliveryForm.sequence', '90')
+            ->set('manualDeliveryForm.planned_date', now()->addDays(21)->toDateString())
+            ->set('manualDeliveryForm.status', ProjectDeliveryMilestone::STATUS_SCHEDULED)
+            ->set('manualDeliveryForm.site_location', 'Dubai Design District')
+            ->set('manualDeliveryForm.requires_crane', true)
+            ->set('manualDeliveryForm.installation_required', true)
+            ->call('addManualDelivery')
+            ->assertHasNoErrors()
+            ->assertSet('activeTab', 'delivery_tracking')
+            ->assertSee('Delivery milestone added.');
+
+        $this->assertDatabaseHas('project_drawings', [
+            'workspace_id' => $workspace->id,
+            'project_id' => $project->id,
+            'revision_number' => 'REV-2',
+            'drawing_title' => 'Coffee kiosk elevation',
+            'status' => ProjectDrawing::STATUS_SUBMITTED,
+        ]);
+
+        $this->assertDatabaseHas('project_delivery_milestones', [
+            'workspace_id' => $workspace->id,
+            'project_id' => $project->id,
+            'milestone_label' => 'Site delivery confirmed',
+            'status' => ProjectDeliveryMilestone::STATUS_SCHEDULED,
+            'site_location' => 'Dubai Design District',
+            'requires_crane' => true,
+            'installation_required' => true,
+        ]);
     }
 
     public function test_shipment_popup_supports_milestones_documents_and_timeline(): void
@@ -2061,16 +2291,18 @@ class DashboardTest extends TestCase
 
         Livewire::test(CrmDashboard::class)
             ->set('activeTab', 'settings')
+            ->set('settingsTab', 'general')
             ->set('workspaceSettingsForm.template_key', 'ship_chandling')
             ->call('saveWorkspaceSettings')
             ->assertHasNoErrors()
-            ->assertSee('Ship Chandling');
+            ->assertSee('General Maritime')
+            ->assertSee('Workspace mode is locked after creation');
 
         $workspace = $workspace->fresh();
 
-        $this->assertSame('ship_chandling', $workspace->templateKey());
-        $this->assertContains('vessel_calls', $workspace->templateModules());
-        $this->assertSame('Vessel Enquiry', $workspace->opportunityStageLabels()[Opportunity::STAGE_INITIAL_CONTACT]);
+        $this->assertSame('general_maritime', $workspace->templateKey());
+        $this->assertNotContains('vessel_calls', $workspace->templateModules());
+        $this->assertSame('Initial Contact', $workspace->opportunityStageLabels()[Opportunity::STAGE_INITIAL_CONTACT]);
     }
 
     public function test_freight_forwarding_mode_shows_activated_module_tabs(): void

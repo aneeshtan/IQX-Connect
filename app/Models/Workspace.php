@@ -91,6 +91,21 @@ class Workspace extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    public function projectDrawings(): HasMany
+    {
+        return $this->hasMany(ProjectDrawing::class);
+    }
+
+    public function projectDeliveryMilestones(): HasMany
+    {
+        return $this->hasMany(ProjectDeliveryMilestone::class);
+    }
+
     public function monthlyReports(): HasMany
     {
         return $this->hasMany(MonthlyReport::class);
@@ -231,7 +246,8 @@ class Workspace extends Model
 
     public function templateKey(): string
     {
-        $key = data_get($this->settings ?? [], static::TEMPLATE_KEY);
+        $settings = $this->settings;
+        $key = is_array($settings) ? ($settings[static::TEMPLATE_KEY] ?? null) : null;
 
         return array_key_exists($key, static::workspaceTemplates())
             ? $key

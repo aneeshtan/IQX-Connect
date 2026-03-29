@@ -17,6 +17,9 @@ use App\Models\JobCostingLine;
 use App\Models\Lead;
 use App\Models\LeadStatusLog;
 use App\Models\Opportunity;
+use App\Models\Project;
+use App\Models\ProjectDeliveryMilestone;
+use App\Models\ProjectDrawing;
 use App\Models\Quote;
 use App\Models\RateCard;
 use App\Models\SheetSource;
@@ -66,6 +69,12 @@ class CrmDashboard extends Component
 
     public ?int $selectedOpportunityId = null;
 
+    public ?int $selectedProjectId = null;
+
+    public ?int $selectedDrawingId = null;
+
+    public ?int $selectedDeliveryId = null;
+
     public ?int $selectedQuoteId = null;
 
     public ?int $selectedRateId = null;
@@ -83,6 +92,12 @@ class CrmDashboard extends Component
     public array $selectedCollaborationCollections = [];
 
     public ?int $editingOpportunityId = null;
+
+    public ?int $editingProjectId = null;
+
+    public ?int $editingDrawingId = null;
+
+    public ?int $editingDeliveryId = null;
 
     public ?int $editingQuoteId = null;
 
@@ -124,6 +139,12 @@ class CrmDashboard extends Component
 
     public string $shipmentSearch = '';
 
+    public string $projectSearch = '';
+
+    public string $drawingSearch = '';
+
+    public string $deliverySearch = '';
+
     public string $rateSearch = '';
 
     public string $carrierSearch = '';
@@ -146,6 +167,12 @@ class CrmDashboard extends Component
 
     public string $shipmentSort = 'newest';
 
+    public string $projectSort = 'newest';
+
+    public string $drawingSort = 'newest';
+
+    public string $deliverySort = 'newest';
+
     public string $rateSort = 'newest';
 
     public string $carrierSort = 'name_asc';
@@ -159,6 +186,12 @@ class CrmDashboard extends Component
     public string $quoteStatusFilter = '';
 
     public string $shipmentStatusFilter = '';
+
+    public string $projectStatusFilter = '';
+
+    public string $drawingStatusFilter = '';
+
+    public string $deliveryStatusFilter = '';
 
     public string $rateModeFilter = '';
 
@@ -189,6 +222,12 @@ class CrmDashboard extends Component
     public int $quotePerPage = 15;
 
     public int $shipmentPerPage = 15;
+
+    public int $projectPerPage = 15;
+
+    public int $drawingPerPage = 15;
+
+    public int $deliveryPerPage = 15;
 
     public int $ratePerPage = 15;
 
@@ -224,6 +263,12 @@ class CrmDashboard extends Component
 
     public array $manualOpportunityForm = [];
 
+    public array $manualProjectForm = [];
+
+    public array $manualDrawingForm = [];
+
+    public array $manualDeliveryForm = [];
+
     public array $manualQuoteForm = [];
 
     public array $manualRateForm = [];
@@ -243,6 +288,12 @@ class CrmDashboard extends Component
     public array $shipmentDocumentForm = [];
 
     public array $opportunityEditForm = [];
+
+    public array $projectEditForm = [];
+
+    public array $drawingEditForm = [];
+
+    public array $deliveryEditForm = [];
 
     public array $quoteEditForm = [];
 
@@ -286,6 +337,9 @@ class CrmDashboard extends Component
         $this->resetPage('ratesPage');
         $this->resetPage('quotesPage');
         $this->resetPage('shipmentsPage');
+        $this->resetPage('projectsPage');
+        $this->resetPage('drawingsPage');
+        $this->resetPage('deliveryPage');
         $this->resetPage('carriersPage');
         $this->resetPage('bookingsPage');
         $this->resetPage('costingsPage');
@@ -299,6 +353,9 @@ class CrmDashboard extends Component
         $this->selectedOpportunityId = null;
         $this->selectedQuoteId = null;
         $this->selectedShipmentId = null;
+        $this->selectedProjectId = null;
+        $this->selectedDrawingId = null;
+        $this->selectedDeliveryId = null;
         $this->selectedCarrierId = null;
         $this->selectedBookingId = null;
         $this->selectedCostingId = null;
@@ -308,6 +365,9 @@ class CrmDashboard extends Component
         $this->editingOpportunityId = null;
         $this->editingQuoteId = null;
         $this->editingShipmentId = null;
+        $this->editingProjectId = null;
+        $this->editingDrawingId = null;
+        $this->editingDeliveryId = null;
         $this->editingCarrierId = null;
         $this->editingBookingId = null;
         $this->editingCostingId = null;
@@ -316,6 +376,9 @@ class CrmDashboard extends Component
         $this->resetManualRateForm();
         $this->resetManualQuoteForm();
         $this->resetManualShipmentForm();
+        $this->resetManualProjectForm();
+        $this->resetManualDrawingForm();
+        $this->resetManualDeliveryForm();
         $this->resetManualCarrierForm();
         $this->resetManualBookingForm();
         $this->resetManualCostingForm();
@@ -326,6 +389,9 @@ class CrmDashboard extends Component
         $this->quoteEditForm = [];
         $this->rateEditForm = [];
         $this->shipmentEditForm = [];
+        $this->projectEditForm = [];
+        $this->drawingEditForm = [];
+        $this->deliveryEditForm = [];
         $this->carrierEditForm = [];
         $this->bookingEditForm = [];
         $this->costingEditForm = [];
@@ -793,6 +859,78 @@ class CrmDashboard extends Component
         $this->selectedShipmentId = null;
     }
 
+    public function updatedProjectSearch(): void
+    {
+        $this->resetPage('projectsPage');
+        $this->selectedProjectId = null;
+    }
+
+    public function updatedProjectStatusFilter(): void
+    {
+        $this->resetPage('projectsPage');
+        $this->selectedProjectId = null;
+    }
+
+    public function updatedProjectSort(): void
+    {
+        $this->resetPage('projectsPage');
+        $this->selectedProjectId = null;
+    }
+
+    public function updatedProjectPerPage(): void
+    {
+        $this->resetPage('projectsPage');
+        $this->selectedProjectId = null;
+    }
+
+    public function updatedDrawingSearch(): void
+    {
+        $this->resetPage('drawingsPage');
+        $this->selectedDrawingId = null;
+    }
+
+    public function updatedDrawingStatusFilter(): void
+    {
+        $this->resetPage('drawingsPage');
+        $this->selectedDrawingId = null;
+    }
+
+    public function updatedDrawingSort(): void
+    {
+        $this->resetPage('drawingsPage');
+        $this->selectedDrawingId = null;
+    }
+
+    public function updatedDrawingPerPage(): void
+    {
+        $this->resetPage('drawingsPage');
+        $this->selectedDrawingId = null;
+    }
+
+    public function updatedDeliverySearch(): void
+    {
+        $this->resetPage('deliveryPage');
+        $this->selectedDeliveryId = null;
+    }
+
+    public function updatedDeliveryStatusFilter(): void
+    {
+        $this->resetPage('deliveryPage');
+        $this->selectedDeliveryId = null;
+    }
+
+    public function updatedDeliverySort(): void
+    {
+        $this->resetPage('deliveryPage');
+        $this->selectedDeliveryId = null;
+    }
+
+    public function updatedDeliveryPerPage(): void
+    {
+        $this->resetPage('deliveryPage');
+        $this->selectedDeliveryId = null;
+    }
+
     public function updatedCarrierModeFilter(): void
     {
         $this->resetPage('carriersPage');
@@ -958,6 +1096,75 @@ class CrmDashboard extends Component
         $this->hydrateManualShipmentFromQuote($quote);
     }
 
+    public function updatedManualProjectFormCustomerRecordId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualProjectForm = [
+                ...$this->manualProjectForm,
+                'customer_record_id' => '',
+                'opportunity_id' => '',
+                'lead_id' => '',
+            ];
+
+            return;
+        }
+
+        $customer = Account::query()
+            ->with('contacts')
+            ->where('workspace_id', $workspace->id)
+            ->find((int) $value);
+
+        if (! $customer) {
+            abort(404);
+        }
+
+        $this->hydrateManualProjectFromAccount($customer);
+    }
+
+    public function updatedManualProjectFormOpportunityId($value): void
+    {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace || blank($value)) {
+            $this->manualProjectForm = [
+                ...$this->manualProjectForm,
+                'opportunity_id' => '',
+                'lead_id' => '',
+            ];
+
+            return;
+        }
+
+        $opportunity = Opportunity::query()
+            ->with(['lead', 'account.contacts'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $value);
+
+        $this->hydrateManualProjectFromOpportunity($opportunity);
+    }
+
+    public function updatedManualDrawingFormProjectId($value): void
+    {
+        if (blank($value)) {
+            $this->manualDrawingForm = [
+                ...$this->manualDrawingForm,
+                'project_id' => '',
+            ];
+        }
+    }
+
+    public function updatedManualDeliveryFormProjectId($value): void
+    {
+        if (blank($value)) {
+            $this->manualDeliveryForm = [
+                ...$this->manualDeliveryForm,
+                'project_id' => '',
+            ];
+        }
+    }
+
     public function updatedSourceFormSourceKind(string $value): void
     {
         $this->sourceForm = [
@@ -1068,6 +1275,21 @@ class CrmDashboard extends Component
             $this->shipmentEditForm = [];
             $this->resetShipmentMilestoneForm();
             $this->resetShipmentDocumentForm();
+        }
+
+        if (! in_array($value, ['projects', 'manual-project'], true)) {
+            $this->selectedProjectId = null;
+            $this->projectEditForm = [];
+        }
+
+        if (! in_array($value, ['drawings', 'manual-drawing'], true)) {
+            $this->selectedDrawingId = null;
+            $this->drawingEditForm = [];
+        }
+
+        if (! in_array($value, ['delivery_tracking', 'manual-delivery'], true)) {
+            $this->selectedDeliveryId = null;
+            $this->deliveryEditForm = [];
         }
 
         if (! in_array($value, ['carriers', 'manual-carrier'], true)) {
@@ -1223,20 +1445,13 @@ class CrmDashboard extends Component
 
     public function updatedWorkspaceSettingsFormTemplateKey(string $value): void
     {
-        if (! array_key_exists($value, Workspace::workspaceTemplates())) {
+        $workspace = $this->currentWorkspace();
+
+        if (! $workspace) {
             return;
         }
 
-        $this->workspaceSettingsForm = [
-            ...$this->workspaceSettingsForm,
-            'template_key' => $value,
-            'lead_status_labels' => Workspace::defaultLeadStatusLabels($value),
-            'opportunity_stage_labels' => Workspace::defaultOpportunityStageLabels($value),
-            'disqualification_reasons' => Workspace::defaultDisqualificationReasons($value),
-            'lead_sources' => Workspace::defaultLeadSources($value),
-            'lead_services' => Workspace::defaultLeadServices($value),
-            'segment_definitions' => $this->defaultSegmentDefinitionsForTemplate($value),
-        ];
+        $this->workspaceSettingsForm['template_key'] = $workspace->templateKey();
     }
 
     public function saveCompany(): void
@@ -1517,8 +1732,9 @@ class CrmDashboard extends Component
 
         abort_unless($this->canManageWorkspaceAccess($workspace), 403);
 
+        $currentTemplateKey = $workspace->templateKey();
+
         $validated = validator($this->workspaceSettingsForm, [
-            'template_key' => ['required', Rule::in(array_keys(Workspace::workspaceTemplates()))],
             'lead_status_labels' => ['required', 'array'],
             'lead_status_labels.*' => ['required', 'string', 'max:255'],
             'opportunity_stage_labels' => ['required', 'array'],
@@ -1541,30 +1757,25 @@ class CrmDashboard extends Component
             'segment_definitions.*.rules.*.threshold_value' => ['required', 'numeric'],
         ])->validate();
 
-        $currentTemplateKey = $workspace->templateKey();
-        $templateChanged = $validated['template_key'] !== $currentTemplateKey;
-
         $settings = Workspace::applyTemplateSettings(
             $workspace->settings ?? [],
-            $validated['template_key'],
-            $templateChanged,
+            $currentTemplateKey,
+            false,
         );
 
-        if (! $templateChanged) {
-            data_set($settings, Workspace::CRM_VOCABULARY_KEY, [
-                'lead_status_labels' => $this->sanitizeLabelMap(
-                    $validated['lead_status_labels'],
-                    array_keys(Workspace::defaultLeadStatusLabels($validated['template_key'])),
-                ),
-                'opportunity_stage_labels' => $this->sanitizeLabelMap(
-                    $validated['opportunity_stage_labels'],
-                    array_keys(Workspace::defaultOpportunityStageLabels($validated['template_key'])),
-                ),
-                'disqualification_reasons' => $this->sanitizeList($validated['disqualification_reasons']),
-                'lead_sources' => $this->sanitizeList($validated['lead_sources']),
-                'lead_services' => $this->sanitizeList($validated['lead_services']),
-            ]);
-        }
+        data_set($settings, Workspace::CRM_VOCABULARY_KEY, [
+            'lead_status_labels' => $this->sanitizeLabelMap(
+                $validated['lead_status_labels'],
+                array_keys(Workspace::defaultLeadStatusLabels($currentTemplateKey)),
+            ),
+            'opportunity_stage_labels' => $this->sanitizeLabelMap(
+                $validated['opportunity_stage_labels'],
+                array_keys(Workspace::defaultOpportunityStageLabels($currentTemplateKey)),
+            ),
+            'disqualification_reasons' => $this->sanitizeList($validated['disqualification_reasons']),
+            'lead_sources' => $this->sanitizeList($validated['lead_sources']),
+            'lead_services' => $this->sanitizeList($validated['lead_services']),
+        ]);
 
         $segmentDefinitions = $this->normalizeSegmentDefinitions($validated['segment_definitions']);
 
@@ -2187,6 +2398,209 @@ class CrmDashboard extends Component
         $this->flash($message);
     }
 
+    public function addManualProject(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualProjectForm, [
+            'customer_record_id' => ['nullable', 'exists:accounts,id'],
+            'opportunity_id' => ['nullable', 'exists:opportunities,id'],
+            'lead_id' => ['nullable', 'exists:leads,id'],
+            'project_name' => ['required', 'string', 'max:255'],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'service_type' => ['nullable', 'string', 'max:255'],
+            'container_type' => ['nullable', 'string', 'max:255'],
+            'unit_quantity' => ['nullable', 'integer', 'min:0'],
+            'scope_summary' => ['nullable', 'string'],
+            'site_location' => ['nullable', 'string', 'max:255'],
+            'target_delivery_date' => ['nullable', 'date'],
+            'target_installation_date' => ['nullable', 'date'],
+            'estimated_value' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', Rule::in(Project::STATUSES)],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $payload = [
+            'account_id' => $validated['customer_record_id'] ?: null,
+            'opportunity_id' => $validated['opportunity_id'] ?: null,
+            'lead_id' => $validated['lead_id'] ?: null,
+            'assigned_user_id' => auth()->id(),
+            'project_name' => $validated['project_name'],
+            'customer_name' => $validated['customer_name'],
+            'contact_name' => $validated['contact_name'] ?: null,
+            'contact_email' => $validated['contact_email'] ?: null,
+            'service_type' => $validated['service_type'] ?: null,
+            'container_type' => $validated['container_type'] ?: null,
+            'unit_quantity' => $validated['unit_quantity'] ?: null,
+            'scope_summary' => $validated['scope_summary'] ?: null,
+            'site_location' => $validated['site_location'] ?: null,
+            'target_delivery_date' => $validated['target_delivery_date'] ?: null,
+            'target_installation_date' => $validated['target_installation_date'] ?: null,
+            'estimated_value' => $validated['estimated_value'] ?: null,
+            'status' => $validated['status'],
+            'notes' => $validated['notes'] ?: null,
+        ];
+
+        $account = ! empty($payload['account_id'])
+            ? Account::query()->where('workspace_id', $workspace->id)->find($payload['account_id'])
+            : null;
+        $contact = $account?->contacts()->orderByDesc('last_activity_at')->orderBy('full_name')->first();
+        $payload['contact_id'] = $contact?->id;
+
+        if ($this->editingProjectId) {
+            $project = Project::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingProjectId);
+
+            $project->update($payload);
+            $this->ensureProjectExecutionDefaults($project->fresh());
+            $message = 'Project updated.';
+        } else {
+            $project = Project::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                'project_number' => $this->nextProjectNumber($workspace),
+                ...$payload,
+            ]);
+            $this->ensureProjectExecutionDefaults($project);
+            $message = 'Project added.';
+        }
+
+        $this->editingProjectId = null;
+        $this->resetManualProjectForm();
+        $this->activeTab = 'projects';
+
+        $this->flash($message);
+    }
+
+    public function addManualDrawing(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualDrawingForm, [
+            'project_id' => ['required', 'exists:projects,id'],
+            'revision_number' => ['required', 'string', 'max:100'],
+            'drawing_title' => ['required', 'string', 'max:255'],
+            'status' => ['required', Rule::in(ProjectDrawing::STATUSES)],
+            'external_url' => ['nullable', 'url', 'max:255'],
+            'submitted_at' => ['nullable', 'date'],
+            'approved_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $project = Project::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $validated['project_id']);
+
+        if ($this->editingDrawingId) {
+            $drawing = ProjectDrawing::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingDrawingId);
+
+            $drawing->update([
+                'project_id' => $project->id,
+                'revision_number' => $validated['revision_number'],
+                'drawing_title' => $validated['drawing_title'],
+                'status' => $validated['status'],
+                'external_url' => ($validated['external_url'] ?? null) ?: null,
+                'submitted_at' => ($validated['submitted_at'] ?? null) ?: null,
+                'approved_at' => ($validated['approved_at'] ?? null) ?: null,
+                'notes' => ($validated['notes'] ?? null) ?: null,
+                'assigned_user_id' => auth()->id(),
+            ]);
+            $message = 'Drawing updated.';
+        } else {
+            ProjectDrawing::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                'project_id' => $project->id,
+                'assigned_user_id' => auth()->id(),
+                'revision_number' => $validated['revision_number'],
+                'drawing_title' => $validated['drawing_title'],
+                'status' => $validated['status'],
+                'external_url' => ($validated['external_url'] ?? null) ?: null,
+                'submitted_at' => ($validated['submitted_at'] ?? null) ?: null,
+                'approved_at' => ($validated['approved_at'] ?? null) ?: null,
+                'notes' => ($validated['notes'] ?? null) ?: null,
+            ]);
+            $message = 'Drawing added.';
+        }
+
+        $this->editingDrawingId = null;
+        $this->resetManualDrawingForm();
+        $this->activeTab = 'drawings';
+
+        $this->flash($message);
+    }
+
+    public function addManualDelivery(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $validated = validator($this->manualDeliveryForm, [
+            'project_id' => ['required', 'exists:projects,id'],
+            'milestone_label' => ['required', 'string', 'max:255'],
+            'sequence' => ['nullable', 'integer', 'min:0'],
+            'planned_date' => ['nullable', 'date'],
+            'actual_date' => ['nullable', 'date'],
+            'status' => ['required', Rule::in(ProjectDeliveryMilestone::STATUSES)],
+            'site_location' => ['nullable', 'string', 'max:255'],
+            'requires_crane' => ['boolean'],
+            'installation_required' => ['boolean'],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $project = Project::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail((int) $validated['project_id']);
+
+        if ($this->editingDeliveryId) {
+            $delivery = ProjectDeliveryMilestone::query()
+                ->where('workspace_id', $workspace->id)
+                ->findOrFail($this->editingDeliveryId);
+
+            $delivery->update([
+                'project_id' => $project->id,
+                'milestone_label' => $validated['milestone_label'],
+                'sequence' => $validated['sequence'] ?? 0,
+                'planned_date' => ($validated['planned_date'] ?? null) ?: null,
+                'actual_date' => ($validated['actual_date'] ?? null) ?: null,
+                'status' => $validated['status'],
+                'site_location' => ($validated['site_location'] ?? null) ?: null,
+                'requires_crane' => (bool) ($validated['requires_crane'] ?? false),
+                'installation_required' => (bool) ($validated['installation_required'] ?? false),
+                'notes' => ($validated['notes'] ?? null) ?: null,
+                'assigned_user_id' => auth()->id(),
+            ]);
+            $message = 'Delivery milestone updated.';
+        } else {
+            ProjectDeliveryMilestone::create([
+                'company_id' => $workspace->company_id,
+                'workspace_id' => $workspace->id,
+                'project_id' => $project->id,
+                'assigned_user_id' => auth()->id(),
+                'milestone_label' => $validated['milestone_label'],
+                'sequence' => $validated['sequence'] ?? 0,
+                'planned_date' => ($validated['planned_date'] ?? null) ?: null,
+                'actual_date' => ($validated['actual_date'] ?? null) ?: null,
+                'status' => $validated['status'],
+                'site_location' => ($validated['site_location'] ?? null) ?: null,
+                'requires_crane' => (bool) ($validated['requires_crane'] ?? false),
+                'installation_required' => (bool) ($validated['installation_required'] ?? false),
+                'notes' => ($validated['notes'] ?? null) ?: null,
+            ]);
+            $message = 'Delivery milestone added.';
+        }
+
+        $this->editingDeliveryId = null;
+        $this->resetManualDeliveryForm();
+        $this->activeTab = 'delivery_tracking';
+
+        $this->flash($message);
+    }
+
     public function addManualCarrier(): void
     {
         $workspace = $this->currentWorkspaceOrFail();
@@ -2595,6 +3009,52 @@ class CrmDashboard extends Component
         $this->activeTab = 'shipments';
     }
 
+    public function selectProject(int $projectId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $project = Project::query()
+            ->with(['drawings', 'deliveryMilestones', 'assignedUser', 'account', 'contact', 'opportunity', 'lead'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($projectId);
+
+        $this->ensureProjectExecutionDefaults($project);
+        $project = $project->fresh(['drawings', 'deliveryMilestones', 'assignedUser', 'account', 'contact', 'opportunity', 'lead']);
+
+        $this->selectedProjectId = $project->id;
+        $this->fillProjectEditForm($project);
+        $this->resetCollaborationForm('project');
+        $this->activeTab = 'projects';
+    }
+
+    public function selectDrawing(int $drawingId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $drawing = ProjectDrawing::query()
+            ->with(['project', 'assignedUser'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($drawingId);
+
+        $this->selectedDrawingId = $drawing->id;
+        $this->fillDrawingEditForm($drawing);
+        $this->activeTab = 'drawings';
+    }
+
+    public function selectDelivery(int $deliveryId): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        $delivery = ProjectDeliveryMilestone::query()
+            ->with(['project', 'assignedUser'])
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($deliveryId);
+
+        $this->selectedDeliveryId = $delivery->id;
+        $this->fillDeliveryEditForm($delivery);
+        $this->activeTab = 'delivery_tracking';
+    }
+
     public function selectCarrier(int $carrierId): void
     {
         $workspace = $this->currentWorkspaceOrFail();
@@ -2681,6 +3141,25 @@ class CrmDashboard extends Component
         $this->resetCollaborationForm('shipment');
     }
 
+    public function closeProjectDetails(): void
+    {
+        $this->selectedProjectId = null;
+        $this->projectEditForm = [];
+        $this->resetCollaborationForm('project');
+    }
+
+    public function closeDrawingDetails(): void
+    {
+        $this->selectedDrawingId = null;
+        $this->drawingEditForm = [];
+    }
+
+    public function closeDeliveryDetails(): void
+    {
+        $this->selectedDeliveryId = null;
+        $this->deliveryEditForm = [];
+    }
+
     public function toggleNotifications(): void
     {
         $this->showNotifications = ! $this->showNotifications;
@@ -2738,6 +3217,7 @@ class CrmDashboard extends Component
             Opportunity::class => $this->selectOpportunity($notification->notable_id),
             Quote::class => $this->selectQuote($notification->notable_id),
             ShipmentJob::class => $this->selectShipment($notification->notable_id),
+            Project::class => $this->selectProject($notification->notable_id),
             Booking::class => $this->selectBooking($notification->notable_id),
             JobCosting::class => $this->selectCosting($notification->notable_id),
             Invoice::class => $this->selectInvoice($notification->notable_id),
@@ -2802,7 +3282,7 @@ class CrmDashboard extends Component
         $workspace = $this->currentWorkspaceOrFail();
         $record = $this->collaborationRecordFor($recordType, $recordId, $workspace);
 
-        if (! in_array($recordType, ['lead', 'opportunity', 'quote', 'shipment', 'booking', 'costing', 'invoice', 'contact', 'customer'], true)) {
+        if (! in_array($recordType, ['lead', 'opportunity', 'quote', 'shipment', 'project', 'booking', 'costing', 'invoice', 'contact', 'customer'], true)) {
             return;
         }
 
@@ -3149,6 +3629,100 @@ class CrmDashboard extends Component
         $this->fillShipmentEditForm($shipment->fresh(['lead', 'opportunity', 'quote', 'assignedUser']));
 
         $this->flash("Shipment {$shipment->job_number} updated.");
+    }
+
+    public function saveProjectDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedProjectId, 404);
+
+        $validated = validator($this->projectEditForm, [
+            'project_name' => ['required', 'string', 'max:255'],
+            'customer_name' => ['required', 'string', 'max:255'],
+            'contact_name' => ['nullable', 'string', 'max:255'],
+            'contact_email' => ['nullable', 'email'],
+            'service_type' => ['nullable', 'string', 'max:255'],
+            'container_type' => ['nullable', 'string', 'max:255'],
+            'unit_quantity' => ['nullable', 'integer', 'min:0'],
+            'scope_summary' => ['nullable', 'string'],
+            'site_location' => ['nullable', 'string', 'max:255'],
+            'target_delivery_date' => ['nullable', 'date'],
+            'target_installation_date' => ['nullable', 'date'],
+            'actual_delivery_date' => ['nullable', 'date'],
+            'actual_installation_date' => ['nullable', 'date'],
+            'estimated_value' => ['nullable', 'numeric', 'min:0'],
+            'status' => ['required', Rule::in(Project::STATUSES)],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $project = Project::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedProjectId);
+
+        $project->update($validated);
+        $this->ensureProjectExecutionDefaults($project->fresh());
+        $this->fillProjectEditForm($project->fresh(['assignedUser', 'account', 'contact', 'opportunity', 'lead', 'drawings', 'deliveryMilestones']));
+
+        $this->flash("Project {$project->project_number} updated.");
+    }
+
+    public function saveDrawingDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedDrawingId, 404);
+
+        $validated = validator($this->drawingEditForm, [
+            'revision_number' => ['required', 'string', 'max:100'],
+            'drawing_title' => ['required', 'string', 'max:255'],
+            'status' => ['required', Rule::in(ProjectDrawing::STATUSES)],
+            'external_url' => ['nullable', 'url', 'max:255'],
+            'submitted_at' => ['nullable', 'date'],
+            'approved_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $drawing = ProjectDrawing::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedDrawingId);
+
+        $drawing->update($validated);
+        $this->fillDrawingEditForm($drawing->fresh(['project', 'assignedUser']));
+
+        $this->flash("Drawing {$drawing->revision_number} updated.");
+    }
+
+    public function saveDeliveryDetails(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_if(! $this->selectedDeliveryId, 404);
+
+        $validated = validator($this->deliveryEditForm, [
+            'milestone_label' => ['required', 'string', 'max:255'],
+            'sequence' => ['nullable', 'integer', 'min:0'],
+            'planned_date' => ['nullable', 'date'],
+            'actual_date' => ['nullable', 'date'],
+            'status' => ['required', Rule::in(ProjectDeliveryMilestone::STATUSES)],
+            'site_location' => ['nullable', 'string', 'max:255'],
+            'requires_crane' => ['boolean'],
+            'installation_required' => ['boolean'],
+            'notes' => ['nullable', 'string'],
+        ])->validate();
+
+        $delivery = ProjectDeliveryMilestone::query()
+            ->where('workspace_id', $workspace->id)
+            ->findOrFail($this->selectedDeliveryId);
+
+        $delivery->update([
+            ...$validated,
+            'requires_crane' => (bool) ($validated['requires_crane'] ?? false),
+            'installation_required' => (bool) ($validated['installation_required'] ?? false),
+        ]);
+        $this->fillDeliveryEditForm($delivery->fresh(['project', 'assignedUser']));
+
+        $this->flash("Delivery milestone {$delivery->milestone_label} updated.");
     }
 
     public function saveCarrierDetails(): void
@@ -3507,13 +4081,23 @@ class CrmDashboard extends Component
         $message = "Opportunity {$opportunity->external_key} moved to {$stage}.";
 
         if ($stage === Opportunity::STAGE_CLOSED_WON) {
-            $shipment = $this->draftShipmentFromWonOpportunity($opportunity->fresh(['lead', 'quotes']));
+            if ($workspace->templateKey() === 'container_conversion') {
+                $project = $this->draftProjectFromAwardedOpportunity($opportunity->fresh(['lead', 'account.contacts']));
 
-            $this->editingShipmentId = $shipment->id;
-            $this->fillManualShipmentFormFromShipment($shipment);
-            $this->activeTab = 'manual-shipment';
+                $this->editingProjectId = $project->id;
+                $this->fillManualProjectFormFromProject($project);
+                $this->activeTab = 'manual-project';
 
-            $message .= ' Shipment job draft is ready to complete.';
+                $message .= ' Project draft is ready to complete.';
+            } else {
+                $shipment = $this->draftShipmentFromWonOpportunity($opportunity->fresh(['lead', 'quotes']));
+
+                $this->editingShipmentId = $shipment->id;
+                $this->fillManualShipmentFormFromShipment($shipment);
+                $this->activeTab = 'manual-shipment';
+
+                $message .= ' Shipment job draft is ready to complete.';
+            }
         }
 
         try {
@@ -4096,6 +4680,76 @@ class CrmDashboard extends Component
         ];
     }
 
+    protected function fillManualProjectFormFromProject(Project $project): void
+    {
+        $this->manualProjectForm = [
+            'customer_record_id' => $project->account_id ?: '',
+            'opportunity_id' => $project->opportunity_id ?: '',
+            'lead_id' => $project->lead_id ?: '',
+            'project_name' => $project->project_name ?: '',
+            'customer_name' => $project->customer_name ?: '',
+            'contact_name' => $project->contact_name ?: '',
+            'contact_email' => $project->contact_email ?: '',
+            'service_type' => $project->service_type ?: 'Container Conversion',
+            'container_type' => $project->container_type ?: '',
+            'unit_quantity' => $project->unit_quantity !== null ? (string) $project->unit_quantity : '',
+            'scope_summary' => $project->scope_summary ?: '',
+            'site_location' => $project->site_location ?: '',
+            'target_delivery_date' => $project->target_delivery_date?->format('Y-m-d') ?: '',
+            'target_installation_date' => $project->target_installation_date?->format('Y-m-d') ?: '',
+            'estimated_value' => $project->estimated_value !== null ? (string) $project->estimated_value : '',
+            'status' => $project->status ?: Project::STATUS_DRAFT,
+            'notes' => $project->notes ?: '',
+        ];
+    }
+
+    protected function hydrateManualProjectFromAccount(Account $account): void
+    {
+        $primaryContact = $account->contacts->sortByDesc('last_activity_at')->first();
+
+        $this->manualProjectForm = [
+            ...$this->manualProjectForm,
+            'customer_record_id' => (string) $account->id,
+            'opportunity_id' => '',
+            'lead_id' => '',
+            'project_name' => ($account->name ?: 'Project').' Conversion',
+            'customer_name' => $account->name ?: '',
+            'contact_name' => $primaryContact?->full_name ?: '',
+            'contact_email' => $primaryContact?->email ?: ($account->primary_email ?: ''),
+            'service_type' => $account->latest_service ?: 'Container Conversion',
+            'container_type' => '',
+            'unit_quantity' => '',
+            'scope_summary' => '',
+            'site_location' => '',
+            'estimated_value' => '',
+            'status' => $this->manualProjectForm['status'] ?? Project::STATUS_DRAFT,
+            'notes' => $account->notes ?: '',
+        ];
+    }
+
+    protected function hydrateManualProjectFromOpportunity(Opportunity $opportunity): void
+    {
+        $lead = $opportunity->lead;
+        $account = $opportunity->account;
+        $primaryContact = $account?->contacts->sortByDesc('last_activity_at')->first();
+
+        $this->manualProjectForm = [
+            ...$this->manualProjectForm,
+            'customer_record_id' => $opportunity->account_id ? (string) $opportunity->account_id : ($this->manualProjectForm['customer_record_id'] ?? ''),
+            'opportunity_id' => (string) $opportunity->id,
+            'lead_id' => $opportunity->lead_id ? (string) $opportunity->lead_id : '',
+            'project_name' => $opportunity->company_name ? $opportunity->company_name.' Conversion Project' : ($this->manualProjectForm['project_name'] ?? 'Conversion Project'),
+            'customer_name' => $opportunity->company_name ?: ($account?->name ?: ''),
+            'contact_name' => $lead?->contact_name ?: ($primaryContact?->full_name ?: ($this->manualProjectForm['contact_name'] ?? '')),
+            'contact_email' => $opportunity->contact_email ?: ($lead?->email ?: ($primaryContact?->email ?: ($this->manualProjectForm['contact_email'] ?? ''))),
+            'service_type' => $opportunity->required_service ?: ($lead?->service ?: ($this->manualProjectForm['service_type'] ?? 'Container Conversion')),
+            'estimated_value' => $opportunity->revenue_potential !== null ? (string) $opportunity->revenue_potential : '',
+            'scope_summary' => $opportunity->notes ?: ($this->manualProjectForm['scope_summary'] ?? ''),
+            'status' => $this->manualProjectForm['status'] ?? Project::STATUS_DRAFT,
+            'notes' => $opportunity->notes ?: ($this->manualProjectForm['notes'] ?? ''),
+        ];
+    }
+
     protected function hydrateManualShipmentFromOpportunity(Opportunity $opportunity): void
     {
         $preferredQuote = $opportunity->quotes
@@ -4201,6 +4855,99 @@ class CrmDashboard extends Component
             'status' => $shipment->status ?: ShipmentJob::STATUS_DRAFT,
             'notes' => $shipment->notes ?: '',
         ];
+    }
+
+    protected function fillProjectEditForm(Project $project): void
+    {
+        $this->projectEditForm = [
+            'project_name' => $project->project_name ?: '',
+            'customer_name' => $project->customer_name ?: '',
+            'contact_name' => $project->contact_name ?: '',
+            'contact_email' => $project->contact_email ?: '',
+            'service_type' => $project->service_type ?: 'Container Conversion',
+            'container_type' => $project->container_type ?: '',
+            'unit_quantity' => $project->unit_quantity !== null ? (string) $project->unit_quantity : '',
+            'scope_summary' => $project->scope_summary ?: '',
+            'site_location' => $project->site_location ?: '',
+            'target_delivery_date' => $project->target_delivery_date?->format('Y-m-d') ?: '',
+            'target_installation_date' => $project->target_installation_date?->format('Y-m-d') ?: '',
+            'actual_delivery_date' => $project->actual_delivery_date?->format('Y-m-d') ?: '',
+            'actual_installation_date' => $project->actual_installation_date?->format('Y-m-d') ?: '',
+            'estimated_value' => $project->estimated_value !== null ? (string) $project->estimated_value : '',
+            'status' => $project->status ?: Project::STATUS_DRAFT,
+            'notes' => $project->notes ?: '',
+        ];
+    }
+
+    protected function fillDrawingEditForm(ProjectDrawing $drawing): void
+    {
+        $this->drawingEditForm = [
+            'revision_number' => $drawing->revision_number ?: '',
+            'drawing_title' => $drawing->drawing_title ?: '',
+            'status' => $drawing->status ?: ProjectDrawing::STATUS_DRAFT,
+            'external_url' => $drawing->external_url ?: '',
+            'submitted_at' => $drawing->submitted_at?->format('Y-m-d\TH:i') ?: '',
+            'approved_at' => $drawing->approved_at?->format('Y-m-d\TH:i') ?: '',
+            'notes' => $drawing->notes ?: '',
+        ];
+    }
+
+    protected function fillDeliveryEditForm(ProjectDeliveryMilestone $delivery): void
+    {
+        $this->deliveryEditForm = [
+            'milestone_label' => $delivery->milestone_label ?: '',
+            'sequence' => (string) ($delivery->sequence ?? 0),
+            'planned_date' => $delivery->planned_date?->format('Y-m-d') ?: '',
+            'actual_date' => $delivery->actual_date?->format('Y-m-d') ?: '',
+            'status' => $delivery->status ?: ProjectDeliveryMilestone::STATUS_PENDING,
+            'site_location' => $delivery->site_location ?: '',
+            'requires_crane' => (bool) $delivery->requires_crane,
+            'installation_required' => (bool) $delivery->installation_required,
+            'notes' => $delivery->notes ?: '',
+        ];
+    }
+
+    protected function defaultProjectDeliveryBlueprints(): array
+    {
+        return [
+            ['milestone_label' => 'Design Kickoff', 'sequence' => 10, 'status' => ProjectDeliveryMilestone::STATUS_PENDING],
+            ['milestone_label' => 'Drawings Submitted', 'sequence' => 20, 'status' => ProjectDeliveryMilestone::STATUS_PENDING],
+            ['milestone_label' => 'Drawings Approved', 'sequence' => 30, 'status' => ProjectDeliveryMilestone::STATUS_PENDING],
+            ['milestone_label' => 'Fabrication Start', 'sequence' => 40, 'status' => ProjectDeliveryMilestone::STATUS_PENDING],
+            ['milestone_label' => 'Ready For Dispatch', 'sequence' => 50, 'status' => ProjectDeliveryMilestone::STATUS_PENDING],
+            ['milestone_label' => 'Delivered To Site', 'sequence' => 60, 'status' => ProjectDeliveryMilestone::STATUS_PENDING],
+            ['milestone_label' => 'Installation Complete', 'sequence' => 70, 'status' => ProjectDeliveryMilestone::STATUS_PENDING],
+            ['milestone_label' => 'Handover Signed', 'sequence' => 80, 'status' => ProjectDeliveryMilestone::STATUS_PENDING],
+        ];
+    }
+
+    protected function ensureProjectExecutionDefaults(Project $project): void
+    {
+        $project->loadMissing(['deliveryMilestones']);
+
+        $existingMilestones = $project->deliveryMilestones->keyBy(function (ProjectDeliveryMilestone $milestone) {
+            return Str::lower(trim($milestone->milestone_label));
+        });
+
+        foreach ($this->defaultProjectDeliveryBlueprints() as $milestone) {
+            $key = Str::lower(trim($milestone['milestone_label']));
+
+            if ($existingMilestones->has($key)) {
+                continue;
+            }
+
+            ProjectDeliveryMilestone::create([
+                'company_id' => $project->company_id,
+                'workspace_id' => $project->workspace_id,
+                'project_id' => $project->id,
+                'assigned_user_id' => $project->assigned_user_id,
+                'milestone_label' => $milestone['milestone_label'],
+                'sequence' => $milestone['sequence'],
+                'status' => $milestone['status'],
+                'site_location' => $project->site_location,
+                'installation_required' => true,
+            ]);
+        }
     }
 
     protected function shipmentMilestoneBlueprints(): array
@@ -4461,6 +5208,70 @@ class CrmDashboard extends Component
             ->values();
     }
 
+    protected function projectTimelineRows(Project $project)
+    {
+        $rows = collect([
+            [
+                'at' => $project->created_at,
+                'title' => 'Project created',
+                'detail' => $project->project_number.' opened for '.($project->customer_name ?: 'Unknown customer'),
+            ],
+        ]);
+
+        foreach ($project->drawings as $drawing) {
+            $rows->push([
+                'at' => $drawing->approved_at ?: $drawing->submitted_at ?: $drawing->created_at,
+                'title' => 'Drawing '.$drawing->revision_number,
+                'detail' => $drawing->status.' · '.$drawing->drawing_title,
+            ]);
+        }
+
+        foreach ($project->deliveryMilestones as $milestone) {
+            $rows->push([
+                'at' => $milestone->actual_date ?: $milestone->planned_date ?: $milestone->created_at,
+                'title' => $milestone->milestone_label,
+                'detail' => $milestone->status.($milestone->site_location ? ' · '.$milestone->site_location : ''),
+            ]);
+        }
+
+        return $rows
+            ->filter(fn (array $row) => $row['at'] !== null)
+            ->sortByDesc(fn (array $row) => Carbon::parse($row['at'])->timestamp)
+            ->values();
+    }
+
+    public function projectStatusClasses(string $status): string
+    {
+        return match ($status) {
+            Project::STATUS_DRAWINGS_APPROVED, Project::STATUS_READY_FOR_DELIVERY, Project::STATUS_DELIVERED, Project::STATUS_INSTALLED, Project::STATUS_CLOSED => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            Project::STATUS_DESIGN_REVIEW, Project::STATUS_DRAWINGS_SUBMITTED, Project::STATUS_FABRICATION => 'border-sky-200 bg-sky-50 text-sky-700',
+            Project::STATUS_CANCELLED => 'border-rose-200 bg-rose-50 text-rose-700',
+            default => 'border-zinc-200 bg-zinc-50 text-zinc-600',
+        };
+    }
+
+    public function drawingStatusClasses(string $status): string
+    {
+        return match ($status) {
+            ProjectDrawing::STATUS_APPROVED => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            ProjectDrawing::STATUS_SUBMITTED => 'border-sky-200 bg-sky-50 text-sky-700',
+            ProjectDrawing::STATUS_REVISION_REQUESTED => 'border-amber-200 bg-amber-50 text-amber-700',
+            ProjectDrawing::STATUS_ARCHIVED => 'border-zinc-200 bg-zinc-100 text-zinc-500',
+            default => 'border-zinc-200 bg-zinc-50 text-zinc-600',
+        };
+    }
+
+    public function deliveryStatusClasses(string $status): string
+    {
+        return match ($status) {
+            ProjectDeliveryMilestone::STATUS_COMPLETED => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+            ProjectDeliveryMilestone::STATUS_IN_PROGRESS => 'border-sky-200 bg-sky-50 text-sky-700',
+            ProjectDeliveryMilestone::STATUS_DELAYED, ProjectDeliveryMilestone::STATUS_CANCELLED => 'border-rose-200 bg-rose-50 text-rose-700',
+            ProjectDeliveryMilestone::STATUS_SCHEDULED => 'border-amber-200 bg-amber-50 text-amber-700',
+            default => 'border-zinc-200 bg-zinc-50 text-zinc-600',
+        };
+    }
+
     public function shipmentMilestoneStatusClasses(string $status): string
     {
         return match ($status) {
@@ -4531,6 +5342,46 @@ class CrmDashboard extends Component
         $this->ensureShipmentExecutionDefaults($shipment);
 
         return $shipment;
+    }
+
+    protected function draftProjectFromAwardedOpportunity(Opportunity $opportunity): Project
+    {
+        $existingProject = Project::query()
+            ->where('workspace_id', $opportunity->workspace_id)
+            ->where('opportunity_id', $opportunity->id)
+            ->latest('id')
+            ->first();
+
+        if ($existingProject) {
+            return $existingProject;
+        }
+
+        $account = $opportunity->account;
+        $primaryContact = $account?->contacts->sortByDesc('last_activity_at')->first();
+
+        $project = Project::create([
+            'company_id' => $opportunity->company_id,
+            'workspace_id' => $opportunity->workspace_id,
+            'account_id' => $opportunity->account_id,
+            'contact_id' => $primaryContact?->id,
+            'opportunity_id' => $opportunity->id,
+            'lead_id' => $opportunity->lead_id,
+            'assigned_user_id' => auth()->id() ?: $opportunity->assigned_user_id,
+            'project_number' => $this->nextProjectNumber($opportunity->workspace),
+            'project_name' => ($opportunity->company_name ?: 'Container').' Conversion Project',
+            'customer_name' => $opportunity->company_name ?: ($account?->name ?: 'Unknown customer'),
+            'contact_name' => $opportunity->lead?->contact_name ?: $primaryContact?->full_name,
+            'contact_email' => $opportunity->contact_email ?: ($opportunity->lead?->email ?: $primaryContact?->email),
+            'service_type' => $opportunity->required_service ?: ($opportunity->lead?->service ?: 'Container Conversion'),
+            'scope_summary' => $opportunity->notes,
+            'estimated_value' => $opportunity->revenue_potential,
+            'status' => Project::STATUS_DRAFT,
+            'notes' => $opportunity->notes,
+        ]);
+
+        $this->ensureProjectExecutionDefaults($project);
+
+        return $project;
     }
 
     protected function draftCostingFromShipment(ShipmentJob $shipment): JobCosting
@@ -4675,6 +5526,50 @@ class CrmDashboard extends Component
             'notes' => '',
         ];
 
+        $this->manualProjectForm = [
+            'customer_record_id' => '',
+            'opportunity_id' => '',
+            'lead_id' => '',
+            'project_name' => '',
+            'customer_name' => '',
+            'contact_name' => '',
+            'contact_email' => '',
+            'service_type' => 'Container Conversion',
+            'container_type' => '',
+            'unit_quantity' => '',
+            'scope_summary' => '',
+            'site_location' => '',
+            'target_delivery_date' => '',
+            'target_installation_date' => '',
+            'estimated_value' => '',
+            'status' => Project::STATUS_DRAFT,
+            'notes' => '',
+        ];
+
+        $this->manualDrawingForm = [
+            'project_id' => '',
+            'revision_number' => 'REV-1',
+            'drawing_title' => '',
+            'status' => ProjectDrawing::STATUS_DRAFT,
+            'external_url' => '',
+            'submitted_at' => '',
+            'approved_at' => '',
+            'notes' => '',
+        ];
+
+        $this->manualDeliveryForm = [
+            'project_id' => '',
+            'milestone_label' => '',
+            'sequence' => '1',
+            'planned_date' => '',
+            'actual_date' => '',
+            'status' => ProjectDeliveryMilestone::STATUS_PENDING,
+            'site_location' => '',
+            'requires_crane' => false,
+            'installation_required' => false,
+            'notes' => '',
+        ];
+
         $this->manualCarrierForm = [
             'name' => '',
             'mode' => '',
@@ -4721,6 +5616,62 @@ class CrmDashboard extends Component
         $this->resetManualBookingForm();
         $this->resetManualCostingForm();
         $this->resetManualInvoiceForm();
+    }
+
+    protected function resetManualProjectForm(): void
+    {
+        $this->editingProjectId = null;
+        $this->manualProjectForm = [
+            'customer_record_id' => '',
+            'opportunity_id' => '',
+            'lead_id' => '',
+            'project_name' => '',
+            'customer_name' => '',
+            'contact_name' => '',
+            'contact_email' => '',
+            'service_type' => 'Container Conversion',
+            'container_type' => '',
+            'unit_quantity' => '',
+            'scope_summary' => '',
+            'site_location' => '',
+            'target_delivery_date' => '',
+            'target_installation_date' => '',
+            'estimated_value' => '',
+            'status' => Project::STATUS_DRAFT,
+            'notes' => '',
+        ];
+    }
+
+    protected function resetManualDrawingForm(): void
+    {
+        $this->editingDrawingId = null;
+        $this->manualDrawingForm = [
+            'project_id' => '',
+            'revision_number' => 'REV-1',
+            'drawing_title' => '',
+            'status' => ProjectDrawing::STATUS_DRAFT,
+            'external_url' => '',
+            'submitted_at' => '',
+            'approved_at' => '',
+            'notes' => '',
+        ];
+    }
+
+    protected function resetManualDeliveryForm(): void
+    {
+        $this->editingDeliveryId = null;
+        $this->manualDeliveryForm = [
+            'project_id' => '',
+            'milestone_label' => '',
+            'sequence' => '1',
+            'planned_date' => '',
+            'actual_date' => '',
+            'status' => ProjectDeliveryMilestone::STATUS_PENDING,
+            'site_location' => '',
+            'requires_crane' => false,
+            'installation_required' => false,
+            'notes' => '',
+        ];
     }
 
     protected function resetManualCarrierForm(): void
@@ -4948,10 +5899,17 @@ class CrmDashboard extends Component
         $this->workspaceId = $workspace?->id;
 
         $companies = $this->visibleCompanies($workspaces);
-        $roles = Role::query()->orderByDesc('level')->get();
-        $permissions = Permission::query()->orderBy('name')->get();
+        $roles = collect();
+        $permissions = collect();
 
         $sheetSources = collect();
+        $hasSheetSources = false;
+        $sheetSourceStats = [
+            'total' => 0,
+            'active' => 0,
+            'synced' => 0,
+            'failed' => 0,
+        ];
         $workspaceUsers = collect();
         $canManageAccess = false;
         $canViewWorkspaceTools = false;
@@ -5011,7 +5969,6 @@ class CrmDashboard extends Component
             ['*'],
             'invoicesPage',
         );
-        $sourceBreakdown = collect();
         $selectedLead = null;
         $selectedOpportunity = null;
         $selectedContact = null;
@@ -5032,7 +5989,9 @@ class CrmDashboard extends Component
         $selectedInvoiceCollaboration = collect();
         $selectedContactCollaboration = collect();
         $selectedCustomerCollaboration = collect();
+        $selectedProjectCollaboration = collect();
         $selectedShipmentTimeline = collect();
+        $selectedProjectTimeline = collect();
         $leadInsights = [];
         $opportunityInsights = [];
         $contactInsights = [];
@@ -5048,12 +6007,22 @@ class CrmDashboard extends Component
         $shipmentCustomerOptions = collect();
         $shipmentOpportunityOptions = collect();
         $shipmentQuoteOptions = collect();
+        $projectCustomerOptions = collect();
+        $projectOpportunityOptions = collect();
+        $drawingProjectOptions = collect();
+        $deliveryProjectOptions = collect();
         $carrierOptions = collect();
         $bookingShipmentOptions = collect();
         $invoiceBookingOptions = collect();
         $costingShipmentOptions = collect();
         $invoiceShipmentOptions = collect();
         $invoiceCostingOptions = collect();
+        $projects = collect();
+        $drawings = collect();
+        $deliveryMilestones = collect();
+        $selectedProject = null;
+        $selectedDrawing = null;
+        $selectedDelivery = null;
         $selectedBookingInvoices = collect();
         $workspaceNotifications = collect();
         $unreadWorkspaceNotificationCount = 0;
@@ -5085,6 +6054,9 @@ class CrmDashboard extends Component
                 'manual-rate' => 'New Rate',
                 'manual-quote' => 'New Quote',
                 'manual-shipment' => 'New Shipment',
+                'manual-project' => 'New Project',
+                'manual-drawing' => 'New Drawing',
+                'manual-delivery' => 'New Delivery Milestone',
                 'manual-carrier' => 'New Carrier',
                 'manual-booking' => 'New Booking',
                 'manual-costing' => 'New Job Costing',
@@ -5103,335 +6075,471 @@ class CrmDashboard extends Component
                 $this->activeTab = 'leads';
             }
 
-            if (in_array($this->activeTab, ['customers', 'settings'], true) || $this->selectedCustomerId !== null || $this->customerSegmentFilter !== '') {
-                $segmentation->syncWorkspace($workspace);
+            $needsLeads = in_array($this->activeTab, ['leads', 'manual-lead', 'manual-opportunity'], true) || $this->selectedLeadId !== null;
+            $needsOpportunities = in_array($this->activeTab, ['opportunities', 'manual-opportunity', 'manual-project'], true) || $this->selectedOpportunityId !== null;
+            $needsContacts = $this->activeTab === 'contacts' || $this->selectedContactId !== null;
+            $needsCustomers = in_array($this->activeTab, ['customers', 'manual-quote', 'manual-shipment', 'manual-project'], true)
+                || $this->selectedCustomerId !== null
+                || $this->customerSegmentFilter !== '';
+            $needsRates = in_array($this->activeTab, ['rates', 'manual-rate', 'manual-quote'], true) || $this->selectedRateId !== null;
+            $needsQuotes = in_array($this->activeTab, ['quotes', 'manual-quote', 'manual-shipment'], true) || $this->selectedQuoteId !== null;
+            $needsShipments = in_array($this->activeTab, ['shipments', 'manual-shipment', 'manual-booking', 'manual-costing', 'manual-invoice'], true) || $this->selectedShipmentId !== null;
+            $needsProjects = in_array($this->activeTab, ['projects', 'manual-project', 'manual-drawing', 'manual-delivery'], true) || $this->selectedProjectId !== null;
+            $needsDrawings = in_array($this->activeTab, ['drawings', 'manual-drawing'], true) || $this->selectedDrawingId !== null;
+            $needsDelivery = in_array($this->activeTab, ['delivery_tracking', 'manual-delivery'], true) || $this->selectedDeliveryId !== null;
+            $needsCarriers = in_array($this->activeTab, ['carriers', 'manual-carrier', 'manual-rate', 'manual-booking'], true) || $this->selectedCarrierId !== null || $this->selectedBookingId !== null;
+            $needsBookings = in_array($this->activeTab, ['bookings', 'manual-booking', 'manual-invoice'], true) || $this->selectedBookingId !== null || $this->invoiceBookingFilter !== '';
+            $needsCostings = in_array($this->activeTab, ['costings', 'manual-costing', 'manual-invoice'], true) || $this->selectedCostingId !== null;
+            $needsInvoices = in_array($this->activeTab, ['invoices', 'manual-invoice'], true) || $this->selectedInvoiceId !== null || $this->invoiceBookingFilter !== '' || $this->selectedBookingId !== null;
+            $needsAnalytics = $this->activeTab === 'analytics';
+            $needsSources = $this->activeTab === 'sources' && $canViewSources;
+            $needsAccess = $this->activeTab === 'access' && $canManageAccess;
+            $needsSettings = $this->activeTab === 'settings';
+            $needsWorkspaceUsers = $needsAccess
+                || $this->selectedLeadId !== null
+                || $this->selectedOpportunityId !== null
+                || $this->selectedQuoteId !== null
+                || $this->selectedShipmentId !== null
+                || $this->selectedProjectId !== null
+                || $this->selectedBookingId !== null
+                || $this->selectedCostingId !== null
+                || $this->selectedInvoiceId !== null
+                || $this->selectedContactId !== null
+                || $this->selectedCustomerId !== null;
+
+            $needsSegmentationSync = $this->activeTab === 'customers'
+                || ($this->activeTab === 'settings' && $this->settingsTab === 'segmentations')
+                || $this->selectedCustomerId !== null
+                || $this->customerSegmentFilter !== '';
+
+            if ($needsSegmentationSync) {
+                $segmentation->syncWorkspaceIfStale($workspace);
             } else {
                 $segmentation->ensureDefaultSegments($workspace);
             }
 
-            $segmentDefinitions = $workspace->segmentDefinitions()
-                ->with('rules')
-                ->orderByDesc('priority')
-                ->orderBy('id')
-                ->get();
+            if (($needsSettings && $this->settingsTab === 'segmentations') || $needsCustomers) {
+                $segmentDefinitions = $workspace->segmentDefinitions()
+                    ->with('rules')
+                    ->orderByDesc('priority')
+                    ->orderBy('id')
+                    ->get();
+            }
 
-            $leadQuery = $this->buildLeadQuery($workspace);
+            if ($needsLeads) {
+                $leads = $this->applyLeadSorting($this->buildLeadQuery($workspace))
+                    ->paginate($this->leadPerPage, ['*'], 'leadsPage');
+            }
 
-            $opportunityQuery = $this->buildOpportunityQuery($workspace);
+            if ($needsOpportunities) {
+                $opportunities = $this->applyOpportunitySorting($this->buildOpportunityQuery($workspace))
+                    ->paginate($this->opportunityPerPage, ['*'], 'opportunitiesPage');
+            }
 
-            $leads = $this->applyLeadSorting($leadQuery)
-                ->paginate($this->leadPerPage, ['*'], 'leadsPage');
+            if ($needsContacts) {
+                $contacts = $this->applyContactSorting($this->buildContactsQuery($workspace))
+                    ->paginate($this->contactPerPage, ['*'], 'contactsPage');
+            }
 
-            $opportunities = $this->applyOpportunitySorting($opportunityQuery)
-                ->paginate($this->opportunityPerPage, ['*'], 'opportunitiesPage');
+            if ($needsCustomers) {
+                $customers = $this->applyCustomerSorting($this->buildCustomersQuery($workspace))
+                    ->paginate($this->customerPerPage, ['*'], 'customersPage');
+            }
 
-            $contactsQuery = $this->buildContactsQuery($workspace);
+            if ($needsRates) {
+                $rates = $this->applyRateSorting($this->buildRateQuery($workspace))
+                    ->paginate($this->ratePerPage, ['*'], 'ratesPage');
+            }
 
-            $customersQuery = $this->buildCustomersQuery($workspace);
+            if ($needsQuotes) {
+                $quotes = $this->applyQuoteSorting($this->buildQuoteQuery($workspace))
+                    ->paginate($this->quotePerPage, ['*'], 'quotesPage');
+            }
 
-            $contacts = $this->applyContactSorting($contactsQuery)
-                ->paginate($this->contactPerPage, ['*'], 'contactsPage');
+            if ($needsShipments) {
+                $shipments = $this->applyShipmentSorting($this->buildShipmentQuery($workspace))
+                    ->paginate($this->shipmentPerPage, ['*'], 'shipmentsPage');
+            }
 
-            $customers = $this->applyCustomerSorting($customersQuery)
-                ->paginate($this->customerPerPage, ['*'], 'customersPage');
+            if ($needsProjects) {
+                $projects = $this->applyProjectSorting($this->buildProjectQuery($workspace))
+                    ->paginate($this->projectPerPage, ['*'], 'projectsPage');
+            }
 
-            $rates = $this->applyRateSorting($this->buildRateQuery($workspace))
-                ->paginate($this->ratePerPage, ['*'], 'ratesPage');
-            $quotes = $this->applyQuoteSorting($this->buildQuoteQuery($workspace))
-                ->paginate($this->quotePerPage, ['*'], 'quotesPage');
-            $shipments = $this->applyShipmentSorting($this->buildShipmentQuery($workspace))
-                ->paginate($this->shipmentPerPage, ['*'], 'shipmentsPage');
-            $carriers = $this->applyCarrierSorting($this->buildCarrierQuery($workspace))
-                ->paginate($this->carrierPerPage, ['*'], 'carriersPage');
-            $bookings = $this->applyBookingSorting($this->buildBookingQuery($workspace))
-                ->paginate($this->bookingPerPage, ['*'], 'bookingsPage');
-            $costings = $this->applyCostingSorting($this->buildCostingQuery($workspace))
-                ->paginate($this->costingPerPage, ['*'], 'costingsPage');
-            $invoices = $this->applyInvoiceSorting($this->buildInvoiceQuery($workspace))
-                ->paginate($this->invoicePerPage, ['*'], 'invoicesPage');
+            if ($needsDrawings) {
+                $drawings = $this->applyDrawingSorting($this->buildDrawingQuery($workspace))
+                    ->paginate($this->drawingPerPage, ['*'], 'drawingsPage');
+            }
 
-            $sheetSources = $workspace->sheetSources()->latest()->get();
-            $workspaceUsers = $workspace->users()->with(['roles.permissions', 'userPermissions'])->orderBy('name')->get();
-            $workspaceNotifications = WorkspaceNotification::query()
-                ->with('actor')
-                ->where('workspace_id', $workspace->id)
-                ->where('user_id', auth()->id())
-                ->latest()
-                ->limit(8)
-                ->get();
+            if ($needsDelivery) {
+                $deliveryMilestones = $this->applyDeliverySorting($this->buildDeliveryQuery($workspace))
+                    ->paginate($this->deliveryPerPage, ['*'], 'deliveryPage');
+            }
+
+            if ($needsCarriers) {
+                $carriers = $this->applyCarrierSorting($this->buildCarrierQuery($workspace))
+                    ->paginate($this->carrierPerPage, ['*'], 'carriersPage');
+            }
+
+            if ($needsBookings) {
+                $bookings = $this->applyBookingSorting($this->buildBookingQuery($workspace))
+                    ->paginate($this->bookingPerPage, ['*'], 'bookingsPage');
+            }
+
+            if ($needsCostings) {
+                $costings = $this->applyCostingSorting($this->buildCostingQuery($workspace))
+                    ->paginate($this->costingPerPage, ['*'], 'costingsPage');
+            }
+
+            if ($needsInvoices) {
+                $invoices = $this->applyInvoiceSorting($this->buildInvoiceQuery($workspace))
+                    ->paginate($this->invoicePerPage, ['*'], 'invoicesPage');
+            }
+
+            if ($needsSources) {
+                $sheetSources = $workspace->sheetSources()->latest()->get();
+                $hasSheetSources = $sheetSources->isNotEmpty();
+                $sheetSourceStats = [
+                    'total' => $sheetSources->count(),
+                    'active' => $sheetSources->where('is_active', true)->count(),
+                    'synced' => $sheetSources->where('sync_status', 'synced')->count(),
+                    'failed' => $sheetSources->where('sync_status', 'failed')->count(),
+                ];
+            } else {
+                $hasSheetSources = $workspace->sheetSources()->exists();
+            }
+
+            if ($needsWorkspaceUsers) {
+                $workspaceUsers = $workspace->users()->with(['roles.permissions', 'userPermissions'])->orderBy('name')->get();
+            }
+
             $unreadWorkspaceNotificationCount = WorkspaceNotification::query()
                 ->where('workspace_id', $workspace->id)
                 ->where('user_id', auth()->id())
                 ->where('is_read', false)
                 ->count();
-            $monthlyReports = $workspace->monthlyReports()->orderByDesc('month_start')->limit(6)->get();
-            $latestReport = $monthlyReports->first();
-            $leadOptions = Lead::query()
-                ->where('workspace_id', $workspace->id)
-                ->orderByDesc('submission_date')
-                ->orderByDesc('created_at')
-                ->limit(100)
-                ->get(['id', 'company_name', 'lead_id', 'external_key']);
-            $opportunityOptions = Opportunity::query()
-                ->where('workspace_id', $workspace->id)
-                ->orderByDesc('submission_date')
-                ->orderByDesc('created_at')
-                ->limit(100)
-                ->get(['id', 'company_name', 'external_key']);
-            $quoteOptions = Quote::query()
-                ->where('workspace_id', $workspace->id)
-                ->orderByDesc('quoted_at')
-                ->orderByDesc('created_at')
-                ->limit(100)
-                ->get(['id', 'quote_number', 'company_name']);
-            $rateCardOptions = $this->quoteRateCardOptions(
-                $workspace,
-                $this->selectedManualQuoteCustomer($workspace),
-            );
-            $quoteCustomerOptions = $this->quoteCustomerOptions($workspace);
-            $quoteOpportunityOptions = $this->quoteOpportunityOptions(
-                $workspace,
-                $this->selectedManualQuoteCustomer($workspace),
-            );
-            $shipmentCustomerOptions = $this->shipmentCustomerOptions($workspace);
-            $shipmentOpportunityOptions = $this->shipmentOpportunityOptions(
-                $workspace,
-                $this->selectedManualShipmentCustomer($workspace),
-            );
-            $shipmentQuoteOptions = $this->shipmentQuoteOptions(
-                $workspace,
-                $this->selectedManualShipmentCustomer($workspace),
-                $this->selectedManualShipmentOpportunity($workspace),
-            );
-            $carrierOptions = Carrier::query()
-                ->where('workspace_id', $workspace->id)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name', 'mode']);
-            $bookingShipmentOptions = ShipmentJob::query()
-                ->where('workspace_id', $workspace->id)
-                ->orderByDesc('estimated_departure_at')
-                ->orderByDesc('created_at')
-                ->get(['id', 'job_number', 'company_name']);
-            $invoiceBookingOptions = Booking::query()
-                ->where('workspace_id', $workspace->id)
-                ->orderByDesc('requested_etd')
-                ->orderByDesc('created_at')
-                ->get(['id', 'booking_number', 'customer_name', 'shipment_job_id']);
-            $costingShipmentOptions = $this->costingShipmentOptions($workspace);
-            $invoiceShipmentOptions = $this->invoiceShipmentOptions($workspace);
-            $invoiceCostingOptions = $this->invoiceCostingOptions(
-                $workspace,
-                $this->selectedManualInvoiceShipment($workspace),
-            );
 
-            $liveLeadBase = Lead::query()->where('workspace_id', $workspace->id);
-            $liveOpportunityBase = Opportunity::query()->where('workspace_id', $workspace->id);
+            if ($this->showNotifications) {
+                $workspaceNotifications = WorkspaceNotification::query()
+                    ->with('actor')
+                    ->where('workspace_id', $workspace->id)
+                    ->where('user_id', auth()->id())
+                    ->latest()
+                    ->limit(8)
+                    ->get();
+            }
+
+            if ($needsAnalytics) {
+                $monthlyReports = $workspace->monthlyReports()->orderByDesc('month_start')->limit(6)->get();
+                $latestReport = $monthlyReports->first();
+            }
+
+            if ($this->activeTab === 'manual-opportunity') {
+                $leadOptions = Lead::query()
+                    ->where('workspace_id', $workspace->id)
+                    ->orderByDesc('submission_date')
+                    ->orderByDesc('created_at')
+                    ->limit(100)
+                    ->get(['id', 'company_name', 'lead_id', 'external_key']);
+            }
+
+            if ($this->activeTab === 'manual-quote') {
+                $quoteCustomerOptions = $this->quoteCustomerOptions($workspace);
+                $quoteOpportunityOptions = $this->quoteOpportunityOptions(
+                    $workspace,
+                    $this->selectedManualQuoteCustomer($workspace),
+                );
+                $rateCardOptions = $this->quoteRateCardOptions(
+                    $workspace,
+                    $this->selectedManualQuoteCustomer($workspace),
+                );
+            }
+
+            if ($this->activeTab === 'manual-shipment') {
+                $shipmentCustomerOptions = $this->shipmentCustomerOptions($workspace);
+                $shipmentOpportunityOptions = $this->shipmentOpportunityOptions(
+                    $workspace,
+                    $this->selectedManualShipmentCustomer($workspace),
+                );
+                $shipmentQuoteOptions = $this->shipmentQuoteOptions(
+                    $workspace,
+                    $this->selectedManualShipmentCustomer($workspace),
+                    $this->selectedManualShipmentOpportunity($workspace),
+                );
+            }
+
+            if ($this->activeTab === 'manual-project') {
+                $projectCustomerOptions = $this->projectCustomerOptions($workspace);
+                $projectOpportunityOptions = $this->projectOpportunityOptions(
+                    $workspace,
+                    $this->selectedManualProjectCustomer($workspace),
+                );
+            }
+
+            if ($this->activeTab === 'manual-drawing') {
+                $drawingProjectOptions = $this->projectOptions($workspace);
+            }
+
+            if ($this->activeTab === 'manual-delivery') {
+                $deliveryProjectOptions = $this->projectOptions($workspace);
+            }
+
+            if (in_array($this->activeTab, ['manual-rate', 'manual-booking'], true) || $this->selectedBookingId !== null || $this->selectedRateId !== null) {
+                $carrierOptions = Carrier::query()
+                    ->where('workspace_id', $workspace->id)
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'mode']);
+            }
+
+            if ($this->activeTab === 'manual-booking') {
+                $bookingShipmentOptions = ShipmentJob::query()
+                    ->where('workspace_id', $workspace->id)
+                    ->orderByDesc('estimated_departure_at')
+                    ->orderByDesc('created_at')
+                    ->get(['id', 'job_number', 'company_name']);
+            }
+
+            if ($this->activeTab === 'manual-invoice' || $this->selectedBookingId !== null) {
+                $invoiceBookingOptions = Booking::query()
+                    ->where('workspace_id', $workspace->id)
+                    ->orderByDesc('requested_etd')
+                    ->orderByDesc('created_at')
+                    ->get(['id', 'booking_number', 'customer_name', 'shipment_job_id']);
+            }
+
+            if ($this->activeTab === 'manual-costing') {
+                $costingShipmentOptions = $this->costingShipmentOptions($workspace);
+            }
+
+            if ($this->activeTab === 'manual-invoice') {
+                $invoiceShipmentOptions = $this->invoiceShipmentOptions($workspace);
+                $invoiceCostingOptions = $this->invoiceCostingOptions(
+                    $workspace,
+                    $this->selectedManualInvoiceShipment($workspace),
+                );
+            }
+
+            if ($needsAccess) {
+                $roles = Role::query()->orderByDesc('level')->get();
+                $permissions = Permission::query()->orderBy('name')->get();
+            }
+
+            $leadSummary = Lead::query()
+                ->where('workspace_id', $workspace->id)
+                ->selectRaw(
+                    'COUNT(*) as total_count, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as qualified_count',
+                    [Lead::STATUS_SALES_QUALIFIED],
+                )
+                ->first();
+
+            $opportunitySummary = Opportunity::query()
+                ->where('workspace_id', $workspace->id)
+                ->selectRaw(
+                    'COUNT(*) as total_count, COALESCE(SUM(CASE WHEN sales_stage = ? THEN revenue_potential ELSE 0 END), 0) as won_revenue',
+                    [Opportunity::STAGE_CLOSED_WON],
+                )
+                ->first();
 
             $kpis = [
                 [
                     'label' => 'Total Leads',
-                    'value' => (clone $liveLeadBase)->count(),
+                    'value' => (int) ($leadSummary?->total_count ?? 0),
                     'detail' => 'Across all sources',
                 ],
                 [
                     'label' => 'Sales Qualified',
-                    'value' => (clone $liveLeadBase)->where('status', Lead::STATUS_SALES_QUALIFIED)->count(),
+                    'value' => (int) ($leadSummary?->qualified_count ?? 0),
                     'detail' => 'Ready for deal work',
                 ],
                 [
                     'label' => 'Open Opportunities',
-                    'value' => (clone $liveOpportunityBase)->count(),
+                    'value' => (int) ($opportunitySummary?->total_count ?? 0),
                     'detail' => 'Pipeline records',
                 ],
                 [
                     'label' => 'Closed Won Revenue',
-                    'value' => number_format((float) (clone $liveOpportunityBase)->where('sales_stage', Opportunity::STAGE_CLOSED_WON)->sum('revenue_potential'), 0),
+                    'value' => number_format((float) ($opportunitySummary?->won_revenue ?? 0), 0),
                     'detail' => 'AED won',
                 ],
             ];
 
-            $sourceBreakdown = Lead::query()
-                ->select('lead_source', DB::raw('count(*) as total'))
-                ->where('workspace_id', $workspace->id)
-                ->groupBy('lead_source')
-                ->orderByDesc('total')
-                ->get();
+            if ($needsAnalytics) {
+                $analyticsLeadBase = $this->applyAnalyticsRange(
+                    Lead::query()->where('workspace_id', $workspace->id),
+                    'submission_date',
+                );
+                $analyticsOpportunityBase = $this->applyAnalyticsRange(
+                    Opportunity::query()->where('workspace_id', $workspace->id),
+                    'submission_date',
+                );
+                $analyticsReportBase = $this->applyAnalyticsRange(
+                    $workspace->monthlyReports(),
+                    'month_start',
+                );
+                $analyticsAvailableMonths = $this->analyticsAvailableMonths($workspace);
 
-            $analyticsLeadBase = $this->applyAnalyticsRange(
-                Lead::query()->where('workspace_id', $workspace->id),
-                'submission_date',
-            );
-            $analyticsOpportunityBase = $this->applyAnalyticsRange(
-                Opportunity::query()->where('workspace_id', $workspace->id),
-                'submission_date',
-            );
-            $analyticsReportBase = $this->applyAnalyticsRange(
-                $workspace->monthlyReports(),
-                'month_start',
-            );
-            $analyticsAvailableMonths = $this->analyticsAvailableMonths($workspace);
+                if ($this->analyticsMonth === '') {
+                    $this->analyticsMonth = $analyticsAvailableMonths->keys()->first() ?? $this->defaultAnalyticsMonth();
+                }
 
-            if ($this->analyticsMonth === '') {
-                $this->analyticsMonth = $analyticsAvailableMonths->keys()->first() ?? $this->defaultAnalyticsMonth();
-            }
+                $analyticsReportRows = (clone $analyticsReportBase)
+                    ->orderByDesc('month_start')
+                    ->limit(6)
+                    ->get()
+                    ->sortBy('month_start')
+                    ->values();
 
-            $analyticsReportRows = (clone $analyticsReportBase)
-                ->orderByDesc('month_start')
-                ->limit(6)
-                ->get()
-                ->sortBy('month_start')
-                ->values();
+                $analyticsLeadCount = (clone $analyticsLeadBase)->count();
+                $analyticsQualifiedCount = (clone $analyticsLeadBase)
+                    ->where('status', Lead::STATUS_SALES_QUALIFIED)
+                    ->count();
+                $analyticsOpportunityCount = (clone $analyticsOpportunityBase)->count();
+                $analyticsPotentialRevenue = (float) (clone $analyticsOpportunityBase)->sum('revenue_potential');
+                $analyticsWonRevenue = (float) (clone $analyticsOpportunityBase)
+                    ->where('sales_stage', Opportunity::STAGE_CLOSED_WON)
+                    ->sum('revenue_potential');
+                $analyticsWonCount = (clone $analyticsOpportunityBase)
+                    ->where('sales_stage', Opportunity::STAGE_CLOSED_WON)
+                    ->count();
 
-            $analyticsLeadCount = (clone $analyticsLeadBase)->count();
-            $analyticsQualifiedCount = (clone $analyticsLeadBase)
-                ->where('status', Lead::STATUS_SALES_QUALIFIED)
-                ->count();
-            $analyticsOpportunityCount = (clone $analyticsOpportunityBase)->count();
-            $analyticsPotentialRevenue = (float) (clone $analyticsOpportunityBase)->sum('revenue_potential');
-            $analyticsWonRevenue = (float) (clone $analyticsOpportunityBase)
-                ->where('sales_stage', Opportunity::STAGE_CLOSED_WON)
-                ->sum('revenue_potential');
-            $analyticsWonCount = (clone $analyticsOpportunityBase)
-                ->where('sales_stage', Opportunity::STAGE_CLOSED_WON)
-                ->count();
-
-            $analyticsKpis = [
-                [
-                    'label' => 'Leads In Range',
-                    'value' => number_format($analyticsLeadCount),
-                    'detail' => $this->analyticsRangeLabel(),
-                ],
-                [
-                    'label' => 'Qualified Rate',
-                    'value' => $analyticsLeadCount > 0
-                        ? number_format(($analyticsQualifiedCount / $analyticsLeadCount) * 100, 1).'%' : '0%',
-                    'detail' => number_format($analyticsQualifiedCount).' sales qualified leads',
-                ],
-                [
-                    'label' => 'Opportunities',
-                    'value' => number_format($analyticsOpportunityCount),
-                    'detail' => 'In the selected reporting window',
-                ],
-                [
-                    'label' => 'Won Revenue',
-                    'value' => 'AED '.number_format($analyticsWonRevenue, 0),
-                    'detail' => number_format($analyticsWonCount).' closed-won deals',
-                ],
-            ];
-
-            $analyticsBreakdownRows = match ($this->analyticsBreakdown) {
-                'service' => (clone $analyticsLeadBase)
-                    ->selectRaw('COALESCE(service, ?) as label, COUNT(*) as total', ['Unknown'])
-                    ->groupBy('service')
-                    ->orderByDesc('total')
-                    ->limit(8)
-                    ->get(),
-                'status' => (clone $analyticsLeadBase)
-                    ->selectRaw('COALESCE(status, ?) as label, COUNT(*) as total', ['Unknown'])
-                    ->groupBy('status')
-                    ->orderByDesc('total')
-                    ->get(),
-                'stage' => (clone $analyticsOpportunityBase)
-                    ->selectRaw('COALESCE(sales_stage, ?) as label, COUNT(*) as total, COALESCE(SUM(revenue_potential), 0) as revenue', ['Unknown'])
-                    ->groupBy('sales_stage')
-                    ->orderByDesc('total')
-                    ->get(),
-                default => (clone $analyticsLeadBase)
-                    ->selectRaw('COALESCE(lead_source, ?) as label, COUNT(*) as total', ['Unknown'])
-                    ->groupBy('lead_source')
-                    ->orderByDesc('total')
-                    ->limit(8)
-                    ->get(),
-            };
-
-            if ($this->analyticsBreakdown === 'status') {
-                $analyticsBreakdownRows = $analyticsBreakdownRows->map(function ($row) use ($workspace) {
-                    $row->label = $row->label === 'Unknown'
-                        ? $row->label
-                        : $this->leadStatusLabel($row->label, $workspace);
-
-                    return $row;
-                });
-            }
-
-            if ($this->analyticsBreakdown === 'stage') {
-                $analyticsBreakdownRows = $analyticsBreakdownRows->map(function ($row) use ($workspace) {
-                    $row->label = $row->label === 'Unknown'
-                        ? $row->label
-                        : $this->opportunityStageLabel($row->label, $workspace);
-
-                    return $row;
-                });
-            }
-
-            $analyticsMonthlyRows = $analyticsReportRows->sortByDesc('month_start')->values();
-
-            $analyticsSnapshot = [
-                'range_label' => $this->analyticsRangeLabel(),
-                'top_source' => (clone $analyticsLeadBase)
-                    ->selectRaw('COALESCE(lead_source, ?) as label, COUNT(*) as total', ['Unknown'])
-                    ->groupBy('lead_source')
-                    ->orderByDesc('total')
-                    ->first(),
-                'top_service' => (clone $analyticsLeadBase)
-                    ->selectRaw('COALESCE(service, ?) as label, COUNT(*) as total', ['Unknown'])
-                    ->groupBy('service')
-                    ->orderByDesc('total')
-                    ->first(),
-                'avg_revenue' => (float) (clone $analyticsOpportunityBase)->avg('revenue_potential'),
-            ];
-
-            $analyticsSqlChartRows = $analyticsReportRows->map(fn ($report) => [
-                'label' => $report->year_month,
-                'sqls' => (int) $report->total_opportunities_count,
-                'closed_won' => (int) $report->closed_won_count,
-                'won_revenue' => (float) $report->won_revenue_potential,
-            ]);
-
-            $analyticsAdsChartRows = $analyticsReportRows->map(function ($report) {
-                $spend = (float) $report->google_ads_cost;
-                $leads = (int) $report->google_ads_leads;
-                $cpl = $leads > 0 ? $spend / $leads : (float) $report->cost_per_conversion;
-
-                return [
-                    'label' => $report->year_month,
-                    'spend' => $spend,
-                    'leads' => $leads,
-                    'cpl' => $cpl,
+                $analyticsKpis = [
+                    [
+                        'label' => 'Leads In Range',
+                        'value' => number_format($analyticsLeadCount),
+                        'detail' => $this->analyticsRangeLabel(),
+                    ],
+                    [
+                        'label' => 'Qualified Rate',
+                        'value' => $analyticsLeadCount > 0
+                            ? number_format(($analyticsQualifiedCount / $analyticsLeadCount) * 100, 1).'%' : '0%',
+                        'detail' => number_format($analyticsQualifiedCount).' sales qualified leads',
+                    ],
+                    [
+                        'label' => 'Opportunities',
+                        'value' => number_format($analyticsOpportunityCount),
+                        'detail' => 'In the selected reporting window',
+                    ],
+                    [
+                        'label' => 'Won Revenue',
+                        'value' => 'AED '.number_format($analyticsWonRevenue, 0),
+                        'detail' => number_format($analyticsWonCount).' closed-won deals',
+                    ],
                 ];
-            });
 
-            $analyticsWonCustomers = (clone $analyticsOpportunityBase)
-                ->where('sales_stage', Opportunity::STAGE_CLOSED_WON)
-                ->whereNotNull('company_name')
-                ->orderByDesc('revenue_potential')
-                ->limit(5)
-                ->get(['company_name', 'revenue_potential']);
+                $analyticsBreakdownRows = match ($this->analyticsBreakdown) {
+                    'service' => (clone $analyticsLeadBase)
+                        ->selectRaw('COALESCE(service, ?) as label, COUNT(*) as total', ['Unknown'])
+                        ->groupBy('service')
+                        ->orderByDesc('total')
+                        ->limit(8)
+                        ->get(),
+                    'status' => (clone $analyticsLeadBase)
+                        ->selectRaw('COALESCE(status, ?) as label, COUNT(*) as total', ['Unknown'])
+                        ->groupBy('status')
+                        ->orderByDesc('total')
+                        ->get(),
+                    'stage' => (clone $analyticsOpportunityBase)
+                        ->selectRaw('COALESCE(sales_stage, ?) as label, COUNT(*) as total, COALESCE(SUM(revenue_potential), 0) as revenue', ['Unknown'])
+                        ->groupBy('sales_stage')
+                        ->orderByDesc('total')
+                        ->get(),
+                    default => (clone $analyticsLeadBase)
+                        ->selectRaw('COALESCE(lead_source, ?) as label, COUNT(*) as total', ['Unknown'])
+                        ->groupBy('lead_source')
+                        ->orderByDesc('total')
+                        ->limit(8)
+                        ->get(),
+                };
 
-            $analyticsDealSummary = [
-                'potential_value' => $analyticsPotentialRevenue,
-                'converted_value' => $analyticsWonRevenue,
-                'total_deals' => $analyticsOpportunityCount,
-                'won_leads' => $analyticsWonCount,
-            ];
+                if ($this->analyticsBreakdown === 'status') {
+                    $analyticsBreakdownRows = $analyticsBreakdownRows->map(function ($row) use ($workspace) {
+                        $row->label = $row->label === 'Unknown'
+                            ? $row->label
+                            : $this->leadStatusLabel($row->label, $workspace);
 
-            $adsSpend = (float) $analyticsReportRows->sum('total_ads_cost');
-            $adsRevenue = (float) $analyticsReportRows->sum('won_revenue_potential');
-            $googleAdsSpend = (float) $analyticsReportRows->sum('google_ads_cost');
-            $googleAdsLeads = (int) $analyticsReportRows->sum('google_ads_leads');
-            $romi = $adsSpend > 0 ? (($adsRevenue - $adsSpend) / $adsSpend) * 100 : null;
-            $roas = $adsSpend > 0 ? $adsRevenue / $adsSpend : null;
+                        return $row;
+                    });
+                }
 
-            $analyticsEfficiency = [
-                'ads_spend' => $adsSpend,
-                'google_ads_spend' => $googleAdsSpend,
-                'google_ads_leads' => $googleAdsLeads,
-                'revenue' => $adsRevenue,
-                'romi' => $romi,
-                'roas' => $roas,
-                'romi_band' => $this->romiBand($romi),
-            ];
+                if ($this->analyticsBreakdown === 'stage') {
+                    $analyticsBreakdownRows = $analyticsBreakdownRows->map(function ($row) use ($workspace) {
+                        $row->label = $row->label === 'Unknown'
+                            ? $row->label
+                            : $this->opportunityStageLabel($row->label, $workspace);
+
+                        return $row;
+                    });
+                }
+
+                $analyticsMonthlyRows = $analyticsReportRows->sortByDesc('month_start')->values();
+
+                $analyticsSnapshot = [
+                    'range_label' => $this->analyticsRangeLabel(),
+                    'top_source' => (clone $analyticsLeadBase)
+                        ->selectRaw('COALESCE(lead_source, ?) as label, COUNT(*) as total', ['Unknown'])
+                        ->groupBy('lead_source')
+                        ->orderByDesc('total')
+                        ->first(),
+                    'top_service' => (clone $analyticsLeadBase)
+                        ->selectRaw('COALESCE(service, ?) as label, COUNT(*) as total', ['Unknown'])
+                        ->groupBy('service')
+                        ->orderByDesc('total')
+                        ->first(),
+                    'avg_revenue' => (float) (clone $analyticsOpportunityBase)->avg('revenue_potential'),
+                ];
+
+                $analyticsSqlChartRows = $analyticsReportRows->map(fn ($report) => [
+                    'label' => $report->year_month,
+                    'sqls' => (int) $report->total_opportunities_count,
+                    'closed_won' => (int) $report->closed_won_count,
+                    'won_revenue' => (float) $report->won_revenue_potential,
+                ]);
+
+                $analyticsAdsChartRows = $analyticsReportRows->map(function ($report) {
+                    $spend = (float) $report->google_ads_cost;
+                    $leads = (int) $report->google_ads_leads;
+                    $cpl = $leads > 0 ? $spend / $leads : (float) $report->cost_per_conversion;
+
+                    return [
+                        'label' => $report->year_month,
+                        'spend' => $spend,
+                        'leads' => $leads,
+                        'cpl' => $cpl,
+                    ];
+                });
+
+                $analyticsWonCustomers = (clone $analyticsOpportunityBase)
+                    ->where('sales_stage', Opportunity::STAGE_CLOSED_WON)
+                    ->whereNotNull('company_name')
+                    ->orderByDesc('revenue_potential')
+                    ->limit(5)
+                    ->get(['company_name', 'revenue_potential']);
+
+                $analyticsDealSummary = [
+                    'potential_value' => $analyticsPotentialRevenue,
+                    'converted_value' => $analyticsWonRevenue,
+                    'total_deals' => $analyticsOpportunityCount,
+                    'won_leads' => $analyticsWonCount,
+                ];
+
+                $adsSpend = (float) $analyticsReportRows->sum('total_ads_cost');
+                $adsRevenue = (float) $analyticsReportRows->sum('won_revenue_potential');
+                $googleAdsSpend = (float) $analyticsReportRows->sum('google_ads_cost');
+                $googleAdsLeads = (int) $analyticsReportRows->sum('google_ads_leads');
+                $romi = $adsSpend > 0 ? (($adsRevenue - $adsSpend) / $adsSpend) * 100 : null;
+                $roas = $adsSpend > 0 ? $adsRevenue / $adsSpend : null;
+
+                $analyticsEfficiency = [
+                    'ads_spend' => $adsSpend,
+                    'google_ads_spend' => $googleAdsSpend,
+                    'google_ads_leads' => $googleAdsLeads,
+                    'revenue' => $adsRevenue,
+                    'romi' => $romi,
+                    'roas' => $roas,
+                    'romi_band' => $this->romiBand($romi),
+                ];
+            }
 
             $selectedLead = $this->selectedLeadId
                 ? Lead::query()
@@ -5457,10 +6565,11 @@ class CrmDashboard extends Component
                         'opportunities' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
                         'quotes' => fn ($query) => $query->orderByDesc('quoted_at')->orderByDesc('created_at')->limit(6),
                         'shipmentJobs' => fn ($query) => $query->orderByDesc('estimated_departure_at')->orderByDesc('created_at')->limit(6),
+                        'projects' => fn ($query) => $query->orderByDesc('target_delivery_date')->orderByDesc('created_at')->limit(6),
                         'bookings' => fn ($query) => $query->orderByDesc('requested_etd')->orderByDesc('created_at')->limit(6),
                         'invoices' => fn ($query) => $query->orderByDesc('issue_date')->orderByDesc('created_at')->limit(6),
                     ])
-                    ->withCount(['leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
+                    ->withCount(['leads', 'opportunities', 'quotes', 'shipmentJobs', 'projects', 'bookings', 'invoices'])
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedContactId)
                 : null;
@@ -5474,12 +6583,13 @@ class CrmDashboard extends Component
                         'opportunities' => fn ($query) => $query->orderByDesc('submission_date')->orderByDesc('created_at')->limit(6),
                         'quotes' => fn ($query) => $query->orderByDesc('quoted_at')->orderByDesc('created_at')->limit(6),
                         'shipmentJobs' => fn ($query) => $query->orderByDesc('estimated_departure_at')->orderByDesc('created_at')->limit(6),
+                        'projects' => fn ($query) => $query->orderByDesc('target_delivery_date')->orderByDesc('created_at')->limit(6),
                         'bookings' => fn ($query) => $query->orderByDesc('requested_etd')->orderByDesc('created_at')->limit(6),
                         'invoices' => fn ($query) => $query->orderByDesc('issue_date')->orderByDesc('created_at')->limit(6),
                         'segmentAssignments.segmentDefinition',
                         'currentMetricSnapshot',
                     ])
-                    ->withCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
+                    ->withCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'projects', 'bookings', 'invoices'])
                     ->withSum('opportunities as opportunity_revenue_sum', 'revenue_potential')
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedCustomerId)
@@ -5504,6 +6614,32 @@ class CrmDashboard extends Component
                     ->with(['lead', 'opportunity', 'quote', 'assignedUser', 'milestones', 'documents', 'bookings.carrier', 'jobCostings', 'invoices'])
                     ->where('workspace_id', $workspace->id)
                     ->find($this->selectedShipmentId)
+                : null;
+            $selectedProject = $this->selectedProjectId
+                ? Project::query()
+                    ->with([
+                        'assignedUser',
+                        'account.contacts',
+                        'contact',
+                        'lead',
+                        'opportunity',
+                        'drawings' => fn ($query) => $query->orderByDesc('submitted_at')->orderByDesc('id')->limit(10),
+                        'deliveryMilestones' => fn ($query) => $query->orderBy('sequence')->orderBy('id')->limit(12),
+                    ])
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedProjectId)
+                : null;
+            $selectedDrawing = $this->selectedDrawingId
+                ? ProjectDrawing::query()
+                    ->with(['project', 'assignedUser'])
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedDrawingId)
+                : null;
+            $selectedDelivery = $this->selectedDeliveryId
+                ? ProjectDeliveryMilestone::query()
+                    ->with(['project', 'assignedUser'])
+                    ->where('workspace_id', $workspace->id)
+                    ->find($this->selectedDeliveryId)
                 : null;
             $selectedCarrier = $this->selectedCarrierId
                 ? Carrier::query()
@@ -5590,15 +6726,26 @@ class CrmDashboard extends Component
                 $selectedShipment = $selectedShipment->fresh(['lead', 'opportunity', 'quote', 'assignedUser', 'milestones', 'documents', 'bookings.carrier', 'jobCostings', 'invoices']);
             }
 
+            if ($selectedProject) {
+                $this->ensureProjectExecutionDefaults($selectedProject);
+                $selectedProject = $selectedProject->fresh(['assignedUser', 'account.contacts', 'contact', 'lead', 'opportunity', 'drawings', 'deliveryMilestones']);
+            }
+
             $selectedQuoteCollaboration = $selectedQuote
                 ? $this->collaborationEntriesFor($selectedQuote)
                 : collect();
             $selectedShipmentCollaboration = $selectedShipment
                 ? $this->collaborationEntriesFor($selectedShipment)
                 : collect();
+            $selectedProjectCollaboration = $selectedProject
+                ? $this->collaborationEntriesFor($selectedProject)
+                : collect();
 
             $selectedShipmentTimeline = $selectedShipment
                 ? $this->shipmentTimelineRows($selectedShipment)
+                : collect();
+            $selectedProjectTimeline = $selectedProject
+                ? $this->projectTimelineRows($selectedProject)
                 : collect();
         }
 
@@ -5659,10 +6806,18 @@ class CrmDashboard extends Component
             'invoiceStatusOptions' => Invoice::STATUSES,
             'invoiceTypeOptions' => Invoice::TYPES,
             'invoices' => $invoices,
+            'drawingProjectOptions' => $drawingProjectOptions,
+            'drawingStatusOptions' => ProjectDrawing::STATUSES,
+            'drawings' => $drawings,
+            'hasSheetSources' => $hasSheetSources,
             'opportunities' => $opportunities,
             'opportunityStageOptions' => $workspace ? $this->opportunityStageOptions($workspace) : Workspace::defaultOpportunityStageLabels(),
             'permissions' => $permissions,
             'opportunityOptions' => $opportunityOptions ?? collect(),
+            'projectCustomerOptions' => $projectCustomerOptions,
+            'projectOpportunityOptions' => $projectOpportunityOptions,
+            'projectStatusOptions' => Project::STATUSES,
+            'projects' => $projects,
             'rateCardOptions' => $rateCardOptions,
             'rateModeOptions' => RateCard::MODES,
             'rates' => $rates,
@@ -5682,6 +6837,11 @@ class CrmDashboard extends Component
             'selectedShipment' => $selectedShipment,
             'selectedShipmentCollaboration' => $selectedShipmentCollaboration,
             'selectedShipmentTimeline' => $selectedShipmentTimeline,
+            'selectedProject' => $selectedProject,
+            'selectedProjectCollaboration' => $selectedProjectCollaboration,
+            'selectedProjectTimeline' => $selectedProjectTimeline,
+            'selectedDrawing' => $selectedDrawing,
+            'selectedDelivery' => $selectedDelivery,
             'selectedContact' => $selectedContact,
             'selectedContactCollaboration' => $selectedContactCollaboration,
             'selectedCustomer' => $selectedCustomer,
@@ -5694,6 +6854,7 @@ class CrmDashboard extends Component
             'selectedCostingCollaboration' => $selectedCostingCollaboration,
             'selectedInvoice' => $selectedInvoice,
             'selectedInvoiceCollaboration' => $selectedInvoiceCollaboration,
+            'sheetSourceStats' => $sheetSourceStats,
             'sheetSources' => $sheetSources,
             'shipmentCustomerOptions' => $shipmentCustomerOptions,
             'shipmentOpportunityOptions' => $shipmentOpportunityOptions,
@@ -5703,7 +6864,9 @@ class CrmDashboard extends Component
             'shipmentDocumentTypeOptions' => ShipmentDocument::TYPES,
             'shipmentDocumentStatusOptions' => ShipmentDocument::STATUSES,
             'shipments' => $shipments,
-            'sourceBreakdown' => $sourceBreakdown,
+            'deliveryMilestones' => $deliveryMilestones,
+            'deliveryProjectOptions' => $deliveryProjectOptions,
+            'deliveryStatusOptions' => ProjectDeliveryMilestone::STATUSES,
             'segmentColorOptions' => $segmentColorOptions,
             'segmentDefinitions' => $segmentDefinitions,
             'segmentMetricCatalog' => $segmentMetricCatalog,
@@ -5881,6 +7044,7 @@ class CrmDashboard extends Component
             'opportunity' => $this->defaultCollaborationForm(),
             'quote' => $this->defaultCollaborationForm(),
             'shipment' => $this->defaultCollaborationForm(),
+            'project' => $this->defaultCollaborationForm(),
             'booking' => $this->defaultCollaborationForm(),
             'costing' => $this->defaultCollaborationForm(),
             'invoice' => $this->defaultCollaborationForm(),
@@ -6317,6 +7481,32 @@ class CrmDashboard extends Component
             ->find($opportunityId);
     }
 
+    protected function selectedManualProjectCustomer(Workspace $workspace): ?Account
+    {
+        $customerId = (int) data_get($this->manualProjectForm, 'customer_record_id');
+
+        if ($customerId < 1) {
+            return null;
+        }
+
+        return Account::query()
+            ->where('workspace_id', $workspace->id)
+            ->find($customerId);
+    }
+
+    protected function selectedManualProjectOpportunity(Workspace $workspace): ?Opportunity
+    {
+        $opportunityId = (int) data_get($this->manualProjectForm, 'opportunity_id');
+
+        if ($opportunityId < 1) {
+            return null;
+        }
+
+        return Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->find($opportunityId);
+    }
+
     protected function buildShipmentQuery(Workspace $workspace)
     {
         $query = ShipmentJob::query()
@@ -6343,6 +7533,86 @@ class CrmDashboard extends Component
 
         if ($this->shipmentStatusFilter !== '') {
             $query->where('status', $this->shipmentStatusFilter);
+        }
+
+        return $query;
+    }
+
+    protected function buildProjectQuery(Workspace $workspace)
+    {
+        $query = Project::query()
+            ->with(['assignedUser', 'account', 'contact', 'opportunity'])
+            ->withCount(['drawings', 'deliveryMilestones'])
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->projectSearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('project_number', 'like', "%{$search}%")
+                    ->orWhere('project_name', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('contact_name', 'like', "%{$search}%")
+                    ->orWhere('contact_email', 'like', "%{$search}%")
+                    ->orWhere('site_location', 'like', "%{$search}%")
+                    ->orWhere('container_type', 'like', "%{$search}%");
+            });
+        }
+
+        if ($this->projectStatusFilter !== '') {
+            $query->where('status', $this->projectStatusFilter);
+        }
+
+        return $query;
+    }
+
+    protected function buildDrawingQuery(Workspace $workspace)
+    {
+        $query = ProjectDrawing::query()
+            ->with(['project', 'assignedUser'])
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->drawingSearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('revision_number', 'like', "%{$search}%")
+                    ->orWhere('drawing_title', 'like', "%{$search}%")
+                    ->orWhereHas('project', fn ($projectQuery) => $projectQuery
+                        ->where('project_number', 'like', "%{$search}%")
+                        ->orWhere('project_name', 'like', "%{$search}%")
+                        ->orWhere('customer_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($this->drawingStatusFilter !== '') {
+            $query->where('status', $this->drawingStatusFilter);
+        }
+
+        return $query;
+    }
+
+    protected function buildDeliveryQuery(Workspace $workspace)
+    {
+        $query = ProjectDeliveryMilestone::query()
+            ->with(['project', 'assignedUser'])
+            ->where('workspace_id', $workspace->id);
+
+        $search = trim($this->deliverySearch);
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('milestone_label', 'like', "%{$search}%")
+                    ->orWhere('site_location', 'like', "%{$search}%")
+                    ->orWhereHas('project', fn ($projectQuery) => $projectQuery
+                        ->where('project_number', 'like', "%{$search}%")
+                        ->orWhere('project_name', 'like', "%{$search}%")
+                        ->orWhere('customer_name', 'like', "%{$search}%"));
+            });
+        }
+
+        if ($this->deliveryStatusFilter !== '') {
+            $query->where('status', $this->deliveryStatusFilter);
         }
 
         return $query;
@@ -6469,7 +7739,7 @@ class CrmDashboard extends Component
     {
         $query = Contact::query()
             ->with('account')
-            ->withCount(['leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
+            ->withCount(['leads', 'opportunities', 'quotes', 'shipmentJobs', 'projects', 'bookings', 'invoices'])
             ->where('workspace_id', $workspace->id)
             ->whereDoesntHave('opportunities');
 
@@ -6491,11 +7761,10 @@ class CrmDashboard extends Component
     {
         $query = Account::query()
             ->with([
-                'contacts',
                 'segmentAssignments.segmentDefinition',
-                'currentMetricSnapshot',
             ])
-            ->withCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'bookings', 'invoices'])
+            ->withCount(['contacts', 'leads', 'opportunities', 'quotes', 'shipmentJobs', 'projects', 'bookings', 'invoices'])
+            ->withMin('contacts as primary_contact_name', 'full_name')
             ->withSum('opportunities as opportunity_revenue_sum', 'revenue_potential')
             ->where('workspace_id', $workspace->id)
             ->whereHas('opportunities');
@@ -6521,6 +7790,37 @@ class CrmDashboard extends Component
         }
 
         return $query;
+    }
+
+    protected function projectCustomerOptions(Workspace $workspace)
+    {
+        return Account::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'primary_email']);
+    }
+
+    protected function projectOpportunityOptions(Workspace $workspace, ?Account $customer = null)
+    {
+        $query = Opportunity::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderByDesc('submission_date')
+            ->orderByDesc('created_at');
+
+        if ($customer) {
+            $query->where('account_id', $customer->id);
+        }
+
+        return $query->get(['id', 'account_id', 'company_name', 'external_key', 'sales_stage']);
+    }
+
+    protected function projectOptions(Workspace $workspace)
+    {
+        return Project::query()
+            ->where('workspace_id', $workspace->id)
+            ->orderByDesc('target_delivery_date')
+            ->orderByDesc('created_at')
+            ->get(['id', 'project_number', 'project_name', 'customer_name']);
     }
 
     protected function workspaceExportFilename(Workspace $workspace, string $type): string
@@ -6906,6 +8206,46 @@ class CrmDashboard extends Component
         };
     }
 
+    protected function applyProjectSorting($query)
+    {
+        return match ($this->projectSort) {
+            'oldest' => $query->orderBy('target_delivery_date')->orderBy('created_at'),
+            'customer_asc' => $query->orderBy('customer_name')->orderByDesc('target_delivery_date'),
+            'customer_desc' => $query->orderByDesc('customer_name')->orderByDesc('target_delivery_date'),
+            'value_desc' => $query->orderByDesc('estimated_value')->orderByDesc('target_delivery_date'),
+            'value_asc' => $query->orderBy('estimated_value')->orderByDesc('target_delivery_date'),
+            default => $query->orderByDesc('target_delivery_date')->orderByDesc('created_at'),
+        };
+    }
+
+    protected function applyDrawingSorting($query)
+    {
+        return match ($this->drawingSort) {
+            'oldest' => $query->orderBy('submitted_at')->orderBy('created_at'),
+            'project_asc' => $query->orderBy(
+                Project::query()->select('project_name')->whereColumn('projects.id', 'project_drawings.project_id')->limit(1)
+            )->orderByDesc('submitted_at'),
+            'project_desc' => $query->orderByDesc(
+                Project::query()->select('project_name')->whereColumn('projects.id', 'project_drawings.project_id')->limit(1)
+            )->orderByDesc('submitted_at'),
+            default => $query->orderByDesc('submitted_at')->orderByDesc('created_at'),
+        };
+    }
+
+    protected function applyDeliverySorting($query)
+    {
+        return match ($this->deliverySort) {
+            'oldest' => $query->orderBy('planned_date')->orderBy('sequence')->orderBy('created_at'),
+            'project_asc' => $query->orderBy(
+                Project::query()->select('project_name')->whereColumn('projects.id', 'project_delivery_milestones.project_id')->limit(1)
+            )->orderBy('sequence'),
+            'project_desc' => $query->orderByDesc(
+                Project::query()->select('project_name')->whereColumn('projects.id', 'project_delivery_milestones.project_id')->limit(1)
+            )->orderBy('sequence'),
+            default => $query->orderByDesc('planned_date')->orderBy('sequence')->orderByDesc('created_at'),
+        };
+    }
+
     protected function applyCarrierSorting($query)
     {
         return match ($this->carrierSort) {
@@ -7278,6 +8618,13 @@ class CrmDashboard extends Component
         return 'SJ-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
     }
 
+    protected function nextProjectNumber(Workspace $workspace): string
+    {
+        $nextId = ((int) Project::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
+
+        return 'PRJ-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+    }
+
     protected function nextBookingNumber(Workspace $workspace): string
     {
         $nextId = ((int) Booking::query()->where('workspace_id', $workspace->id)->max('id')) + 1;
@@ -7540,6 +8887,7 @@ class CrmDashboard extends Component
             'opportunity' => Opportunity::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
             'quote' => Quote::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
             'shipment' => ShipmentJob::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
+            'project' => Project::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
             'booking' => Booking::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
             'costing' => JobCosting::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
             'invoice' => Invoice::query()->where('workspace_id', $workspace->id)->findOrFail($recordId),
@@ -7556,6 +8904,7 @@ class CrmDashboard extends Component
             'opportunity' => 'opportunity',
             'quote' => 'quote',
             'shipment' => 'shipment',
+            'project' => 'project',
             'booking' => 'booking',
             'costing' => 'job costing',
             'invoice' => 'invoice',

@@ -132,6 +132,11 @@ class Opportunity extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
     public function collaborationEntries(): MorphMany
     {
         return $this->morphMany(CollaborationEntry::class, 'notable')->latest();

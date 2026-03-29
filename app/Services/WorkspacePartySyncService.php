@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\Invoice;
 use App\Models\Lead;
 use App\Models\Opportunity;
+use App\Models\Project;
 use App\Models\Quote;
 use App\Models\ShipmentJob;
 use Carbon\CarbonInterface;
@@ -112,6 +113,19 @@ class WorkspacePartySyncService
                 $record->contact_email,
                 null,
                 $record->service_mode,
+                $activityAt,
+            ];
+        }
+
+        if ($record instanceof Project) {
+            $activityAt = $record->target_delivery_date ?: $record->target_installation_date ?: $record->created_at;
+
+            return [
+                $record->customer_name,
+                $record->contact_name,
+                $record->contact_email,
+                null,
+                $record->service_type,
                 $activityAt,
             ];
         }

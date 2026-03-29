@@ -20,19 +20,16 @@
 
                     <nav class="flex flex-wrap items-center gap-3 text-sm">
                         <a href="#features" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Features</a>
-                        <a href="#reporting" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Reporting</a>
-                        <a href="{{ route('presentation') }}" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Presentation</a>
-                        <a href="{{ route('product') }}" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Product Guide</a>
-                        <a href="{{ asset('marketing/IQX-Connect-Marketing-Presentation.pdf') }}" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950" target="_blank" rel="noreferrer">Download PDF</a>
+                        <a href="#pricing" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Pricing</a>
+                        <a href="{{ route('product') }}" class="rounded-full px-4 py-2 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950">Resources</a>
                         <a href="{{ route('login') }}" class="rounded-full border border-zinc-200 px-4 py-2 font-medium text-zinc-700 transition hover:bg-zinc-50">Log In</a>
-                        <a href="{{ route('register') }}" class="rounded-full bg-zinc-950 px-5 py-2 font-medium text-white transition hover:bg-zinc-800">Try For Free</a>
                     </nav>
                 </header>
 
                 <main class="mt-8 grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
                     <section class="space-y-8">
                         <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">
-                            Built for freight forwarders, shipping teams, and maritime operators
+                            Freemium plan: free for the first 100 shipments
                         </div>
 
                         <div class="space-y-5">
@@ -40,25 +37,13 @@
                                 Maritime CRM, quoting, shipment jobs, and reporting in one workspace.
                             </h1>
                             <p class="max-w-2xl text-lg leading-8 text-zinc-600">
-                                IQX Connect gives maritime companies one operating surface for inbound leads, customer accounts, quotes, bookings, shipment jobs, costing, invoices, and benchmark-style reporting without forcing teams into a bloated ERP workflow.
+                                IQX Connect gives maritime companies one operating surface for inbound leads, customer accounts, quotes, bookings, shipment jobs, costing, invoices, and benchmark-style reporting. Freemium pricing keeps the first 100 shipments free before any paid plan starts.
                             </p>
                         </div>
 
                         <div class="flex flex-col gap-3 sm:flex-row">
                             <a href="{{ route('register') }}" class="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,_#0f766e,_#16a34a)] px-6 py-4 text-base font-medium text-white shadow-lg shadow-emerald-950/20 transition hover:scale-[1.01]">
-                                Start Free Trial
-                            </a>
-                            <a href="{{ route('login') }}" class="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-6 py-4 text-base font-medium text-zinc-700 transition hover:bg-zinc-50">
-                                See The CRM
-                            </a>
-                            <a href="{{ route('presentation') }}" class="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-6 py-4 text-base font-medium text-sky-800 transition hover:bg-sky-100">
-                                Open Presentation
-                            </a>
-                            <a href="{{ asset('marketing/IQX-Connect-Marketing-Presentation.pdf') }}" target="_blank" rel="noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-6 py-4 text-base font-medium text-zinc-700 transition hover:bg-zinc-50">
-                                Download PDF
-                            </a>
-                            <a href="{{ route('product') }}" class="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-6 py-4 text-base font-medium text-emerald-800 transition hover:bg-emerald-100">
-                                Read Product Guide
+                                Start your journey
                             </a>
                         </div>
 
@@ -100,7 +85,31 @@
                     </section>
                 </main>
 
-                <section class="mt-24 grid gap-6 lg:grid-cols-[1fr_1fr]">
+                <section id="pricing" class="mt-24 rounded-[2rem] border border-emerald-100 bg-white p-7 shadow-sm">
+                    <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+                        <div>
+                            <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Pricing</div>
+                            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Freemium pricing built for maritime teams.</h2>
+                            <p class="mt-3 max-w-2xl text-base leading-7 text-zinc-600">
+                                Start free and use IQX Connect for the first 100 shipments at no cost. When your volume grows, upgrade only when you need more scale.
+                            </p>
+                        </div>
+                        <div class="grid gap-4 sm:grid-cols-2">
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-5">
+                                <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Starter</div>
+                                <div class="mt-3 text-4xl font-semibold text-zinc-950">Free</div>
+                                <p class="mt-2 text-sm leading-6 text-zinc-500">First 100 shipments included with full CRM, quoting, and shipment visibility.</p>
+                            </div>
+                            <div class="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-5">
+                                <div class="text-xs uppercase tracking-[0.24em] text-zinc-400">Scale</div>
+                                <div class="mt-3 text-4xl font-semibold text-zinc-950">Paid</div>
+                                <p class="mt-2 text-sm leading-6 text-zinc-500">Upgrade only when you need higher volume, more automation, or expanded team access.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="features" class="mt-24 grid gap-6 lg:grid-cols-[1fr_1fr]">
                     <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
                         <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Product Features</div>
                         <h2 class="mt-5 text-3xl font-semibold tracking-tight">Everything maritime teams need to work from one simple surface.</h2>

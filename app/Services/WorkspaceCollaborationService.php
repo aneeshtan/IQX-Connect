@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\JobCosting;
 use App\Models\Lead;
 use App\Models\Opportunity;
+use App\Models\Project;
 use App\Models\Quote;
 use App\Models\ShipmentJob;
 use App\Models\User;
@@ -222,6 +223,7 @@ class WorkspaceCollaborationService
             $record instanceof Opportunity => 'opportunity',
             $record instanceof Quote => 'quote',
             $record instanceof ShipmentJob => 'shipment',
+            $record instanceof Project => 'project',
             $record instanceof Booking => 'booking',
             $record instanceof JobCosting => 'job costing',
             $record instanceof Invoice => 'invoice',
@@ -238,6 +240,7 @@ class WorkspaceCollaborationService
             $record instanceof Opportunity => 'opportunities',
             $record instanceof Quote => 'quotes',
             $record instanceof ShipmentJob => 'shipments',
+            $record instanceof Project => 'projects',
             $record instanceof Booking => 'bookings',
             $record instanceof JobCosting => 'costings',
             $record instanceof Invoice => 'invoices',
@@ -254,6 +257,7 @@ class WorkspaceCollaborationService
             $record instanceof Opportunity => $record->external_key ?: ($record->company_name ?: 'Opportunity #'.$record->getKey()),
             $record instanceof Quote => $record->quote_number ?: ($record->company_name ?: 'Quote #'.$record->getKey()),
             $record instanceof ShipmentJob => $record->job_number ?: ($record->company_name ?: 'Shipment #'.$record->getKey()),
+            $record instanceof Project => $record->project_number ?: ($record->project_name ?: 'Project #'.$record->getKey()),
             $record instanceof Booking => $record->booking_number ?: ($record->customer_name ?: 'Booking #'.$record->getKey()),
             $record instanceof JobCosting => $record->costing_number ?: ($record->customer_name ?: 'Job costing #'.$record->getKey()),
             $record instanceof Invoice => $record->invoice_number ?: ($record->bill_to_name ?: 'Invoice #'.$record->getKey()),

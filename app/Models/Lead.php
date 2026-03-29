@@ -139,6 +139,11 @@ class Lead extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function projects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
     public function statusLogs(): HasMany
     {
         return $this->hasMany(LeadStatusLog::class);
