@@ -7,8 +7,8 @@
         <div class="relative overflow-hidden">
             <div class="absolute inset-x-0 top-0 -z-10 h-[44rem] bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.2),_transparent_34%),radial-gradient(circle_at_18%_18%,_rgba(16,185,129,0.16),_transparent_22%),radial-gradient(circle_at_82%_10%,_rgba(251,191,36,0.12),_transparent_18%),linear-gradient(180deg,_#040816,_rgba(11,20,50,0.92)_75%,_transparent)]"></div>
 
-            <div class="w-full pb-20 pt-0">
-                <section class="iqx-hero-shell relative isolate overflow-hidden px-5 pb-12 pt-5 shadow-[0_30px_120px_rgba(2,6,23,0.52)] sm:px-8 lg:px-10">
+            <div class="w-full pt-0">
+                <section class="iqx-hero-shell relative isolate overflow-hidden px-5 pt-5 shadow-[0_30px_120px_rgba(2,6,23,0.52)] sm:px-8 lg:px-10">
                     <div class="absolute inset-x-12 top-0 h-44 rounded-b-full bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.18),_transparent_70%)] blur-3xl"></div>
                     <div class="absolute -left-16 top-24 h-48 w-48 rounded-full bg-emerald-400/14 blur-3xl"></div>
                     <div class="absolute -right-10 top-16 h-56 w-56 rounded-full bg-sky-400/18 blur-3xl"></div>
@@ -32,7 +32,7 @@
                         </nav>
                     </header>
 
-                    <main class="relative z-10 mx-auto max-w-7xl pb-4 pt-14">
+                    <main class="relative z-10 mx-auto max-w-7xl pt-14">
                         <section class="mx-auto max-w-4xl text-center">
                             <div class="inline-flex items-center gap-2 rounded-full border border-sky-200/20 bg-white/8 px-4 py-2 text-sm font-medium text-sky-100 shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
                                 <span class="text-base">✨</span>
@@ -77,18 +77,15 @@
                             </div>
                         </section>
 
-                        <section class="relative mx-auto mt-16 max-w-5xl">
-                            <div class="iqx-hero-galaxy relative h-[20rem] overflow-hidden rounded-[2.5rem] sm:h-[24rem]">
-                                <div class="absolute inset-x-10 top-12 h-32 rounded-full bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.12),_transparent_72%)] blur-2xl"></div>
-                                <div class="absolute bottom-0 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,_rgba(196,181,253,0.95),_rgba(96,165,250,0.36)_42%,_transparent_75%)] blur-2xl"></div>
-                                <div class="iqx-hero-ring absolute left-[18%] top-[20%] h-52 w-52 rounded-full"></div>
-                                <div class="iqx-hero-ring absolute right-[16%] top-[14%] h-40 w-40 rounded-full" style="animation-direction: reverse; animation-duration: 20s;"></div>
-                                <div class="iqx-hero-ring absolute left-1/2 top-[18%] h-64 w-64 -translate-x-1/2 rounded-full" style="animation-duration: 24s;"></div>
+                        <section class="relative mx-auto mt-12 max-w-5xl">
+                            <div class="relative h-[14rem] overflow-hidden sm:h-[16rem]">
+                                <div class="iqx-hero-bottom-glow absolute bottom-[-4rem] left-1/2 h-[15rem] w-[24rem] -translate-x-1/2 rounded-full"></div>
+                                <div class="iqx-hero-bottom-glow absolute bottom-[-6rem] left-1/2 h-[10rem] w-[36rem] -translate-x-1/2 rounded-full opacity-70"></div>
 
                                 @foreach ([
-                                    ['emoji' => '🚢', 'classes' => 'left-[14%] top-[54%] sm:left-[18%] sm:top-[50%]', 'delay' => '-1s', 'duration' => '8.5s'],
-                                    ['emoji' => '✨', 'classes' => 'left-1/2 top-[24%] -translate-x-1/2 sm:top-[20%]', 'delay' => '-3s', 'duration' => '10.5s'],
-                                    ['emoji' => '⚓', 'classes' => 'right-[14%] top-[50%] sm:right-[18%] sm:top-[46%]', 'delay' => '-2s', 'duration' => '9.25s'],
+                                    ['emoji' => '🚢', 'classes' => 'left-[33%] top-[34%] sm:left-[39%] sm:top-[28%]', 'delay' => '-1s', 'duration' => '8.5s'],
+                                    ['emoji' => '✨', 'classes' => 'left-1/2 top-[20%] -translate-x-1/2 sm:top-[16%]', 'delay' => '-3s', 'duration' => '10.5s'],
+                                    ['emoji' => '⚓', 'classes' => 'right-[33%] top-[36%] sm:right-[39%] sm:top-[30%]', 'delay' => '-2s', 'duration' => '9.25s'],
                                 ] as $orbitEmoji)
                                     <span
                                         class="iqx-hero-emoji iqx-hero-float absolute {{ $orbitEmoji['classes'] }}"
@@ -97,28 +94,13 @@
                                         {{ $orbitEmoji['emoji'] }}
                                     </span>
                                 @endforeach
-
-                                @foreach ([
-                                    'left-[10%] top-[24%]',
-                                    'left-[18%] top-[72%]',
-                                    'left-[36%] top-[18%]',
-                                    'left-[46%] top-[68%]',
-                                    'left-[58%] top-[34%]',
-                                    'left-[70%] top-[18%]',
-                                    'left-[78%] top-[62%]',
-                                    'left-[88%] top-[28%]',
-                                ] as $index => $starPosition)
-                                    <span class="iqx-hero-star absolute {{ $starPosition }}" style="--twinkle-delay: -{{ $index + 1 }}s;"></span>
-                                @endforeach
-
-                                <div class="absolute inset-x-0 bottom-0 h-24 bg-[linear-gradient(180deg,_transparent,_rgba(4,8,22,0.58))]"></div>
                             </div>
                         </section>
                     </main>
                 </section>
 
                 <div class="mx-auto max-w-7xl px-6 lg:px-8">
-                <section class="mt-16">
+                <section class="mt-0 pt-12 sm:pt-14">
                     <div class="text-center text-xs font-medium uppercase tracking-[0.32em] text-zinc-400">Trusted by modern maritime businesses</div>
                     <div class="mt-8 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
                         @foreach (['HarborGrid', 'OceanAxis', 'Portline Co.', 'Nauticore', 'BlueRidge Marine', 'ContainerCraft'] as $brand)
