@@ -10,8 +10,11 @@ Route::get('/', function () {
         : view('welcome');
 })->name('home');
 
-Route::view('product', 'product')
-    ->name('product');
+Route::get('product', function () {
+    return auth()->check()
+        ? view('documentation')
+        : view('product');
+})->name('product');
 
 Route::view('presentation', 'presentation')
     ->name('presentation');
@@ -33,9 +36,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin/google')->n
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
-    Route::view('documentation', 'documentation')
-        ->middleware('verified')
-        ->name('documentation');
+    Route::redirect('documentation', 'product')
+        ->middleware('verified');
 
     Volt::route('settings/profile', 'settings.profile')->name('settings.profile');
     Volt::route('settings/password', 'settings.password')->name('settings.password');

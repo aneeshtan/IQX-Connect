@@ -132,7 +132,7 @@
                         ->values()
                         ->all();
                 }
-            } elseif (request()->routeIs('documentation')) {
+            } elseif (request()->routeIs('product')) {
                 $topbarPageTitle = 'Documentation';
             } elseif (request()->routeIs('admin')) {
                 $topbarPageTitle = 'Admin';
@@ -192,8 +192,8 @@
                             <span>Home</span>
                         </a>
                         <a
-                            href="{{ route('documentation') }}"
-                            class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150 {{ request()->routeIs('documentation') ? 'iqx-sidebar-link-active' : 'iqx-sidebar-link' }}"
+                            href="{{ route('product') }}"
+                            class="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150 {{ request()->routeIs('product') ? 'iqx-sidebar-link-active' : 'iqx-sidebar-link' }}"
                             wire:navigate
                         >
                             <flux:icon.book-open class="h-4 w-4" />

@@ -25,16 +25,25 @@ class ProductDocumentationTest extends TestCase
             ->assertSee('Frequently asked questions');
     }
 
-    public function test_authenticated_documentation_page_is_available(): void
+    public function test_authenticated_product_page_is_available(): void
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get('/documentation');
+        $response = $this->actingAs($user)->get('/product');
 
         $response
             ->assertOk()
             ->assertSee('Product Documentation')
             ->assertSee('Workspace Guide')
             ->assertSee('Lead To Job');
+    }
+
+    public function test_legacy_documentation_url_redirects_to_product(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get('/documentation');
+
+        $response->assertRedirect('/product');
     }
 }

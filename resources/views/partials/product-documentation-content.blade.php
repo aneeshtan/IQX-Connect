@@ -62,6 +62,77 @@
         ->values()
         ->all();
 
+    $workspaceModeGuideMeta = [
+        'freight_forwarding' => [
+            'best_for' => 'Air, ocean, road, customs, and project cargo forwarding teams.',
+            'team' => 'Sales, pricing, customer service, and operations.',
+            'use_cases' => ['Lead to quote', 'Quote to booking', 'Shipment execution', 'Costing and invoicing'],
+        ],
+        'container_conversion' => [
+            'best_for' => 'Fabrication-led projects with drawings, delivery milestones, and customer approvals.',
+            'team' => 'Commercial, technical, production, and delivery teams.',
+            'use_cases' => ['Project qualification', 'Drawing revisions', 'Delivery tracking', 'Installation readiness'],
+        ],
+        'ship_chandling' => [
+            'best_for' => 'Port-call supply operations with urgent requisitions and final-mile fulfillment.',
+            'team' => 'Commercial desk, sourcing, and delivery teams.',
+            'use_cases' => ['Vessel enquiry capture', 'Supply orders', 'Urgent delivery coordination', 'Port completion'],
+        ],
+        'shipping_liner' => [
+            'best_for' => 'Liner teams managing customer accounts, sailings, and slot-driven bookings.',
+            'team' => 'Sales, customer service, and booking control.',
+            'use_cases' => ['Booking requests', 'Schedule checks', 'Account visibility', 'Contract-rate workflows'],
+        ],
+        'ship_management' => [
+            'best_for' => 'Owner-facing management companies with technical, crewing, and procurement workflows.',
+            'team' => 'Commercial, technical management, and crewing teams.',
+            'use_cases' => ['Owner acquisition', 'Technical review', 'Management handover', 'Contract tracking'],
+        ],
+        'container_trading_leasing' => [
+            'best_for' => 'Stock-led container sales and leasing teams working with depots and allocation decisions.',
+            'team' => 'Sales, inventory control, and depot coordination.',
+            'use_cases' => ['Stock qualification', 'Leasing deals', 'Depot coordination', 'Asset allocation'],
+        ],
+        'general_maritime' => [
+            'best_for' => 'Maritime businesses that need a lighter CRM setup before enabling deeper execution workflows.',
+            'team' => 'Founders, sales teams, and cross-functional operators.',
+            'use_cases' => ['CRM rollout', 'Pipeline visibility', 'Account tracking', 'Reporting-first adoption'],
+        ],
+    ];
+
+    $workspaceModeGuides = $workspaceTemplates
+        ->map(function (array $template, string $key) use ($templateModuleMeta, $usageMetrics, $workspaceModeGuideMeta) {
+            $guideMeta = $workspaceModeGuideMeta[$key] ?? [
+                'best_for' => $template['description'],
+                'team' => 'Commercial and operations teams.',
+                'use_cases' => [],
+            ];
+
+            return [
+                'key' => $key,
+                'name' => $template['name'],
+                'desc' => $template['description'],
+                'best_for' => $guideMeta['best_for'],
+                'team' => $guideMeta['team'],
+                'usage_label' => data_get($usageMetrics, "{$key}.label", 'Operational records'),
+                'usage_description' => data_get($usageMetrics, "{$key}.description", 'Usage tracked inside the workspace.'),
+                'modules' => collect($template['modules'] ?? [])
+                    ->reject(fn (string $module) => in_array($module, ['sources', 'analytics', 'access', 'settings', 'exports'], true))
+                    ->map(fn (string $module) => [
+                        'label' => $templateModuleMeta[$module]['label'] ?? ucwords(str_replace('_', ' ', $module)),
+                        'description' => $templateModuleMeta[$module]['description'] ?? 'Mode-specific workflow support.',
+                    ])
+                    ->take(6)
+                    ->values()
+                    ->all(),
+                'services' => collect(data_get($template, 'vocabulary.lead_services', []))->take(4)->values()->all(),
+                'sources' => collect(data_get($template, 'vocabulary.lead_sources', []))->take(4)->values()->all(),
+                'use_cases' => $guideMeta['use_cases'],
+            ];
+        })
+        ->values()
+        ->all();
+
     $pricingPlans = collect(config('pricing.plans', []))
         ->map(function (array $plan, string $key) use ($featureFlagLabels, $pricingDefaultPlan) {
             return [
@@ -139,6 +210,91 @@
         'Set roles, notification preferences, customer segments, and exports once the team is live.',
     ];
 
+    $helpCenterTopics = [
+        [
+            'href' => '#getting-started',
+            'title' => 'Getting started',
+            'desc' => 'Launch the workspace, invite users, connect sources, and understand the first operational workflow.',
+            'articles' => ['Workspace setup', 'Imports and source sync', 'First records'],
+        ],
+        [
+            'href' => '#workspace-modes',
+            'title' => 'Workspace modes',
+            'desc' => 'Compare every business-mode template, its modules, usage metric, and common rollout fit.',
+            'articles' => ['Freight Forwarder', 'Container Conversion', 'Ship Chandling'],
+        ],
+        [
+            'href' => '#modules',
+            'title' => 'Feature directory',
+            'desc' => 'Browse CRM, execution, project, finance, collaboration, and admin capabilities by category.',
+            'articles' => ['CRM', 'Execution', 'Projects and delivery'],
+        ],
+        [
+            'href' => '#use-cases',
+            'title' => 'Use-case playbooks',
+            'desc' => 'See how teams handle lead-to-job, migrations, reporting, and cross-team handoffs inside IQX Connect.',
+            'articles' => ['Sales to ops', 'Migration rollout', 'Management visibility'],
+        ],
+        [
+            'href' => '#integrations',
+            'title' => 'Integrations and migration',
+            'desc' => 'Understand CSV, Google Sheets, API-based imports, and phased migration patterns.',
+            'articles' => ['Google Sheets', 'CSV imports', 'CargoWise-style APIs'],
+        ],
+        [
+            'href' => '#reporting',
+            'title' => 'Reporting and control',
+            'desc' => 'Review the dashboard, KPIs, account health, segmentation, and management reporting surface.',
+            'articles' => ['Benchmarks', 'Account segmentation', 'Monthly reporting'],
+        ],
+        [
+            'href' => '#pricing',
+            'title' => 'Pricing and packaging',
+            'desc' => 'See exactly how freemium, paid plans, and usage packaging map to workspace growth.',
+            'articles' => ['Freemium', 'Growth', 'Enterprise'],
+        ],
+        [
+            'href' => '#resources',
+            'title' => 'Resources and FAQs',
+            'desc' => 'Jump to presentation material, buyer FAQs, and the supporting resources around the product guide.',
+            'articles' => ['Presentation', 'FAQs', 'Guide map'],
+        ],
+    ];
+
+    $useCasePlaybooks = [
+        [
+            'title' => 'Launch a new maritime workspace',
+            'audience' => 'Owners and admins',
+            'desc' => 'Stand up the company, pick the right operating mode, bring in source data, and start the first team workflow.',
+            'steps' => ['Choose the workspace mode', 'Import or sync live data', 'Configure roles and notifications'],
+        ],
+        [
+            'title' => 'Move demand into execution',
+            'audience' => 'Sales and operations teams',
+            'desc' => 'Keep enquiry, quote, booking, shipment, project, and invoice context on one record trail.',
+            'steps' => ['Qualify the lead', 'Convert into quote or proposal', 'Hand off to bookings, projects, or costing'],
+        ],
+        [
+            'title' => 'Run migration without stopping work',
+            'audience' => 'Implementation leads',
+            'desc' => 'Start with spreadsheets and manual workflows, then deepen the operating model with better sources and structure.',
+            'steps' => ['Begin with CSV or sheets', 'Map live operational records', 'Expand modules after adoption'],
+        ],
+        [
+            'title' => 'Give management visibility fast',
+            'audience' => 'Leaders and finance',
+            'desc' => 'Use time windows, KPI tracking, account segmentation, and operational context to understand performance.',
+            'steps' => ['Pick reporting windows', 'Review pipeline and revenue', 'Monitor account health and activity'],
+        ],
+    ];
+
+    $resourceHubCards = [
+        ['title' => 'Workspace mode catalog', 'desc' => 'Browse all maritime templates, their modules, and the usage metric tied to each mode.', 'href' => '#workspace-modes', 'cta' => 'Browse modes'],
+        ['title' => 'Use-case playbooks', 'desc' => 'Read rollout and workflow guidance by team objective, not just by module name.', 'href' => '#use-cases', 'cta' => 'See playbooks'],
+        ['title' => 'Pricing and packaging', 'desc' => 'Review the current plans, included users, and operational record packaging.', 'href' => '#pricing', 'cta' => 'Review pricing'],
+        ['title' => 'Marketing presentation', 'desc' => 'Share the deck version of the story with internal stakeholders and buyers.', 'href' => route('presentation'), 'cta' => 'Open presentation'],
+    ];
+
     $faqItems = [
         [
             'question' => 'What does IQX Connect cover in one app?',
@@ -189,15 +345,15 @@
             <div class="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
                 <div class="space-y-6">
                     <div class="inline-flex rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-800 shadow-sm">
-                        Public product guide
+                        IQX Connect Help Center
                     </div>
 
                     <div class="space-y-4">
                         <h1 class="max-w-4xl text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-                            A product guide aligned to the workflows and pricing IQX Connect ships today.
+                            A comprehensive help center for IQX Connect features, workspace modes, and rollout use cases.
                         </h1>
                         <p class="max-w-3xl text-base leading-8 text-zinc-600 sm:text-lg">
-                            IQX Connect combines maritime CRM, operations, projects, finance, collaboration, and reporting in one workspace. This guide maps the real app features to the actual pricing plans so buyers can evaluate fit without guessing.
+                            Use this guide like a product help center: start with setup, browse workspace modes, compare features by category, review migration paths, and understand how each use case fits different maritime teams.
                         </p>
                     </div>
 
@@ -205,8 +361,8 @@
                         <a href="{{ route('register') }}" class="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(135deg,_#0f766e,_#16a34a)] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/15 transition hover:scale-[1.01]">
                             Start your journey
                         </a>
-                        <a href="#pricing" class="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-6 py-3.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
-                            View pricing
+                        <a href="#help-topics" class="inline-flex items-center justify-center rounded-2xl border border-zinc-200 bg-white px-6 py-3.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                            Browse help topics
                         </a>
                     </div>
 
@@ -237,19 +393,19 @@
                 <div class="rounded-[1.8rem] border border-zinc-200 bg-zinc-950 p-5 text-white shadow-[0_20px_60px_rgba(15,23,42,0.18)]">
                     <div class="flex items-center justify-between gap-4">
                         <div>
-                            <div class="text-xs uppercase tracking-[0.26em] text-emerald-100/70">Guide Map</div>
-                            <div class="mt-2 text-2xl font-semibold">What this page covers</div>
+                            <div class="text-xs uppercase tracking-[0.26em] text-emerald-100/70">Help Center Map</div>
+                            <div class="mt-2 text-2xl font-semibold">What you can find here</div>
                         </div>
-                        <div class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/80">Buyer-ready</div>
+                        <div class="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/80">Comprehensive</div>
                     </div>
 
                     <div class="mt-5 space-y-3">
                         @foreach ([
-                            ['step' => '01', 'title' => 'Operating model', 'desc' => 'How the app connects demand, delivery, and finance.'],
-                            ['step' => '02', 'title' => 'Feature map', 'desc' => 'The modules available across CRM, execution, projects, and admin control.'],
-                            ['step' => '03', 'title' => 'Integrations and reporting', 'desc' => 'Migration paths, source sync, analytics, and segmentation.'],
-                            ['step' => '04', 'title' => 'Pricing models', 'desc' => 'All current plans, included users, and usage limits.'],
-                            ['step' => '05', 'title' => 'FAQs', 'desc' => 'Clear buyer answers on rollout, usage, and fit.'],
+                            ['step' => '01', 'title' => 'Help topics', 'desc' => 'A topic directory for setup, workspace modes, features, reporting, and pricing.'],
+                            ['step' => '02', 'title' => 'Workspace modes', 'desc' => 'Every maritime operating template, its modules, usage metric, and team fit.'],
+                            ['step' => '03', 'title' => 'Use-case playbooks', 'desc' => 'Role-based examples for rollout, migration, commercial handoff, and management visibility.'],
+                            ['step' => '04', 'title' => 'Feature directory', 'desc' => 'Grouped coverage for CRM, execution, delivery, collaboration, admin, and reporting.'],
+                            ['step' => '05', 'title' => 'Resources and FAQs', 'desc' => 'Pricing, presentation assets, and direct buyer or operator answers.'],
                         ] as $item)
                             <div class="rounded-[1.25rem] border border-white/10 bg-white/6 p-4">
                                 <div class="flex items-start gap-3">
@@ -293,8 +449,8 @@
                     <a href="{{ route('dashboard') }}" class="inline-flex items-center justify-center rounded-2xl bg-white px-6 py-3.5 text-sm font-semibold text-zinc-950 transition hover:bg-emerald-50">
                         Back To Dashboard
                     </a>
-                    <a href="{{ route('product') }}" class="inline-flex items-center justify-center rounded-2xl border border-white/25 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-white/15">
-                        Public Product Guide
+                    <a href="{{ route('presentation') }}" class="inline-flex items-center justify-center rounded-2xl border border-white/25 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-white/15">
+                        View presentation
                     </a>
                 </div>
 
@@ -342,11 +498,15 @@
                 <div class="text-xs font-semibold uppercase tracking-[0.3em] text-zinc-400">On this page</div>
                 <nav class="mt-4 space-y-2 text-sm">
                     @foreach ([
-                        ['href' => '#overview', 'label' => 'Overview'],
-                        ['href' => '#modules', 'label' => 'Modules'],
-                        ['href' => '#resources', 'label' => 'Resources'],
+                        ['href' => '#help-topics', 'label' => 'Help topics'],
+                        ['href' => '#overview', 'label' => 'Platform overview'],
+                        ['href' => '#workspace-modes', 'label' => 'Workspace modes'],
+                        ['href' => '#use-cases', 'label' => 'Use cases'],
+                        ['href' => '#modules', 'label' => 'Feature directory'],
+                        ['href' => '#integrations', 'label' => 'Integrations'],
                         ['href' => '#reporting', 'label' => 'Reporting'],
                         ['href' => '#benefits', 'label' => 'Benefits'],
+                        ['href' => '#resources', 'label' => 'Resources'],
                         ['href' => '#pricing', 'label' => 'Pricing'],
                         ['href' => '#faqs', 'label' => 'FAQs'],
                         ['href' => '#getting-started', 'label' => 'Getting started'],
@@ -367,6 +527,150 @@
         </aside>
 
         <div class="space-y-6">
+@endif
+
+@if ($isMarketing)
+<section id="help-topics" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Help topics</div>
+            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Start from the question you need answered.</h2>
+        </div>
+        <p class="max-w-2xl text-base leading-7 text-zinc-600">
+            Use this page as a structured help center. Teams can jump directly into setup, workspace-mode fit, feature categories, migration paths, reporting, pricing, and rollout resources.
+        </p>
+    </div>
+
+    <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        @foreach ($helpCenterTopics as $topic)
+            <a href="{{ $topic['href'] }}" class="rounded-[1.5rem] border border-zinc-200 bg-zinc-50 p-5 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm">
+                <div class="text-lg font-semibold tracking-tight text-zinc-950">{{ $topic['title'] }}</div>
+                <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $topic['desc'] }}</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    @foreach ($topic['articles'] as $article)
+                        <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600">{{ $article }}</span>
+                    @endforeach
+                </div>
+                <div class="mt-5 text-sm font-medium text-emerald-700">Open section →</div>
+            </a>
+        @endforeach
+    </div>
+</section>
+
+<section id="workspace-modes" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <div class="inline-flex rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800">Workspace mode catalog</div>
+            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Compare every maritime operating mode in one place.</h2>
+        </div>
+        <p class="max-w-2xl text-base leading-7 text-zinc-600">
+            Each workspace mode adapts the workflow, labels, and usage packaging to the business model. This helps buyers understand whether the product fits forwarding, projects, liner, chandling, ship management, leasing, or a lighter general mode.
+        </p>
+    </div>
+
+    <div class="mt-6 grid gap-4 xl:grid-cols-2">
+        @foreach ($workspaceModeGuides as $mode)
+            <article class="rounded-[1.55rem] border border-zinc-200 bg-zinc-50 p-5">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <div class="text-lg font-semibold tracking-tight text-zinc-950">{{ $mode['name'] }}</div>
+                        <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $mode['desc'] }}</p>
+                    </div>
+                    <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600">{{ $mode['usage_label'] }}</span>
+                </div>
+
+                <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                    <div class="rounded-[1.2rem] border border-zinc-200 bg-white p-4">
+                        <div class="text-xs uppercase tracking-[0.22em] text-zinc-400">Best for</div>
+                        <div class="mt-2 text-sm leading-7 text-zinc-600">{{ $mode['best_for'] }}</div>
+                    </div>
+                    <div class="rounded-[1.2rem] border border-zinc-200 bg-white p-4">
+                        <div class="text-xs uppercase tracking-[0.22em] text-zinc-400">Primary team</div>
+                        <div class="mt-2 text-sm leading-7 text-zinc-600">{{ $mode['team'] }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <div class="text-sm font-semibold text-zinc-950">Core modules</div>
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                        @foreach ($mode['modules'] as $module)
+                            <div class="rounded-[1.15rem] border border-zinc-200 bg-white p-3">
+                                <div class="text-sm font-semibold text-zinc-950">{{ $module['label'] }}</div>
+                                <div class="mt-1 text-xs leading-6 text-zinc-500">{{ $module['description'] }}</div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="mt-5 grid gap-4 lg:grid-cols-2">
+                    <div>
+                        <div class="text-sm font-semibold text-zinc-950">Typical services</div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            @foreach ($mode['services'] as $service)
+                                <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600">{{ $service }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-sm font-semibold text-zinc-950">Common sources</div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            @foreach ($mode['sources'] as $source)
+                                <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600">{{ $source }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5 rounded-[1.2rem] border border-emerald-100 bg-emerald-50 p-4">
+                    <div class="text-sm font-semibold text-zinc-950">Common use cases</div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        @foreach ($mode['use_cases'] as $useCase)
+                            <span class="rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-medium text-emerald-700">{{ $useCase }}</span>
+                        @endforeach
+                    </div>
+                    <p class="mt-3 text-sm leading-7 text-zinc-600">{{ $mode['usage_description'] }}</p>
+                </div>
+            </article>
+        @endforeach
+    </div>
+</section>
+
+<section id="use-cases" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <div class="inline-flex rounded-2xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-800">Use-case playbooks</div>
+            <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Guide teams by workflow and business objective.</h2>
+        </div>
+        <p class="max-w-2xl text-base leading-7 text-zinc-600">
+            Buyers rarely think in module names. These playbooks show how IQX Connect supports real launch, migration, delivery, and management objectives across maritime teams.
+        </p>
+    </div>
+
+    <div class="mt-6 grid gap-4 xl:grid-cols-2">
+        @foreach ($useCasePlaybooks as $playbook)
+            <article class="rounded-[1.45rem] border border-zinc-200 bg-zinc-50 p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-lg font-semibold tracking-tight text-zinc-950">{{ $playbook['title'] }}</div>
+                        <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $playbook['desc'] }}</p>
+                    </div>
+                    <span class="rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-medium text-zinc-600">{{ $playbook['audience'] }}</span>
+                </div>
+
+                <ol class="mt-5 space-y-3">
+                    @foreach ($playbook['steps'] as $index => $step)
+                        <li class="rounded-[1.15rem] border border-zinc-200 bg-white p-3">
+                            <div class="flex items-start gap-3">
+                                <div class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-[11px] font-semibold text-white">{{ $index + 1 }}</div>
+                                <div class="text-sm leading-6 text-zinc-600">{{ $step }}</div>
+                            </div>
+                        </li>
+                    @endforeach
+                </ol>
+            </article>
+        @endforeach
+    </div>
+</section>
 @endif
 
 <section id="overview" class="scroll-mt-28 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
@@ -437,7 +741,7 @@
     </div>
 </section>
 
-<section id="resources" class="scroll-mt-28 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+<section id="integrations" class="scroll-mt-28 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
     <article class="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
         <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Integrations and rollout</div>
         <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Bring data in before replacing every legacy workflow.</h2>
@@ -494,6 +798,30 @@
         </ol>
     </article>
 </section>
+
+@if ($isMarketing)
+    <section id="resources" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+                <div class="inline-flex rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Resources hub</div>
+                <h2 class="mt-5 text-3xl font-semibold tracking-tight text-zinc-950">Everything around the product guide in one place.</h2>
+            </div>
+            <p class="max-w-2xl text-base leading-7 text-zinc-600">
+                Keep buyer-facing material, deeper guide sections, and supporting rollout references easy to access without forcing visitors to scan the whole page from top to bottom.
+            </p>
+        </div>
+
+        <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            @foreach ($resourceHubCards as $resource)
+                <a href="{{ $resource['href'] }}" class="rounded-[1.45rem] border border-zinc-200 bg-zinc-50 p-5 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm">
+                    <div class="text-lg font-semibold tracking-tight text-zinc-950">{{ $resource['title'] }}</div>
+                    <p class="mt-2 text-sm leading-7 text-zinc-600">{{ $resource['desc'] }}</p>
+                    <div class="mt-5 text-sm font-medium text-emerald-700">{{ $resource['cta'] }} →</div>
+                </a>
+            @endforeach
+        </div>
+    </section>
+@endif
 
 <section id="pricing" class="scroll-mt-28 rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
     <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
