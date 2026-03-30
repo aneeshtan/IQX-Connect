@@ -43,13 +43,43 @@ class AdminDashboard extends Component
 
     public ?int $editingSourceId = null;
 
+    public ?int $editingUserId = null;
+
+    public ?int $pendingWorkspaceDeleteId = null;
+
     public string $activeTab = 'analytics';
 
     public string $sourceSort = 'newest';
 
+    public string $sourceSearch = '';
+
+    public string $sourceStatusFilter = 'all';
+
+    public string $sourceKindFilter = 'all';
+
     public string $workspaceUserSort = 'newest';
 
     public string $workspaceSort = 'newest';
+
+    public string $workspaceSearch = '';
+
+    public string $companySearch = '';
+
+    public string $userSearch = '';
+
+    public string $userStatusFilter = 'all';
+
+    public string $userRoleFilter = 'all';
+
+    public string $billingSearch = '';
+
+    public string $billingPlanFilter = 'all';
+
+    public string $billingStatusFilter = 'all';
+
+    public string $workspaceDeleteConfirmation = '';
+
+    public bool $workspaceDeleteAcknowledged = false;
 
     public int $sourcePerPage = 10;
 
@@ -66,6 +96,8 @@ class AdminDashboard extends Component
     public array $sourceForm = [];
 
     public array $editingSourceForm = [];
+
+    public array $editingUserForm = [];
 
     public array $userForm = [];
 
@@ -134,6 +166,21 @@ class AdminDashboard extends Component
         $this->resetPage('sourcesPage');
     }
 
+    public function updatedSourceSearch(): void
+    {
+        $this->resetPage('sourcesPage');
+    }
+
+    public function updatedSourceStatusFilter(): void
+    {
+        $this->resetPage('sourcesPage');
+    }
+
+    public function updatedSourceKindFilter(): void
+    {
+        $this->resetPage('sourcesPage');
+    }
+
     public function updatedSourceFormSourceKind(string $value): void
     {
         $this->sourceForm = [
@@ -188,9 +235,49 @@ class AdminDashboard extends Component
         $this->resetPage('workspaceUsersPage');
     }
 
+    public function updatedUserSearch(): void
+    {
+        $this->resetPage('workspaceUsersPage');
+    }
+
+    public function updatedUserStatusFilter(): void
+    {
+        $this->resetPage('workspaceUsersPage');
+    }
+
+    public function updatedUserRoleFilter(): void
+    {
+        $this->resetPage('workspaceUsersPage');
+    }
+
+    public function updatedBillingSearch(): void
+    {
+        $this->resetPage('billingPage');
+    }
+
+    public function updatedBillingPlanFilter(): void
+    {
+        $this->resetPage('billingPage');
+    }
+
+    public function updatedBillingStatusFilter(): void
+    {
+        $this->resetPage('billingPage');
+    }
+
     public function updatedWorkspaceSort(): void
     {
         $this->resetPage('workspacesPage');
+    }
+
+    public function updatedWorkspaceSearch(): void
+    {
+        $this->resetPage('workspacesPage');
+    }
+
+    public function updatedCompanySearch(): void
+    {
+        // Company directory is collection-based, so no paginator reset is needed.
     }
 
     public function updatedWorkspacePerPage(): void
@@ -228,22 +315,25 @@ class AdminDashboard extends Component
             'company_id' => ['required', 'exists:companies,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:255'],
+            'template_key' => ['required', Rule::in(array_keys(Workspace::workspaceTemplates()))],
         ])->validate();
 
         $workspace = Workspace::create([
-            ...$validated,
+            ...collect($validated)->except('template_key')->all(),
             'slug' => $this->uniqueSlug(
                 Workspace::class,
                 $validated['name'],
                 ['company_id' => $validated['company_id']],
             ),
             'is_default' => Workspace::where('company_id', $validated['company_id'])->doesntExist(),
+            'settings' => Workspace::applyTemplateSettings(null, $validated['template_key']),
         ]);
 
         $this->workspaceId = $workspace->id;
         $this->workspaceForm['name'] = '';
         $this->workspaceForm['description'] = '';
         $this->primeForms($workspace);
+        $this->workspaceForm['template_key'] = Workspace::defaultTemplateKey();
         $this->primeWorkspaceEditor($workspace);
 
         $this->flash("Workspace {$workspace->name} created.");
@@ -492,6 +582,105 @@ class AdminDashboard extends Component
         $this->flash("User {$user->email} created.");
     }
 
+    public function startEditingUser(int $userId): void
+    {
+        $user = User::query()
+            ->with(['roles', 'workspaces'])
+            ->findOrFail($userId);
+
+        $this->editingUserId = $user->id;
+        $this->editingUserForm = [
+            'name' => $user->name,
+            'email' => $user->email,
+            'password' => '',
+            'job_title' => $user->job_title ?? '',
+            'role' => $user->roles->pluck('slug')->first() ?? 'sales',
+            'workspace_ids' => $user->workspaces->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            'default_workspace_id' => $user->default_workspace_id,
+            'is_active' => (bool) $user->is_active,
+        ];
+    }
+
+    public function cancelEditingUser(): void
+    {
+        $this->editingUserId = null;
+        $this->editingUserForm = [
+            'name' => '',
+            'email' => '',
+            'password' => '',
+            'job_title' => '',
+            'role' => 'sales',
+            'workspace_ids' => [],
+            'default_workspace_id' => '',
+            'is_active' => true,
+        ];
+    }
+
+    public function updateUser(): void
+    {
+        $user = User::query()->findOrFail($this->editingUserId);
+
+        $validated = validator($this->editingUserForm, [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($user->id)],
+            'password' => ['nullable', 'string', 'min:8'],
+            'job_title' => ['nullable', 'string', 'max:255'],
+            'role' => ['required', 'string', Rule::in(Role::query()->pluck('slug')->all())],
+            'workspace_ids' => ['required', 'array', 'min:1'],
+            'workspace_ids.*' => ['integer', 'exists:workspaces,id'],
+            'default_workspace_id' => ['required', 'integer', 'exists:workspaces,id'],
+            'is_active' => ['boolean'],
+        ])->validate();
+
+        $workspaceIds = collect($validated['workspace_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        abort_unless($workspaceIds->contains((int) $validated['default_workspace_id']), 422, 'Default workspace must be one of the assigned workspaces.');
+
+        $companyId = Workspace::query()
+            ->whereKey((int) $validated['default_workspace_id'])
+            ->value('company_id');
+
+        $user->fill([
+            'company_id' => $companyId,
+            'default_workspace_id' => (int) $validated['default_workspace_id'],
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'job_title' => $validated['job_title'],
+            'is_active' => (bool) ($validated['is_active'] ?? false),
+        ]);
+
+        if (filled($validated['password'])) {
+            $user->password = $validated['password'];
+        }
+
+        $user->save();
+
+        $user->workspaces()->sync(
+            $workspaceIds->mapWithKeys(fn ($id) => [$id => ['job_title' => $validated['job_title']]])->all()
+        );
+
+        $role = Role::query()->where('slug', $validated['role'])->firstOrFail();
+        $user->syncRoles([$role]);
+
+        $this->cancelEditingUser();
+
+        $this->flash("User {$user->email} updated.");
+    }
+
+    public function toggleUserActive(int $userId): void
+    {
+        $user = User::query()->findOrFail($userId);
+
+        $user->forceFill([
+            'is_active' => ! $user->is_active,
+        ])->save();
+
+        $this->flash("User {$user->email} ".($user->is_active ? 'activated' : 'paused').'.');
+    }
+
     public function syncSource(int $sourceId): void
     {
         $source = SheetSource::query()->findOrFail($sourceId);
@@ -580,6 +769,22 @@ class AdminDashboard extends Component
         $this->primeWorkspaceEditor($this->currentWorkspace());
     }
 
+    public function requestWorkspaceDeletion(int $workspaceId): void
+    {
+        Workspace::query()->findOrFail($workspaceId);
+
+        $this->pendingWorkspaceDeleteId = $workspaceId;
+        $this->workspaceDeleteConfirmation = '';
+        $this->workspaceDeleteAcknowledged = false;
+    }
+
+    public function cancelWorkspaceDeletion(): void
+    {
+        $this->pendingWorkspaceDeleteId = null;
+        $this->workspaceDeleteConfirmation = '';
+        $this->workspaceDeleteAcknowledged = false;
+    }
+
     public function updateWorkspace(): void
     {
         $workspace = Workspace::query()->findOrFail($this->editingWorkspaceId);
@@ -632,9 +837,36 @@ class AdminDashboard extends Component
         $this->flash("Workspace {$workspace->name} updated.");
     }
 
-    public function deleteWorkspace(int $workspaceId): void
+    public function confirmWorkspaceDeletion(): void
     {
-        $workspace = Workspace::query()->findOrFail($workspaceId);
+        $workspace = Workspace::query()->findOrFail($this->pendingWorkspaceDeleteId);
+
+        validator([
+            'workspaceDeleteConfirmation' => $this->workspaceDeleteConfirmation,
+            'workspaceDeleteAcknowledged' => $this->workspaceDeleteAcknowledged,
+        ], [
+            'workspaceDeleteConfirmation' => [
+                'required',
+                function (string $attribute, mixed $value, \Closure $fail) use ($workspace) {
+                    if ((string) $value !== $workspace->name) {
+                        $fail('Type the exact workspace name to confirm deletion.');
+                    }
+                },
+            ],
+            'workspaceDeleteAcknowledged' => [
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if ($value !== true) {
+                        $fail('Confirm that this will remove all linked workspace data.');
+                    }
+                },
+            ],
+        ])->validate();
+
+        $this->deleteWorkspace($workspace);
+    }
+
+    protected function deleteWorkspace(Workspace $workspace): void
+    {
         $companyId = $workspace->company_id;
         $name = $workspace->name;
         $wasCurrentWorkspace = (int) $this->workspaceId === $workspace->id;
@@ -656,6 +888,8 @@ class AdminDashboard extends Component
             $this->primeWorkspaceEditor($nextWorkspace);
             $this->primeBillingForm($nextWorkspace);
         }
+
+        $this->cancelWorkspaceDeletion();
 
         $this->flash("Workspace {$name} deleted.");
     }
@@ -752,6 +986,20 @@ class AdminDashboard extends Component
             ->orderBy('name')
             ->get();
 
+        $overviewWorkspaces = Workspace::query()
+            ->with('company')
+            ->withCount([
+                'users',
+                'sheetSources as active_sources_count' => fn ($query) => $query->where('is_active', true),
+                'shipmentJobs',
+                'projects',
+                'bookings',
+                'quotes',
+                'opportunities as won_opportunities_count' => fn ($query) => $query->where('sales_stage', Opportunity::STAGE_CLOSED_WON),
+            ])
+            ->orderBy('name')
+            ->get();
+
         $workspace = $this->currentWorkspace();
         $this->workspaceId = $workspace?->id;
         $company = $workspace?->company;
@@ -770,55 +1018,408 @@ class AdminDashboard extends Component
             ['*'],
             'sourcesPage',
         );
-        $workspaceUsers = User::query()->whereRaw('1 = 0')->paginate(
-            $this->workspaceUserPerPage,
-            ['*'],
-            'workspaceUsersPage',
-        );
+        $workspaceUsers = $this->applyWorkspaceUserSorting(
+            $this->applyUserFilters(
+                User::query()
+                    ->with(['company', 'defaultWorkspace', 'roles', 'workspaces.company'])
+                    ->withCount('workspaces')
+            )
+        )->paginate($this->workspaceUserPerPage, ['users.*'], 'workspaceUsersPage');
         $monthlyReports = collect();
         $latestReport = null;
         $sourceBreakdown = collect();
-        $kpis = [];
+        $userOverviewStats = [];
+        $roleDistributionRows = collect();
+        $userAttentionRows = collect();
+        $billingOverviewStats = [];
+        $billingDirectoryRows = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 10);
+        $sourceOverviewStats = [];
+        $sourceKindRows = collect();
+        $sourceAttentionRows = collect();
+        $overviewStats = [];
+        $overviewSignals = [];
+        $subscriptionRows = collect();
+        $workspaceModeRows = collect();
+        $attentionRows = collect();
+        $growthSeries = collect();
+        $growthMax = 1;
         $currentBillingSummary = null;
         $billingRows = collect();
 
+        $overviewBillingRows = $overviewWorkspaces->map(function (Workspace $workspaceRow) use ($billing) {
+            return [
+                'workspace' => $workspaceRow,
+                'summary' => $this->workspaceBillingSnapshot($workspaceRow, $billing),
+            ];
+        });
+
+        $billingOverviewStats = [
+            [
+                'label' => 'Billable Workspaces',
+                'value' => number_format($overviewBillingRows->count()),
+                'detail' => 'All workspaces with a resolved subscription plan',
+            ],
+            [
+                'label' => 'Paid Plans',
+                'value' => number_format($overviewBillingRows->filter(fn (array $row) => ($row['summary']['workspace_price_monthly'] ?? 0) > 0)->count()),
+                'detail' => 'Growth and Professional subscriptions',
+            ],
+            [
+                'label' => 'Over Limit',
+                'value' => number_format($overviewBillingRows->filter(fn (array $row) => $row['summary']['users_over_limit'] || $row['summary']['operational_over_limit'])->count()),
+                'detail' => 'Workspaces that need a plan or limit review',
+            ],
+            [
+                'label' => 'Estimated MRR',
+                'value' => '$'.number_format((int) $overviewBillingRows->sum(fn (array $row) => $row['summary']['workspace_price_monthly'] ?? 0), 0),
+                'detail' => 'Based on configured workspace plans',
+            ],
+        ];
+
+        $filteredBillingRows = $this->applyBillingFilters($overviewBillingRows);
+        $billingPage = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage('billingPage');
+        $billingPerPage = 10;
+        $billingDirectoryRows = new \Illuminate\Pagination\LengthAwarePaginator(
+            $filteredBillingRows->forPage($billingPage, $billingPerPage)->values(),
+            $filteredBillingRows->count(),
+            $billingPerPage,
+            $billingPage,
+            [
+                'pageName' => 'billingPage',
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
+
+        $totalUsers = User::query()->count();
+        $totalCompanies = $companies->count();
+        $totalWorkspaces = $overviewWorkspaces->count();
+        $activeSources = (int) $overviewWorkspaces->sum('active_sources_count');
+        $googleConnectedCompanies = $companies->filter(fn (Company $companyRow) => $companyRow->googleAccount !== null)->count();
+        $workspacesWithoutUsers = $overviewBillingRows->filter(fn (array $row) => $row['summary']['current_users'] === 0)->count();
+        $workspacesOverLimit = $overviewBillingRows->filter(fn (array $row) => $row['summary']['users_over_limit'] || $row['summary']['operational_over_limit'])->count();
+        $paidSubscriptions = $overviewBillingRows->filter(fn (array $row) => $row['summary']['workspace_price_monthly'] !== null && $row['summary']['workspace_price_monthly'] > 0)->count();
+        $estimatedMrr = (int) $overviewBillingRows->sum(fn (array $row) => $row['summary']['workspace_price_monthly'] ?? 0);
+        $newUsersLast30Days = User::query()->where('created_at', '>=', now()->subDays(30))->count();
+        $newWorkspacesLast30Days = Workspace::query()->where('created_at', '>=', now()->subDays(30))->count();
+        $newCompaniesLast30Days = Company::query()->where('created_at', '>=', now()->subDays(30))->count();
+
+        $overviewStats = [
+            [
+                'label' => 'Total Users',
+                'value' => number_format($totalUsers),
+                'detail' => $newUsersLast30Days.' added in the last 30 days',
+            ],
+            [
+                'label' => 'Total Workspaces',
+                'value' => number_format($totalWorkspaces),
+                'detail' => $newWorkspacesLast30Days.' new workspaces launched this month',
+            ],
+            [
+                'label' => 'Total Companies',
+                'value' => number_format($totalCompanies),
+                'detail' => $newCompaniesLast30Days.' companies onboarded in the last 30 days',
+            ],
+            [
+                'label' => 'Estimated MRR',
+                'value' => '$'.number_format($estimatedMrr, 0),
+                'detail' => $paidSubscriptions.' paid workspace subscriptions',
+            ],
+        ];
+
+        $overviewSignals = [
+            [
+                'label' => 'Subscriptions Over Limit',
+                'value' => number_format($workspacesOverLimit),
+                'detail' => 'Workspaces exceeding seats or operational usage',
+            ],
+            [
+                'label' => 'Workspaces Without Users',
+                'value' => number_format($workspacesWithoutUsers),
+                'detail' => 'Created but not staffed yet',
+            ],
+            [
+                'label' => 'Connected Google Accounts',
+                'value' => number_format($googleConnectedCompanies),
+                'detail' => 'Companies with Google auth configured',
+            ],
+            [
+                'label' => 'Active Data Sources',
+                'value' => number_format($activeSources),
+                'detail' => 'Live sync sources across the platform',
+            ],
+        ];
+
+        $subscriptionRows = collect($billing->planCatalog())
+            ->map(function (array $plan, string $planKey) use ($overviewBillingRows, $totalWorkspaces) {
+                $count = $overviewBillingRows->filter(fn (array $row) => $row['summary']['plan_key'] === $planKey)->count();
+                $priceMonthly = $plan['workspace_price_monthly'] ?? null;
+
+                return [
+                    'key' => $planKey,
+                    'name' => $plan['name'] ?? ucfirst($planKey),
+                    'price_label' => $plan['price_label'] ?? 'Custom',
+                    'count' => $count,
+                    'share' => $totalWorkspaces > 0 ? (int) round(($count / $totalWorkspaces) * 100) : 0,
+                    'estimated_mrr' => $priceMonthly !== null ? $count * (int) $priceMonthly : null,
+                ];
+            })
+            ->sortByDesc('count')
+            ->values();
+
+        $workspaceModeRows = $overviewWorkspaces
+            ->groupBy(fn (Workspace $workspaceRow) => $workspaceRow->templateKey())
+            ->map(function ($group, string $templateKey) use ($totalWorkspaces) {
+                $firstWorkspace = $group->first();
+                $count = $group->count();
+
+                return [
+                    'key' => $templateKey,
+                    'name' => $firstWorkspace?->templateName() ?? Str::headline($templateKey),
+                    'description' => $firstWorkspace?->templateDescription() ?? '',
+                    'count' => $count,
+                    'share' => $totalWorkspaces > 0 ? (int) round(($count / $totalWorkspaces) * 100) : 0,
+                ];
+            })
+            ->sortByDesc('count')
+            ->values();
+
+        $attentionRows = $overviewBillingRows
+            ->map(function (array $row) {
+                /** @var Workspace $workspaceRow */
+                $workspaceRow = $row['workspace'];
+                $summary = $row['summary'];
+                $reasons = [];
+
+                if ($summary['users_over_limit']) {
+                    $reasons[] = 'User seats over plan';
+                }
+
+                if ($summary['operational_over_limit']) {
+                    $reasons[] = $summary['usage_metric_label'].' over plan';
+                }
+
+                if ($summary['current_users'] === 0) {
+                    $reasons[] = 'No assigned users';
+                }
+
+                if ((int) ($workspaceRow->active_sources_count ?? 0) === 0) {
+                    $reasons[] = 'No active data sources';
+                }
+
+                if ($reasons === []) {
+                    return null;
+                }
+
+                return [
+                    'workspace_name' => $workspaceRow->name,
+                    'company_name' => $workspaceRow->company?->name ?? 'No company',
+                    'reasons' => $reasons,
+                    'score' => count($reasons),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('score')
+            ->take(6)
+            ->values();
+
+        $growthSeries = collect(range(5, 0))
+            ->map(function (int $monthsAgo) {
+                $start = now()->startOfMonth()->subMonths($monthsAgo);
+                $end = (clone $start)->endOfMonth();
+
+                return [
+                    'label' => $start->format('M'),
+                    'users' => User::query()->whereBetween('created_at', [$start, $end])->count(),
+                    'workspaces' => Workspace::query()->whereBetween('created_at', [$start, $end])->count(),
+                    'companies' => Company::query()->whereBetween('created_at', [$start, $end])->count(),
+                ];
+            })
+            ->values();
+
+        $growthMax = max(
+            1,
+            (int) $growthSeries
+                ->flatMap(fn (array $point) => [$point['users'], $point['workspaces'], $point['companies']])
+                ->max()
+        );
+
+        $allSheetSources = SheetSource::query()
+            ->with(['company', 'workspace'])
+            ->get();
+
+        $sheetSources = $this->applySourceSorting(
+            $this->applySourceFilters(
+                SheetSource::query()->with(['company', 'workspace'])
+            )
+        )->paginate($this->sourcePerPage, ['*'], 'sourcesPage');
+
+        $sourceOverviewStats = [
+            [
+                'label' => 'Total Sources',
+                'value' => number_format($allSheetSources->count()),
+                'detail' => 'All configured sync and import connections',
+            ],
+            [
+                'label' => 'Active Sources',
+                'value' => number_format($allSheetSources->where('is_active', true)->count()),
+                'detail' => 'Currently enabled for sync or upload',
+            ],
+            [
+                'label' => 'Failed Syncs',
+                'value' => number_format($allSheetSources->where('sync_status', 'failed')->count()),
+                'detail' => 'Sources that need support or troubleshooting',
+            ],
+            [
+                'label' => 'Companies Covered',
+                'value' => number_format($allSheetSources->pluck('company_id')->filter()->unique()->count()),
+                'detail' => 'Companies with at least one configured source',
+            ],
+        ];
+
+        $sourceKindRows = collect(SheetSource::SOURCE_KINDS)
+            ->map(function (string $kind) use ($allSheetSources) {
+                $count = $allSheetSources->where('source_kind', $kind)->count();
+                $total = max(1, $allSheetSources->count());
+
+                return [
+                    'key' => $kind,
+                    'label' => SheetSource::sourceKindLabel($kind),
+                    'count' => $count,
+                    'share' => (int) round(($count / $total) * 100),
+                ];
+            })
+            ->sortByDesc('count')
+            ->values();
+
+        $sourceAttentionRows = $allSheetSources
+            ->map(function (SheetSource $source) {
+                $reasons = [];
+
+                if (! $source->is_active) {
+                    $reasons[] = 'Paused';
+                }
+
+                if ($source->sync_status === 'failed') {
+                    $reasons[] = 'Latest sync failed';
+                }
+
+                if ($source->last_synced_at === null) {
+                    $reasons[] = 'Never synced';
+                }
+
+                if (filled($source->last_error)) {
+                    $reasons[] = 'Error recorded';
+                }
+
+                if ($source->workspace === null) {
+                    $reasons[] = 'No workspace assigned';
+                }
+
+                if ($reasons === []) {
+                    return null;
+                }
+
+                return [
+                    'id' => $source->id,
+                    'name' => $source->name,
+                    'company_name' => $source->company?->name ?? 'No company',
+                    'workspace_name' => $source->workspace?->name ?? 'No workspace',
+                    'reasons' => $reasons,
+                    'score' => count($reasons),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('score')
+            ->take(6)
+            ->values();
+
+        $allUsers = User::query()
+            ->with(['company', 'defaultWorkspace', 'roles', 'workspaces.company'])
+            ->withCount('workspaces')
+            ->get();
+
+        $userOverviewStats = [
+            [
+                'label' => 'Total Users',
+                'value' => number_format($allUsers->count()),
+                'detail' => 'Every user across all companies and workspaces',
+            ],
+            [
+                'label' => 'Active Users',
+                'value' => number_format($allUsers->where('is_active', true)->count()),
+                'detail' => 'Currently active accounts',
+            ],
+            [
+                'label' => 'Admin Users',
+                'value' => number_format($allUsers->filter(fn (User $userRow) => $userRow->roles->pluck('slug')->contains('admin'))->count()),
+                'detail' => 'Users with platform admin access',
+            ],
+            [
+                'label' => 'Multi-Workspace Users',
+                'value' => number_format($allUsers->filter(fn (User $userRow) => (int) $userRow->workspaces_count > 1)->count()),
+                'detail' => 'Users assigned to more than one workspace',
+            ],
+        ];
+
+        $roleDistributionRows = $roles
+            ->map(function ($role) use ($allUsers) {
+                $count = $allUsers->filter(fn (User $userRow) => $userRow->roles->pluck('slug')->contains($role->slug))->count();
+                $total = max(1, $allUsers->count());
+
+                return [
+                    'slug' => $role->slug,
+                    'name' => $role->name,
+                    'count' => $count,
+                    'share' => (int) round(($count / $total) * 100),
+                ];
+            })
+            ->sortByDesc('count')
+            ->values();
+
+        $userAttentionRows = $allUsers
+            ->map(function (User $userRow) {
+                $reasons = [];
+
+                if (! $userRow->is_active) {
+                    $reasons[] = 'Inactive account';
+                }
+
+                if ($userRow->workspaces->isEmpty()) {
+                    $reasons[] = 'No workspace access';
+                }
+
+                if (! $userRow->email_verified_at) {
+                    $reasons[] = 'Email not verified';
+                }
+
+                if (! $userRow->default_workspace_id) {
+                    $reasons[] = 'No default workspace';
+                }
+
+                if ($reasons === []) {
+                    return null;
+                }
+
+                return [
+                    'id' => $userRow->id,
+                    'name' => $userRow->name,
+                    'email' => $userRow->email,
+                    'reasons' => $reasons,
+                    'score' => count($reasons),
+                ];
+            })
+            ->filter()
+            ->sortByDesc('score')
+            ->take(6)
+            ->values();
+
         if ($workspace) {
-            $sheetSources = $this->applySourceSorting(
-                $workspace->sheetSources()->getQuery()
-            )->paginate($this->sourcePerPage, ['*'], 'sourcesPage');
-
-            $workspaceUsers = $this->applyWorkspaceUserSorting(
-                $workspace->users()->with('roles')
-            )->paginate($this->workspaceUserPerPage, ['users.*'], 'workspaceUsersPage');
-
             $monthlyReports = $workspace->monthlyReports()->orderByDesc('month_start')->limit(6)->get();
             $latestReport = $monthlyReports->first();
 
             $leadBase = Lead::query()->where('workspace_id', $workspace->id);
             $opportunityBase = Opportunity::query()->where('workspace_id', $workspace->id);
-
-            $kpis = [
-                [
-                    'label' => 'Total Leads',
-                    'value' => (clone $leadBase)->count(),
-                    'detail' => 'All imported and manual leads',
-                ],
-                [
-                    'label' => 'Qualified Leads',
-                    'value' => (clone $leadBase)->where('status', Lead::STATUS_SALES_QUALIFIED)->count(),
-                    'detail' => 'Sales-ready pipeline',
-                ],
-                [
-                    'label' => 'Open Opportunities',
-                    'value' => (clone $opportunityBase)->count(),
-                    'detail' => 'Tracked in the workspace',
-                ],
-                [
-                    'label' => 'Won Revenue',
-                    'value' => 'AED '.number_format((float) (clone $opportunityBase)->where('sales_stage', Opportunity::STAGE_CLOSED_WON)->sum('revenue_potential'), 0),
-                    'detail' => 'Closed-won revenue',
-                ],
-            ];
 
             $sourceBreakdown = Lead::query()
                 ->select('lead_source', DB::raw('count(*) as total'))
@@ -831,10 +1432,14 @@ class AdminDashboard extends Component
         }
 
         $workspaceRows = $this->applyWorkspaceSorting(
-            Workspace::query()
-                ->with('company')
-                ->withCount(['users', 'leads', 'opportunities'])
+            $this->applyWorkspaceSearch(
+                Workspace::query()
+                    ->with('company')
+                    ->withCount(['users', 'leads', 'opportunities'])
+            )
         )->paginate($this->workspacePerPage, ['*'], 'workspacesPage');
+
+        $companyDirectoryRows = $this->applyCompanySearch($companies);
 
         $billingRows = $workspaceRows->getCollection()->map(function (Workspace $workspaceRow) use ($billing) {
             return [
@@ -844,24 +1449,77 @@ class AdminDashboard extends Component
         });
 
         return view('livewire.admin-dashboard', [
+            'billingDirectoryRows' => $billingDirectoryRows,
+            'billingOverviewStats' => $billingOverviewStats,
             'billingPlans' => $billing->planCatalog(),
             'billingRows' => $billingRows,
             'companies' => $companies,
+            'companyDirectoryRows' => $companyDirectoryRows,
             'currentWorkspace' => $workspace,
             'currentBillingSummary' => $currentBillingSummary,
             'currentCompany' => $company,
             'googleAccount' => $company?->googleAccount,
             'googleHasClientConfig' => $googleOAuth->hasClientConfig($company),
-            'kpis' => $kpis,
+            'growthMax' => $growthMax,
+            'growthSeries' => $growthSeries,
             'latestReport' => $latestReport,
             'monthlyReports' => $monthlyReports,
+            'overviewSignals' => $overviewSignals,
+            'overviewStats' => $overviewStats,
             'roles' => $roles,
             'sheetSources' => $sheetSources,
+            'sourceAttentionRows' => $sourceAttentionRows,
+            'sourceKindRows' => $sourceKindRows,
+            'sourceOverviewStats' => $sourceOverviewStats,
             'sourceBreakdown' => $sourceBreakdown,
+            'subscriptionRows' => $subscriptionRows,
+            'attentionRows' => $attentionRows,
+            'userAttentionRows' => $userAttentionRows,
+            'userOverviewStats' => $userOverviewStats,
+            'roleDistributionRows' => $roleDistributionRows,
+            'workspaceTemplates' => Workspace::workspaceTemplates(),
+            'workspaceModeRows' => $workspaceModeRows,
             'workspaceRows' => $workspaceRows,
             'workspaceUsers' => $workspaceUsers,
             'workspaces' => $workspaces,
         ]);
+    }
+
+    protected function workspaceBillingSnapshot(Workspace $workspace, WorkspaceBillingService $billing): array
+    {
+        $planKey = $billing->resolvePlanKey($workspace);
+        $plan = $billing->planDefinition($planKey);
+        $metric = $billing->usageMetricDefinition($workspace);
+        $currentUsers = (int) ($workspace->users_count ?? 0);
+        $includedUsers = $billing->includedUsers($workspace);
+        $includedOperationalRecords = $billing->includedOperationalRecords($workspace);
+        $currentOperationalRecords = $this->workspaceOperationalCountFromCounts($workspace, $metric['key'] ?? null);
+
+        return [
+            'plan_key' => $planKey,
+            'plan_name' => $plan['name'] ?? ucfirst($planKey),
+            'price_label' => $plan['price_label'] ?? 'Custom',
+            'workspace_price_monthly' => $plan['workspace_price_monthly'] ?? null,
+            'included_users' => $includedUsers,
+            'included_operational_records' => $includedOperationalRecords,
+            'current_users' => $currentUsers,
+            'current_operational_records' => $currentOperationalRecords,
+            'usage_metric_label' => $metric['label'] ?? 'Operational records',
+            'users_over_limit' => $includedUsers !== null && $currentUsers > $includedUsers,
+            'operational_over_limit' => $includedOperationalRecords !== null && $currentOperationalRecords > $includedOperationalRecords,
+        ];
+    }
+
+    protected function workspaceOperationalCountFromCounts(Workspace $workspace, ?string $metricKey): int
+    {
+        return match ($metricKey) {
+            'shipment_jobs' => (int) ($workspace->shipment_jobs_count ?? 0),
+            'projects' => (int) ($workspace->projects_count ?? 0),
+            'bookings' => (int) ($workspace->bookings_count ?? 0),
+            'quotes' => (int) ($workspace->quotes_count ?? 0),
+            'won_opportunities' => (int) ($workspace->won_opportunities_count ?? 0),
+            default => (int) ($workspace->won_opportunities_count ?? 0),
+        };
     }
 
     protected function resetForms(): void
@@ -878,6 +1536,7 @@ class AdminDashboard extends Component
             'company_id' => '',
             'name' => '',
             'description' => '',
+            'template_key' => Workspace::defaultTemplateKey(),
         ];
 
         $this->editingWorkspaceForm = [
@@ -908,6 +1567,17 @@ class AdminDashboard extends Component
             'description' => '',
             'is_active' => true,
             ...$this->defaultSourceConnectionFields(),
+        ];
+
+        $this->editingUserForm = [
+            'name' => '',
+            'email' => '',
+            'password' => '',
+            'job_title' => '',
+            'role' => 'sales',
+            'workspace_ids' => [],
+            'default_workspace_id' => '',
+            'is_active' => true,
         ];
 
         $this->csvUploadForm = [
@@ -1189,9 +1859,80 @@ class AdminDashboard extends Component
             'oldest' => $query->orderBy('created_at'),
             'name_asc' => $query->orderBy('name')->orderByDesc('created_at'),
             'name_desc' => $query->orderByDesc('name')->orderByDesc('created_at'),
+            'company_asc' => $query->join('companies', 'companies.id', '=', 'sheet_sources.company_id')
+                ->select('sheet_sources.*')
+                ->orderBy('companies.name')
+                ->orderBy('sheet_sources.name'),
+            'status_desc' => $query->orderByRaw("case when sync_status = 'failed' then 0 when sync_status = 'syncing' then 1 when sync_status = 'idle' then 2 else 3 end")
+                ->orderByDesc('created_at'),
             'synced_desc' => $query->orderByDesc('last_synced_at')->orderByDesc('created_at'),
             default => $query->orderByDesc('created_at'),
         };
+    }
+
+    protected function applySourceFilters($query)
+    {
+        $search = trim($this->sourceSearch);
+
+        if ($this->sourceStatusFilter !== 'all') {
+            $query = match ($this->sourceStatusFilter) {
+                'active' => $query->where('is_active', true),
+                'paused' => $query->where('is_active', false),
+                'failed' => $query->where('sync_status', 'failed'),
+                'synced' => $query->where('sync_status', 'synced'),
+                'never_synced' => $query->whereNull('last_synced_at'),
+                'attention' => $query->where(function ($statusQuery) {
+                    $statusQuery
+                        ->where('sync_status', 'failed')
+                        ->orWhereNotNull('last_error')
+                        ->orWhere('is_active', false)
+                        ->orWhereNull('last_synced_at');
+                }),
+                default => $query,
+            };
+        }
+
+        if ($this->sourceKindFilter !== 'all') {
+            $query->where('source_kind', $this->sourceKindFilter);
+        }
+
+        if ($search === '') {
+            return $query;
+        }
+
+        $matchingTypes = collect(SheetSource::availableTypes())
+            ->filter(fn (string $type) => Str::contains(Str::lower($type.' '.SheetSource::typeLabel($type)), Str::lower($search)))
+            ->values();
+
+        $matchingKinds = collect(SheetSource::SOURCE_KINDS)
+            ->filter(fn (string $kind) => Str::contains(Str::lower($kind.' '.SheetSource::sourceKindLabel($kind)), Str::lower($search)))
+            ->values();
+
+        return $query->where(function ($sourceQuery) use ($search, $matchingTypes, $matchingKinds) {
+            $sourceQuery
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhere('url', 'like', "%{$search}%")
+                ->orWhere('sync_status', 'like', "%{$search}%")
+                ->orWhereHas('company', function ($companyQuery) use ($search) {
+                    $companyQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('industry', 'like', "%{$search}%");
+                })
+                ->orWhereHas('workspace', function ($workspaceQuery) use ($search) {
+                    $workspaceQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+
+            if ($matchingTypes->isNotEmpty()) {
+                $sourceQuery->orWhereIn('type', $matchingTypes->all());
+            }
+
+            if ($matchingKinds->isNotEmpty()) {
+                $sourceQuery->orWhereIn('source_kind', $matchingKinds->all());
+            }
+        });
     }
 
     protected function applyWorkspaceUserSorting($query)
@@ -1200,8 +1941,133 @@ class AdminDashboard extends Component
             'oldest' => $query->orderBy('users.created_at'),
             'name_asc' => $query->orderBy('users.name')->orderByDesc('users.created_at'),
             'name_desc' => $query->orderByDesc('users.name')->orderByDesc('users.created_at'),
+            'company_asc' => $query->leftJoin('companies', 'companies.id', '=', 'users.company_id')
+                ->select('users.*')
+                ->orderBy('companies.name')
+                ->orderBy('users.name'),
             default => $query->orderByDesc('users.created_at'),
         };
+    }
+
+    protected function applyUserFilters($query)
+    {
+        $search = trim($this->userSearch);
+
+        if ($this->userStatusFilter !== 'all') {
+            $query = match ($this->userStatusFilter) {
+                'active' => $query->where('users.is_active', true),
+                'inactive' => $query->where('users.is_active', false),
+                'admins' => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('slug', 'admin')),
+                'unverified' => $query->whereNull('users.email_verified_at'),
+                'multi_workspace' => $query->has('workspaces', '>', 1),
+                default => $query,
+            };
+        }
+
+        if ($this->userRoleFilter !== 'all') {
+            $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('slug', $this->userRoleFilter));
+        }
+
+        if ($search === '') {
+            return $query;
+        }
+
+        return $query->where(function ($userQuery) use ($search) {
+            $userQuery
+                ->where('users.name', 'like', "%{$search}%")
+                ->orWhere('users.email', 'like', "%{$search}%")
+                ->orWhere('users.job_title', 'like', "%{$search}%")
+                ->orWhereHas('company', function ($companyQuery) use ($search) {
+                    $companyQuery->where('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('defaultWorkspace', function ($workspaceQuery) use ($search) {
+                    $workspaceQuery->where('name', 'like', "%{$search}%");
+                })
+                ->orWhereHas('roles', function ($roleQuery) use ($search) {
+                    $roleQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('slug', 'like', "%{$search}%");
+                })
+                ->orWhereHas('workspaces', function ($workspaceQuery) use ($search) {
+                    $workspaceQuery->where('name', 'like', "%{$search}%");
+                });
+        });
+    }
+
+    protected function applyBillingFilters(\Illuminate\Support\Collection $rows): \Illuminate\Support\Collection
+    {
+        $search = Str::lower(trim($this->billingSearch));
+
+        return $rows
+            ->filter(function (array $row) use ($search) {
+                /** @var Workspace $workspaceRow */
+                $workspaceRow = $row['workspace'];
+                $summary = $row['summary'];
+
+                if ($this->billingPlanFilter !== 'all' && $summary['plan_key'] !== $this->billingPlanFilter) {
+                    return false;
+                }
+
+                if ($this->billingStatusFilter !== 'all') {
+                    $matchesStatus = match ($this->billingStatusFilter) {
+                        'paid' => ($summary['workspace_price_monthly'] ?? 0) > 0,
+                        'free' => ($summary['workspace_price_monthly'] ?? 0) === 0,
+                        'over_limit' => $summary['users_over_limit'] || $summary['operational_over_limit'],
+                        'custom' => $summary['workspace_price_monthly'] === null,
+                        default => true,
+                    };
+
+                    if (! $matchesStatus) {
+                        return false;
+                    }
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return Str::contains(
+                    Str::lower(implode(' ', array_filter([
+                        $workspaceRow->name,
+                        $workspaceRow->company?->name,
+                        $summary['plan_name'] ?? '',
+                        $summary['price_label'] ?? '',
+                        $summary['usage_metric_label'] ?? '',
+                        $workspaceRow->templateName(),
+                    ]))),
+                    $search
+                );
+            })
+            ->sortBy([
+                [fn (array $row) => $row['summary']['users_over_limit'] || $row['summary']['operational_over_limit'] ? 0 : 1, 'asc'],
+                [fn (array $row) => Str::lower($row['workspace']->company?->name ?? ''), 'asc'],
+                [fn (array $row) => Str::lower($row['workspace']->name), 'asc'],
+            ])
+            ->values();
+    }
+
+    protected function applyCompanySearch(\Illuminate\Support\Collection $companies): \Illuminate\Support\Collection
+    {
+        $search = Str::lower(trim($this->companySearch));
+
+        if ($search === '') {
+            return $companies->values();
+        }
+
+        return $companies
+            ->filter(function (Company $company) use ($search) {
+                return Str::contains(
+                    Str::lower(implode(' ', array_filter([
+                        $company->name,
+                        $company->industry,
+                        $company->timezone,
+                        $company->contact_email,
+                        $company->contact_phone,
+                    ]))),
+                    $search
+                );
+            })
+            ->values();
     }
 
     protected function applyWorkspaceSorting($query)
@@ -1212,6 +2078,41 @@ class AdminDashboard extends Component
             'name_desc' => $query->orderByDesc('name')->orderByDesc('created_at'),
             default => $query->orderByDesc('created_at'),
         };
+    }
+
+    protected function applyWorkspaceSearch($query)
+    {
+        $search = trim($this->workspaceSearch);
+
+        if ($search === '') {
+            return $query;
+        }
+
+        $matchingTemplateKeys = collect(Workspace::workspaceTemplates())
+            ->filter(function (array $template, string $key) use ($search) {
+                return Str::contains(
+                    Str::lower($key.' '.($template['name'] ?? '').' '.($template['description'] ?? '')),
+                    Str::lower($search)
+                );
+            })
+            ->keys()
+            ->values();
+
+        return $query->where(function ($workspaceQuery) use ($search, $matchingTemplateKeys) {
+            $workspaceQuery
+                ->where('name', 'like', "%{$search}%")
+                ->orWhere('description', 'like', "%{$search}%")
+                ->orWhere('slug', 'like', "%{$search}%")
+                ->orWhereHas('company', function ($companyQuery) use ($search) {
+                    $companyQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('industry', 'like', "%{$search}%");
+                });
+
+            foreach ($matchingTemplateKeys as $templateKey) {
+                $workspaceQuery->orWhere('settings', 'like', '%'.$templateKey.'%');
+            }
+        });
     }
 
     protected function flash(string $message): void
