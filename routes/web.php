@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AdminGoogleOAuthController;
+use App\Http\Controllers\SourceWebhookController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 
 Route::get('/', function () {
     return auth()->check()
@@ -22,6 +24,10 @@ Route::view('presentation', 'presentation')
 Route::view('dashboard', 'dashboard')
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
+
+Route::post('source-webhooks/{source}', [SourceWebhookController::class, 'ingest'])
+    ->withoutMiddleware([VerifyCsrfToken::class])
+    ->name('source-webhooks.ingest');
 
 Route::view('admin', 'admin')
     ->middleware(['auth', 'verified', 'role:admin'])

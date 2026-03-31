@@ -69,6 +69,10 @@ class SheetSourceSyncService
 
     public function sync(SheetSource $source): int
     {
+        if ($source->source_kind === SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK) {
+            throw new RuntimeException('WordPress webhook sources receive leads from inbound submissions and do not support pull sync.');
+        }
+
         $source->forceFill([
             'sync_status' => 'syncing',
             'last_error' => null,

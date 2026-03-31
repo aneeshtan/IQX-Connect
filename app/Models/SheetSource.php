@@ -17,6 +17,12 @@ class SheetSource extends Model
 
     public const SOURCE_KIND_CARGOWISE_API = 'cargowise_api';
 
+    public const SOURCE_KIND_WORDPRESS_FORM_WEBHOOK = 'wordpress_form_webhook';
+
+    public const WORDPRESS_PROVIDER_FLUENT_FORMS = 'fluent_forms';
+
+    public const WORDPRESS_PROVIDER_CONTACT_FORM_7 = 'contact_form_7';
+
     public const TYPE_LEADS = 'leads';
 
     public const TYPE_OPPORTUNITIES = 'opportunities';
@@ -55,6 +61,7 @@ class SheetSource extends Model
         self::SOURCE_KIND_GOOGLE_SHEETS_API,
         self::SOURCE_KIND_UPLOADED_CSV,
         self::SOURCE_KIND_CARGOWISE_API,
+        self::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK,
     ];
 
     public static function isGoogleSheetUrl(?string $url): bool
@@ -211,8 +218,17 @@ class SheetSource extends Model
             self::SOURCE_KIND_GOOGLE_SHEETS_API => 'Google Sheets API',
             self::SOURCE_KIND_UPLOADED_CSV => 'Uploaded CSV',
             self::SOURCE_KIND_CARGOWISE_API => 'CargoWise API',
+            self::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK => 'WordPress Form Webhook',
             default => Str::of($kind)->replace('_', ' ')->title()->toString(),
         };
+    }
+
+    public static function wordpressProviders(): array
+    {
+        return [
+            self::WORDPRESS_PROVIDER_FLUENT_FORMS => 'Fluent Forms',
+            self::WORDPRESS_PROVIDER_CONTACT_FORM_7 => 'Contact Form 7',
+        ];
     }
 
     public static function cargoWiseAuthModes(): array
@@ -233,8 +249,12 @@ class SheetSource extends Model
         ];
     }
 
-    public static function supportsSync(string $type): bool
+    public static function supportsSync(string $type, ?string $sourceKind = null): bool
     {
+        if ($sourceKind === self::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK) {
+            return false;
+        }
+
         return in_array($type, [
             self::TYPE_LEADS,
             self::TYPE_OPPORTUNITIES,

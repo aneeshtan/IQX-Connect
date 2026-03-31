@@ -42,6 +42,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use jeremykenedy\LaravelRoles\Models\Permission;
 use jeremykenedy\LaravelRoles\Models\Role;
 use Livewire\Component;
@@ -1599,7 +1600,11 @@ class CrmDashboard extends Component
             'cargo_token' => ['nullable', 'string', 'max:4096'],
             'cargo_format' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseFormats()))],
             'cargo_data_path' => ['nullable', 'string', 'max:255'],
+            'wordpress_provider' => ['nullable', Rule::in(array_keys(SheetSource::wordpressProviders()))],
+            'wordpress_secret' => ['nullable', 'string', 'max:255'],
         ])->validate();
+
+        $this->ensureWebhookLeadSource($validated, 'sourceForm.type');
 
         $sourceKind = SheetSource::normalizeSourceKind(
             $validated['source_kind'],
@@ -4093,8 +4098,12 @@ class CrmDashboard extends Component
             ->whereIn('workspace_id', $workspaceIds)
             ->findOrFail($sourceId);
 
-        if (! SheetSource::supportsSync($source->type)) {
-            $this->flash(SheetSource::typeLabel($source->type).' sources are saved as connections for now. Sync will be added when that module data model is ready.');
+        if (! SheetSource::supportsSync($source->type, $source->source_kind)) {
+            $this->flash(
+                $source->source_kind === SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK
+                    ? 'This WordPress source receives inbound webhook submissions and does not use manual sync.'
+                    : SheetSource::typeLabel($source->type).' sources are saved as connections for now. Sync will be added when that module data model is ready.'
+            );
 
             return;
         }
@@ -4163,7 +4172,11 @@ class CrmDashboard extends Component
             'cargo_token' => ['nullable', 'string', 'max:4096'],
             'cargo_format' => ['nullable', Rule::in(array_keys(SheetSource::cargoWiseFormats()))],
             'cargo_data_path' => ['nullable', 'string', 'max:255'],
+            'wordpress_provider' => ['nullable', Rule::in(array_keys(SheetSource::wordpressProviders()))],
+            'wordpress_secret' => ['nullable', 'string', 'max:255'],
         ])->validate();
+
+        $this->ensureWebhookLeadSource($validated, 'editingSourceForm.type');
 
         $sourceKind = SheetSource::normalizeSourceKind(
             $validated['source_kind'],
@@ -4185,6 +4198,27 @@ class CrmDashboard extends Component
         $this->flash("Source {$source->name} updated.");
     }
 
+    public function deleteSheetSource(int $sourceId): void
+    {
+        $this->ensureWorkspaceManager();
+
+        $workspaceIds = $this->accessibleWorkspaces()->pluck('id')->all();
+
+        $source = SheetSource::query()
+            ->whereIn('workspace_id', $workspaceIds)
+            ->findOrFail($sourceId);
+
+        $name = $source->name;
+
+        if ($this->editingSourceId === $source->id) {
+            $this->cancelEditingSource();
+        }
+
+        $source->delete();
+
+        $this->flash("Source {$name} removed.");
+    }
+
     public function syncWorkspaceSources(): void
     {
         $this->ensureWorkspaceManager();
@@ -4196,7 +4230,7 @@ class CrmDashboard extends Component
 
         try {
             foreach ($workspace->sheetSources()->where('is_active', true)->get() as $source) {
-                if (! SheetSource::supportsSync($source->type)) {
+                if (! SheetSource::supportsSync($source->type, $source->source_kind)) {
                     $skippedSources++;
 
                     continue;
@@ -8387,6 +8421,8 @@ class CrmDashboard extends Component
             'cargo_token' => '',
             'cargo_format' => 'json',
             'cargo_data_path' => '',
+            'wordpress_provider' => SheetSource::WORDPRESS_PROVIDER_FLUENT_FORMS,
+            'wordpress_secret' => '',
         ];
     }
 
@@ -8399,6 +8435,8 @@ class CrmDashboard extends Component
             'cargo_token' => data_get($source->mapping, 'cargowise.token', ''),
             'cargo_format' => data_get($source->mapping, 'cargowise.format', 'json'),
             'cargo_data_path' => data_get($source->mapping, 'cargowise.data_path', ''),
+            'wordpress_provider' => data_get($source->mapping, 'wordpress.provider', SheetSource::WORDPRESS_PROVIDER_FLUENT_FORMS),
+            'wordpress_secret' => data_get($source->mapping, 'wordpress.secret', ''),
         ];
     }
 
@@ -8408,21 +8446,41 @@ class CrmDashboard extends Component
 
         if (($validated['source_kind'] ?? null) !== SheetSource::SOURCE_KIND_CARGOWISE_API) {
             unset($mapping['cargowise']);
-
-            return $mapping === [] ? null : $mapping;
+        } else {
+            $mapping['cargowise'] = [
+                'endpoint' => $validated['url'],
+                'auth_mode' => $validated['cargo_auth_mode'] ?: 'basic',
+                'username' => $validated['cargo_username'] ?: '',
+                'password' => $validated['cargo_password'] ?: '',
+                'token' => $validated['cargo_token'] ?: '',
+                'format' => $validated['cargo_format'] ?: 'json',
+                'data_path' => $validated['cargo_data_path'] ?: '',
+            ];
         }
 
-        $mapping['cargowise'] = [
-            'endpoint' => $validated['url'],
-            'auth_mode' => $validated['cargo_auth_mode'] ?: 'basic',
-            'username' => $validated['cargo_username'] ?: '',
-            'password' => $validated['cargo_password'] ?: '',
-            'token' => $validated['cargo_token'] ?: '',
-            'format' => $validated['cargo_format'] ?: 'json',
-            'data_path' => $validated['cargo_data_path'] ?: '',
-        ];
+        if (($validated['source_kind'] ?? null) !== SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK) {
+            unset($mapping['wordpress']);
+        } else {
+            $mapping['wordpress'] = [
+                'provider' => $validated['wordpress_provider'] ?: SheetSource::WORDPRESS_PROVIDER_FLUENT_FORMS,
+                'secret' => $validated['wordpress_secret'] ?: data_get($source?->mapping, 'wordpress.secret') ?: Str::random(40),
+            ];
+        }
 
-        return $mapping;
+        return $mapping === [] ? null : $mapping;
+    }
+
+    protected function ensureWebhookLeadSource(array $validated, string $field): void
+    {
+        if (($validated['source_kind'] ?? null) !== SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK) {
+            return;
+        }
+
+        if (($validated['type'] ?? null) !== SheetSource::TYPE_LEADS) {
+            throw ValidationException::withMessages([
+                $field => 'WordPress form webhook sources currently support leads only.',
+            ]);
+        }
     }
 
     public function leadStatusClasses(string $status): string

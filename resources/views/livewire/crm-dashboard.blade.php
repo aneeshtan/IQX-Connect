@@ -53,7 +53,7 @@
                         <p class="text-xs uppercase tracking-[0.3em] text-emerald-700">Getting Started</p>
                         <h2 class="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">Add your first source</h2>
                         <p class="mt-2 text-sm leading-7 text-zinc-600">
-                            Your workspace is ready. Connect a Google Sheet, paste a published sheet URL, or add another live source so leads start flowing into the CRM.
+                            Your workspace is ready. Connect a Google Sheet, add a WordPress form webhook, paste a published sheet URL, or add another live source so leads start flowing into the CRM.
                         </p>
                     </div>
 
@@ -69,7 +69,7 @@
                             @endforeach
                         </select>
                         <input wire:model="sourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
-                        <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Google Sheet or source URL' }}" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                        <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK ? 'WordPress site or form page URL' : 'Google Sheet or source URL') }}" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
                         @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
                             <select wire:model.live="sourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
                                 @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
@@ -88,11 +88,24 @@
                                 <input wire:model="sourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
                             @endif
                             <input wire:model="sourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                        @elseif (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                            <select wire:model="sourceForm.wordpress_provider" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                @foreach (\App\Models\SheetSource::wordpressProviders() as $provider => $label)
+                                    <option value="{{ $provider }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 xl:col-span-2">
+                                Save the source, then copy the generated WordPress webhook URL from the source list. IQX will generate the secret automatically and show a ready-to-paste URL for Fluent Forms or Contact Form 7.
+                            </div>
                         @endif
                         <input wire:model="sourceForm.description" type="text" placeholder="Short description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
-                        @if (! \App\Models\SheetSource::supportsSync($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS))
+                        @if (! \App\Models\SheetSource::supportsSync($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS, $sourceForm['source_kind'] ?? null))
                             <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 xl:col-span-2">
-                                {{ \App\Models\SheetSource::typeLabel($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are saved as connection records for now. Row sync will be added when that module has a dedicated data model.
+                                @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                    WordPress form webhook sources are lead-only and receive submissions as they happen. They do not use manual sync.
+                                @else
+                                    {{ \App\Models\SheetSource::typeLabel($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are saved as connection records for now. Row sync will be added when that module has a dedicated data model.
+                                @endif
                             </div>
                         @endif
                         <button type="submit" class="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800 xl:col-span-2">
@@ -3285,7 +3298,7 @@
                                         @endforeach
                                     </select>
                                     <input wire:model="sourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
-                                    <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Google Sheet or source URL' }}" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
+                                    <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK ? 'WordPress site or form page URL' : 'Google Sheet or source URL') }}" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none" />
                                     @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
                                         <select wire:model.live="sourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
                                             @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
@@ -3304,11 +3317,24 @@
                                             <input wire:model="sourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
                                         @endif
                                         <input wire:model="sourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
+                                    @elseif (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                        <select wire:model="sourceForm.wordpress_provider" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none">
+                                            @foreach (\App\Models\SheetSource::wordpressProviders() as $provider => $label)
+                                                <option value="{{ $provider }}">{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                        <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 xl:col-span-2">
+                                            Save the source, then copy the generated WordPress webhook URL from the source list. IQX will generate the secret automatically and show a ready-to-paste URL for Fluent Forms or Contact Form 7.
+                                        </div>
                                     @endif
                                     <input wire:model="sourceForm.description" type="text" placeholder="Short description" class="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none xl:col-span-2" />
-                                    @if (! \App\Models\SheetSource::supportsSync($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS))
+                                    @if (! \App\Models\SheetSource::supportsSync($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS, $sourceForm['source_kind'] ?? null))
                                         <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 xl:col-span-2">
-                                            {{ \App\Models\SheetSource::typeLabel($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are saved as connection records for now. Row sync will be added when that module has a dedicated data model.
+                                            @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                                WordPress form webhook sources are lead-only and receive submissions as they happen. They do not use manual sync.
+                                            @else
+                                                {{ \App\Models\SheetSource::typeLabel($sourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are saved as connection records for now. Row sync will be added when that module has a dedicated data model.
+                                            @endif
                                         </div>
                                     @endif
                                     <button type="submit" class="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-medium text-white transition hover:bg-emerald-800 xl:col-span-2">
@@ -3345,17 +3371,35 @@
                                                     <div>{{ \App\Models\SheetSource::sourceKindLabel($sheetSource->source_kind) }}</div>
                                                     <div class="mt-1 text-xs text-zinc-400">
                                                         {{ $sheetSource->is_active ? 'Active' : 'Inactive' }}
-                                                        @if (! \App\Models\SheetSource::supportsSync($sheetSource->type))
+                                                        @if (! \App\Models\SheetSource::supportsSync($sheetSource->type, $sheetSource->source_kind))
                                                             / Connection only
                                                         @endif
                                                     </div>
                                                 </td>
                                                 <td class="border-b border-zinc-100 px-4 py-3">
-                                                    <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $this->sourceStatusClasses($sheetSource->sync_status) }}">
-                                                        {{ str($sheetSource->sync_status ?: 'idle')->replace('_', ' ')->title() }}
-                                                    </span>
-                                                    @if ($sheetSource->last_error)
-                                                        <div class="mt-2 max-w-xs text-xs text-rose-600">{{ $sheetSource->last_error }}</div>
+                                                    @if ($sheetSource->sync_status === 'failed' && $sheetSource->last_error)
+                                                        <div class="relative">
+                                                            <button
+                                                                type="button"
+                                                                data-source-error-toggle
+                                                                aria-expanded="false"
+                                                                class="inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-800"
+                                                                onclick="const button = this; const panel = button.nextElementSibling; const expanded = button.getAttribute('aria-expanded') === 'true'; document.querySelectorAll('[data-source-error-popover]').forEach((el) => el.classList.add('hidden')); document.querySelectorAll('[data-source-error-toggle]').forEach((el) => el.setAttribute('aria-expanded', 'false')); if (! expanded) { panel.classList.remove('hidden'); button.setAttribute('aria-expanded', 'true'); }"
+                                                            >
+                                                                Failed
+                                                            </button>
+                                                            <div data-source-error-popover class="absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-2xl border border-rose-200 bg-white p-3 text-left shadow-lg">
+                                                                <div class="text-[11px] uppercase tracking-[0.2em] text-rose-500">Latest error</div>
+                                                                <p class="mt-2 text-xs leading-5 text-rose-700">{{ $sheetSource->last_error }}</p>
+                                                                <button type="button" class="mt-3 text-xs font-medium text-rose-700" onclick="const panel = this.parentElement; panel.classList.add('hidden'); panel.previousElementSibling.setAttribute('aria-expanded', 'false');">
+                                                                    Close
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    @else
+                                                        <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $this->sourceStatusClasses($sheetSource->sync_status) }}">
+                                                            {{ str($sheetSource->sync_status ?: 'idle')->replace('_', ' ')->title() }}
+                                                        </span>
                                                     @endif
                                                 </td>
                                                 <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">
@@ -3367,7 +3411,7 @@
                                                             <button wire:click="startEditingSource({{ $sheetSource->id }})" type="button" class="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-white">
                                                                 Edit
                                                             </button>
-                                                            @if (\App\Models\SheetSource::supportsSync($sheetSource->type))
+                                                            @if (\App\Models\SheetSource::supportsSync($sheetSource->type, $sheetSource->source_kind))
                                                                 <button
                                                                     wire:click="syncSource({{ $sheetSource->id }})"
                                                                     wire:loading.attr="disabled"
@@ -3378,15 +3422,28 @@
                                                                     <span wire:loading.remove wire:target="syncSource({{ $sheetSource->id }})">Sync</span>
                                                                     <span wire:loading wire:target="syncSource({{ $sheetSource->id }})">Syncing...</span>
                                                                 </button>
+                                                            @elseif ($sheetSource->source_kind === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                                                <button
+                                                                    type="button"
+                                                                    class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-800 transition hover:bg-sky-100"
+                                                                    onclick="const button = this; navigator.clipboard.writeText({{ Js::from(route('source-webhooks.ingest', $sheetSource).'?token='.urlencode(data_get($sheetSource->mapping, 'wordpress.secret', ''))) }}).then(() => { const original = button.textContent.trim(); button.textContent = 'Copied'; setTimeout(() => button.textContent = original, 1600); });"
+                                                                >
+                                                                    Copy webhook
+                                                                </button>
                                                             @else
                                                                 <span class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800">
                                                                     Connection only
                                                                 </span>
                                                             @endif
+                                                            <button
+                                                                wire:click="deleteSheetSource({{ $sheetSource->id }})"
+                                                                wire:confirm="Remove this source? Linked imported records will stay in the CRM, but this source connection will be deleted."
+                                                                type="button"
+                                                                class="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
+                                                            >
+                                                                Remove
+                                                            </button>
                                                         @endif
-                                                        <a href="{{ $sheetSource->url }}" target="_blank" rel="noreferrer" class="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-white">
-                                                            Open source
-                                                        </a>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -3405,7 +3462,7 @@
                                                                 @endforeach
                                                             </select>
                                                             <input wire:model="editingSourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                                                            <input wire:model="editingSourceForm.url" type="text" placeholder="{{ ($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Source URL' }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                                                            <input wire:model="editingSourceForm.url" type="text" placeholder="{{ ($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : (($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK ? 'WordPress site or form page URL' : 'Source URL') }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                                             @if (($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
                                                                 <select wire:model.live="editingSourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                                                                     @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
@@ -3424,11 +3481,32 @@
                                                                     <input wire:model="editingSourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
                                                                 @endif
                                                                 <input wire:model="editingSourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
+                                                            @elseif (($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                                                <select wire:model="editingSourceForm.wordpress_provider" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                                                    @foreach (\App\Models\SheetSource::wordpressProviders() as $provider => $label)
+                                                                        <option value="{{ $provider }}">{{ $label }}</option>
+                                                                    @endforeach
+                                                                </select>
+                                                                <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm">
+                                                                    <div class="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Generated Secret</div>
+                                                                    <div class="mt-2 break-all font-medium text-zinc-900">{{ $editingSourceForm['wordpress_secret'] ?? '' }}</div>
+                                                                </div>
+                                                                <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 md:col-span-2">
+                                                                    <div class="font-medium">Webhook URL to paste into WordPress</div>
+                                                                    <div class="mt-2 break-all text-sky-800">{{ route('source-webhooks.ingest', $sheetSource) }}</div>
+                                                                    <div class="mt-3 text-[11px] uppercase tracking-[0.2em] text-sky-700">Ready URL</div>
+                                                                    <div class="mt-2 break-all text-sky-800">{{ route('source-webhooks.ingest', $sheetSource).'?token='.urlencode($editingSourceForm['wordpress_secret'] ?? '') }}</div>
+                                                                    <div class="mt-2 text-xs leading-6 text-sky-700">Paste the ready URL into the Fluent Forms or Contact Form 7 webhook destination. The token is already included, so WordPress does not need a separate header setup.</div>
+                                                                </div>
                                                             @endif
                                                             <input wire:model="editingSourceForm.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none md:col-span-2" />
-                                                            @if (! \App\Models\SheetSource::supportsSync($editingSourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS))
+                                                            @if (! \App\Models\SheetSource::supportsSync($editingSourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS, $editingSourceForm['source_kind'] ?? null))
                                                                 <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 md:col-span-2">
-                                                                    {{ \App\Models\SheetSource::typeLabel($editingSourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are stored as connection records for now. Sync will be added when the module data model is available.
+                                                                    @if (($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                                                        WordPress form webhook sources are lead-only and receive submissions as they happen. They do not use manual sync.
+                                                                    @else
+                                                                        {{ \App\Models\SheetSource::typeLabel($editingSourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS) }} sources are stored as connection records for now. Sync will be added when the module data model is available.
+                                                                    @endif
                                                                 </div>
                                                             @endif
                                                             <label class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 md:col-span-2">

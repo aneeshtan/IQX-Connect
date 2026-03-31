@@ -507,9 +507,30 @@
                                         <span class="rounded-full px-3 py-1 text-[11px] font-medium {{ $source->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-zinc-100 text-zinc-600' }}">
                                             {{ $source->is_active ? 'Active' : 'Paused' }}
                                         </span>
-                                        <span class="rounded-full px-3 py-1 text-[11px] font-medium {{ $source->sync_status === 'failed' ? 'bg-rose-100 text-rose-800' : ($source->sync_status === 'synced' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800') }}">
-                                            {{ \Illuminate\Support\Str::headline($source->sync_status) }}
-                                        </span>
+                                        @if ($source->sync_status === 'failed' && $source->last_error)
+                                            <div class="relative">
+                                                <button
+                                                    type="button"
+                                                    data-source-error-toggle
+                                                    aria-expanded="false"
+                                                    class="rounded-full bg-rose-100 px-3 py-1 text-[11px] font-medium text-rose-800"
+                                                    onclick="const button = this; const panel = button.nextElementSibling; const expanded = button.getAttribute('aria-expanded') === 'true'; document.querySelectorAll('[data-source-error-popover]').forEach((el) => el.classList.add('hidden')); document.querySelectorAll('[data-source-error-toggle]').forEach((el) => el.setAttribute('aria-expanded', 'false')); if (! expanded) { panel.classList.remove('hidden'); button.setAttribute('aria-expanded', 'true'); }"
+                                                >
+                                                    Failed
+                                                </button>
+                                                <div data-source-error-popover class="absolute right-0 top-full z-20 mt-2 hidden w-72 rounded-2xl border border-rose-200 bg-white p-3 text-left shadow-lg">
+                                                    <div class="text-[11px] uppercase tracking-[0.2em] text-rose-500">Latest error</div>
+                                                    <p class="mt-2 text-xs leading-5 text-rose-700">{{ $source->last_error }}</p>
+                                                    <button type="button" class="mt-3 text-xs font-medium text-rose-700" onclick="const panel = this.parentElement; panel.classList.add('hidden'); panel.previousElementSibling.setAttribute('aria-expanded', 'false');">
+                                                        Close
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <span class="rounded-full px-3 py-1 text-[11px] font-medium {{ $source->sync_status === 'synced' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800' }}">
+                                                {{ \Illuminate\Support\Str::headline($source->sync_status) }}
+                                            </span>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -536,13 +557,6 @@
                                     <p class="mt-4 text-sm leading-6 text-zinc-600">{{ $source->description }}</p>
                                 @endif
 
-                                @if ($source->last_error)
-                                    <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
-                                        <div class="text-[11px] uppercase tracking-[0.2em] text-rose-500">Latest error</div>
-                                        <p class="mt-2 text-sm leading-6 text-rose-700">{{ $source->last_error }}</p>
-                                    </div>
-                                @endif
-
                                 <div class="mt-4 flex flex-wrap gap-2">
                                     @if ($source->workspace_id)
                                         <button wire:click="$set('workspaceId', {{ $source->workspace_id }})" type="button" class="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
@@ -552,9 +566,23 @@
                                     <button wire:click="startEditingSource({{ $source->id }})" type="button" class="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
                                         Review & edit
                                     </button>
-                                    <button wire:click="syncSource({{ $source->id }})" type="button" class="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
-                                        Sync now
-                                    </button>
+                                    @if (\App\Models\SheetSource::supportsSync($source->type, $source->source_kind))
+                                        <button wire:click="syncSource({{ $source->id }})" type="button" class="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                            Sync now
+                                        </button>
+                                    @elseif ($source->source_kind === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                        <button
+                                            type="button"
+                                            class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-800 transition hover:bg-sky-100"
+                                            onclick="const button = this; navigator.clipboard.writeText({{ Js::from(route('source-webhooks.ingest', $source).'?token='.urlencode(data_get($source->mapping, 'wordpress.secret', ''))) }}).then(() => { const original = button.textContent.trim(); button.textContent = 'Copied'; setTimeout(() => button.textContent = original, 1600); });"
+                                        >
+                                            Copy webhook
+                                        </button>
+                                    @else
+                                        <span class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">
+                                            Connection only
+                                        </span>
+                                    @endif
                                     <button
                                         wire:click="deleteSheetSource({{ $source->id }})"
                                         wire:confirm="Delete this source? Imported leads and reports will stay in the database, but this source connection will be removed."
@@ -593,9 +621,6 @@
                                             @if ($source->description)
                                                 <div class="mt-1 line-clamp-2 text-xs text-zinc-400">{{ $source->description }}</div>
                                             @endif
-                                            @if ($source->last_error)
-                                                <div class="mt-2 rounded-lg bg-rose-50 px-2 py-1 text-xs text-rose-700">{{ $source->last_error }}</div>
-                                            @endif
                                         </td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $source->company?->name ?? 'No company' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $source->workspace?->name ?? 'No workspace assigned' }}</td>
@@ -608,25 +633,55 @@
                                                 <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $source->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-zinc-100 text-zinc-600' }}">
                                                     {{ $source->is_active ? 'Active' : 'Paused' }}
                                                 </span>
-                                                <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $source->sync_status === 'failed' ? 'bg-rose-100 text-rose-800' : ($source->sync_status === 'synced' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800') }}">
-                                                    {{ \Illuminate\Support\Str::headline($source->sync_status) }}
-                                                </span>
+                                                @if ($source->sync_status === 'failed' && $source->last_error)
+                                                    <div class="relative">
+                                                        <button
+                                                            type="button"
+                                                            data-source-error-toggle
+                                                            aria-expanded="false"
+                                                            class="inline-flex rounded-full bg-rose-100 px-3 py-1 text-xs font-medium text-rose-800"
+                                                            onclick="const button = this; const panel = button.nextElementSibling; const expanded = button.getAttribute('aria-expanded') === 'true'; document.querySelectorAll('[data-source-error-popover]').forEach((el) => el.classList.add('hidden')); document.querySelectorAll('[data-source-error-toggle]').forEach((el) => el.setAttribute('aria-expanded', 'false')); if (! expanded) { panel.classList.remove('hidden'); button.setAttribute('aria-expanded', 'true'); }"
+                                                        >
+                                                            Failed
+                                                        </button>
+                                                        <div data-source-error-popover class="absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-2xl border border-rose-200 bg-white p-3 text-left shadow-lg">
+                                                            <div class="text-[11px] uppercase tracking-[0.2em] text-rose-500">Latest error</div>
+                                                            <p class="mt-2 text-xs leading-5 text-rose-700">{{ $source->last_error }}</p>
+                                                            <button type="button" class="mt-3 text-xs font-medium text-rose-700" onclick="const panel = this.parentElement; panel.classList.add('hidden'); panel.previousElementSibling.setAttribute('aria-expanded', 'false');">
+                                                                Close
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                @else
+                                                    <span class="inline-flex rounded-full px-3 py-1 text-xs font-medium {{ $source->sync_status === 'synced' ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800' }}">
+                                                        {{ \Illuminate\Support\Str::headline($source->sync_status) }}
+                                                    </span>
+                                                @endif
                                             </div>
                                         </td>
                                         <td class="border-b border-zinc-100 px-4 py-3 text-zinc-600">{{ $source->last_synced_at?->format('d M Y, H:i') ?? 'Never synced' }}</td>
                                         <td class="border-b border-zinc-100 px-4 py-3">
                                             <div class="flex flex-wrap gap-2">
-                                                @if ($source->workspace_id)
-                                                    <button wire:click="$set('workspaceId', {{ $source->workspace_id }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
-                                                        Open
-                                                    </button>
-                                                @endif
                                                 <button wire:click="startEditingSource({{ $source->id }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
                                                     Edit
                                                 </button>
-                                                <button wire:click="syncSource({{ $source->id }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
-                                                    Sync
-                                                </button>
+                                                @if (\App\Models\SheetSource::supportsSync($source->type, $source->source_kind))
+                                                    <button wire:click="syncSource({{ $source->id }})" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                                        Sync
+                                                    </button>
+                                                @elseif ($source->source_kind === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                                    <button
+                                                        type="button"
+                                                        class="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-800 transition hover:bg-sky-100"
+                                                        onclick="const button = this; navigator.clipboard.writeText({{ Js::from(route('source-webhooks.ingest', $source).'?token='.urlencode(data_get($source->mapping, 'wordpress.secret', ''))) }}).then(() => { const original = button.textContent.trim(); button.textContent = 'Copied'; setTimeout(() => button.textContent = original, 1600); });"
+                                                    >
+                                                        Copy webhook
+                                                    </button>
+                                                @else
+                                                    <span class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                                                        Connection only
+                                                    </span>
+                                                @endif
                                                 <button
                                                     wire:click="deleteSheetSource({{ $source->id }})"
                                                     wire:confirm="Delete this source? Imported leads and reports will stay in the database, but this source connection will be removed."
@@ -671,7 +726,7 @@
                                 </select>
                             </div>
                             <input wire:model="editingSourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                            <input wire:model="editingSourceForm.url" type="text" placeholder="{{ ($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Source URL or upload reference' }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                            <input wire:model="editingSourceForm.url" type="text" placeholder="{{ ($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : (($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK ? 'WordPress site or form page URL' : 'Source URL or upload reference') }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                             <select wire:model.live="editingSourceForm.source_kind" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                                 @foreach (\App\Models\SheetSource::SOURCE_KINDS as $sourceKind)
                                     <option value="{{ $sourceKind }}">{{ \App\Models\SheetSource::sourceKindLabel($sourceKind) }}</option>
@@ -699,12 +754,36 @@
                                     <input wire:model="editingSourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                                 @endif
                                 <input wire:model="editingSourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                            @elseif (($editingSourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                                <div class="grid gap-3 lg:grid-cols-2">
+                                    <select wire:model="editingSourceForm.wordpress_provider" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                        @foreach (\App\Models\SheetSource::wordpressProviders() as $provider => $label)
+                                            <option value="{{ $provider }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm">
+                                        <div class="text-[11px] uppercase tracking-[0.2em] text-zinc-400">Generated Secret</div>
+                                        <div class="mt-2 break-all font-medium text-zinc-900">{{ $editingSourceForm['wordpress_secret'] ?? '' }}</div>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                                    <div class="font-medium">Webhook URL to paste into WordPress</div>
+                                    <div class="mt-2 break-all text-sky-800">{{ route('source-webhooks.ingest', $source) }}</div>
+                                    <div class="mt-3 text-[11px] uppercase tracking-[0.2em] text-sky-700">Ready URL</div>
+                                    <div class="mt-2 break-all text-sky-800">{{ route('source-webhooks.ingest', $source).'?token='.urlencode($editingSourceForm['wordpress_secret'] ?? '') }}</div>
+                                    <div class="mt-2 text-xs leading-6 text-sky-700">Paste the ready URL into the Fluent Forms or Contact Form 7 webhook destination. The token is already included, so WordPress does not need a separate header setup.</div>
+                                </div>
                             @endif
                             <input wire:model="editingSourceForm.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                             <label class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
                                 <input wire:model="editingSourceForm.is_active" type="checkbox" class="h-4 w-4 rounded border-zinc-300 text-sky-900 focus:ring-sky-900" />
                                 Source is active
                             </label>
+                            @if (! \App\Models\SheetSource::supportsSync($editingSourceForm['type'] ?? \App\Models\SheetSource::TYPE_LEADS, $editingSourceForm['source_kind'] ?? null))
+                                <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                    This source receives leads through inbound webhook submissions and does not use manual sync.
+                                </div>
+                            @endif
                             <div class="flex flex-wrap gap-2">
                                 <button type="submit" class="rounded-xl bg-zinc-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-800">
                                     Save source changes
@@ -949,7 +1028,7 @@
                             @endforeach
                         </select>
                         <input wire:model="sourceForm.name" type="text" placeholder="Source name" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
-                        <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : 'Public Google Sheet or CSV URL' }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        <input wire:model="sourceForm.url" type="url" placeholder="{{ ($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API ? 'CargoWise endpoint URL' : (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK ? 'WordPress site or form page URL' : 'Public Google Sheet or CSV URL') }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                         @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_CARGOWISE_API)
                             <select wire:model.live="sourceForm.cargo_auth_mode" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
                                 @foreach (\App\Models\SheetSource::cargoWiseAuthModes() as $mode => $label)
@@ -968,8 +1047,22 @@
                                 <input wire:model="sourceForm.cargo_token" type="password" placeholder="CargoWise bearer token" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
                             @endif
                             <input wire:model="sourceForm.cargo_data_path" type="text" placeholder="Response data path, e.g. data.rows" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        @elseif (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                            <select wire:model="sourceForm.wordpress_provider" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none">
+                                @foreach (\App\Models\SheetSource::wordpressProviders() as $provider => $label)
+                                    <option value="{{ $provider }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900 lg:col-span-2">
+                                Save the source first, then copy the generated WordPress webhook URL from the edit panel. IQX will generate the secret automatically and show a ready-to-paste URL for Fluent Forms or Contact Form 7.
+                            </div>
                         @endif
                         <input wire:model="sourceForm.description" type="text" placeholder="Description" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm outline-none" />
+                        @if (($sourceForm['source_kind'] ?? '') === \App\Models\SheetSource::SOURCE_KIND_WORDPRESS_FORM_WEBHOOK)
+                            <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                WordPress form webhook sources are lead-only and receive submissions as they happen. They do not use manual sync.
+                            </div>
+                        @endif
                         <button type="submit" class="rounded-xl bg-sky-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-sky-800">
                             Add Source
                         </button>
