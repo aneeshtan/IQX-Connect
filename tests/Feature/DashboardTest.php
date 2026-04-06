@@ -2780,6 +2780,57 @@ class DashboardTest extends TestCase
         $this->assertSame('Updated Source Name', $source->fresh()->name);
     }
 
+    public function test_managers_do_not_see_the_admin_sources_link_on_the_dashboard_sources_tab(): void
+    {
+        $company = Company::create([
+            'name' => 'Sources Access Marine',
+            'slug' => 'sources-access-marine',
+            'industry' => 'Maritime',
+            'timezone' => 'Asia/Dubai',
+            'is_active' => true,
+        ]);
+
+        $workspace = Workspace::create([
+            'company_id' => $company->id,
+            'name' => 'Sources Access Workspace',
+            'slug' => 'sources-access-workspace',
+            'is_default' => true,
+        ]);
+
+        $user = User::factory()->create([
+            'company_id' => $company->id,
+            'default_workspace_id' => $workspace->id,
+        ]);
+
+        $user->workspaces()->attach($workspace->id, ['job_title' => 'Manager']);
+
+        $managerRole = Role::firstOrCreate(
+            ['slug' => 'manager'],
+            ['name' => 'Manager', 'description' => 'Workspace manager', 'level' => 6],
+        );
+
+        $user->attachRole($managerRole);
+
+        SheetSource::create([
+            'company_id' => $company->id,
+            'workspace_id' => $workspace->id,
+            'type' => SheetSource::TYPE_LEADS,
+            'name' => 'Manager Source',
+            'url' => 'https://docs.google.com/spreadsheets/d/example/edit#gid=0',
+            'source_kind' => SheetSource::SOURCE_KIND_GOOGLE_SHEET_CSV,
+            'description' => 'Lead source',
+            'is_active' => true,
+            'sync_status' => 'idle',
+        ]);
+
+        $this->actingAs($user);
+
+        $this->get('/dashboard?tab=sources')
+            ->assertOk()
+            ->assertSee('Sync all active sources')
+            ->assertDontSee('Open Admin Sources');
+    }
+
     public function test_freight_forwarder_workspace_can_create_a_carrier(): void
     {
         $company = Company::create([

@@ -3246,9 +3246,11 @@
                                     <span wire:loading.remove wire:target="syncWorkspaceSources">Sync all active sources</span>
                                     <span wire:loading wire:target="syncWorkspaceSources">Syncing sources...</span>
                                 </button>
-                                <a href="{{ route('admin', ['tab' => 'sources']) }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
-                                    Open Admin Sources
-                                </a>
+                                @if (auth()->user()->isAdmin())
+                                    <a href="{{ route('admin', ['tab' => 'sources']) }}" class="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+                                        Open Admin Sources
+                                    </a>
+                                @endif
                             </div>
                         @endif
                     </div>
