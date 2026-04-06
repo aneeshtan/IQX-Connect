@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Quote;
 use App\Models\ShipmentJob;
 use App\Services\WorkspacePartySyncService;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (app()->isProduction()) {
+            URL::forceScheme('https');
+        }
+
         Lead::saved(fn (Lead $lead) => app(WorkspacePartySyncService::class)->syncRecord($lead));
         Opportunity::saved(fn (Opportunity $opportunity) => app(WorkspacePartySyncService::class)->syncRecord($opportunity));
         Quote::saved(fn (Quote $quote) => app(WorkspacePartySyncService::class)->syncRecord($quote));
