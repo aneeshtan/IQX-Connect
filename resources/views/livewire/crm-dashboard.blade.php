@@ -2849,6 +2849,19 @@
                         </div>
                     </div>
 
+                    @if ($customerSegmentationStatus['pending'] ?? false)
+                        <div class="rounded-[1.25rem] border border-sky-200 bg-sky-50 px-4 py-4 text-sm text-sky-900">
+                            Customer segments are refreshing in the background. Existing segment badges and filters may be briefly behind the latest data.
+                            @if (($customerSegmentationStatus['newest_evaluated_at'] ?? null))
+                                <span class="text-sky-700"> Last completed refresh: {{ $customerSegmentationStatus['newest_evaluated_at']->format('d M Y H:i') }}.</span>
+                            @endif
+                        </div>
+                    @elseif (($customerSegmentationStatus['newest_evaluated_at'] ?? null))
+                        <div class="rounded-[1.25rem] border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-500">
+                            Customer segments last refreshed {{ $customerSegmentationStatus['newest_evaluated_at']->format('d M Y H:i') }}.
+                        </div>
+                    @endif
+
                     @if ($canManageAccess)
                         <div class="flex justify-end">
                             <button wire:click="exportCustomersCsv" type="button" class="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
@@ -4738,8 +4751,21 @@
                                         <h3 class="text-base font-semibold text-zinc-950">Customer segmentation</h3>
                                         <p class="mt-1 text-sm text-zinc-500">Define customer behavior segments using inquiries, shipments, revenue, and recency metrics.</p>
                                     </div>
-                                    <button wire:click="addWorkspaceSegmentDefinition" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add Segment</button>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button wire:click="refreshCustomerSegments" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Refresh Customer Segments</button>
+                                        <button wire:click="addWorkspaceSegmentDefinition" type="button" class="rounded-xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">Add Segment</button>
+                                    </div>
                                 </div>
+
+                                @if ($customerSegmentationStatus['pending'] ?? false)
+                                    <div class="mt-4 rounded-[1rem] border border-sky-200 bg-sky-50 px-4 py-4 text-sm text-sky-900">
+                                        A segmentation refresh is queued. Updated customer badges will appear after the background job finishes.
+                                    </div>
+                                @elseif (($customerSegmentationStatus['newest_evaluated_at'] ?? null))
+                                    <div class="mt-4 rounded-[1rem] border border-zinc-200 bg-zinc-50 px-4 py-4 text-sm text-zinc-600">
+                                        Latest completed refresh: {{ $customerSegmentationStatus['newest_evaluated_at']->format('d M Y H:i') }}.
+                                    </div>
+                                @endif
 
                                 <div class="mt-4 space-y-4">
                                     @foreach ($workspaceSettingsForm['segment_definitions'] as $segmentIndex => $segmentDefinition)

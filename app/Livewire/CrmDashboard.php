@@ -1345,6 +1345,17 @@ class CrmDashboard extends Component
         $this->settingsTab = $tab;
     }
 
+    public function refreshCustomerSegments(): void
+    {
+        $workspace = $this->currentWorkspaceOrFail();
+
+        abort_unless($this->canManageWorkspaceAccess($workspace), 403);
+
+        app(CustomerSegmentationService::class)->queueWorkspaceSync($workspace, true);
+
+        $this->flash('Customer segmentation refresh queued. Existing labels will update shortly.');
+    }
+
     public function openTemplateModule(string $module): void
     {
         $workspace = $this->currentWorkspace();
@@ -1818,11 +1829,11 @@ class CrmDashboard extends Component
             }
         });
 
-        app(CustomerSegmentationService::class)->syncWorkspace($workspace->fresh());
+        app(CustomerSegmentationService::class)->queueWorkspaceSync($workspace->fresh(), true);
 
         $this->primeForms($workspace->fresh('company'));
         $this->customerSegmentFilter = '';
-        $this->flash("Workspace settings updated for {$workspace->name}.");
+        $this->flash("Workspace settings updated for {$workspace->name}. Customer segments are refreshing in the background.");
     }
 
     public function saveNotificationSettings(): void
@@ -6039,6 +6050,16 @@ class CrmDashboard extends Component
         $analyticsDealSummary = [];
         $analyticsEfficiency = [];
         $analyticsAvailableMonths = collect();
+        $customerSegmentationStatus = [
+            'account_count' => 0,
+            'snapshot_count' => 0,
+            'stale' => false,
+            'pending' => false,
+            'oldest_evaluated_at' => null,
+            'newest_evaluated_at' => null,
+            'stale_after_minutes' => CustomerSegmentationService::SNAPSHOT_STALE_AFTER_MINUTES,
+            'scheduled' => false,
+        ];
         $segmentDefinitions = collect();
         $segmentMetricCatalog = CustomerSegmentationService::metricCatalog();
         $segmentOperatorCatalog = CustomerSegmentationService::operatorCatalog();
@@ -6116,7 +6137,7 @@ class CrmDashboard extends Component
                 || $this->customerSegmentFilter !== '';
 
             if ($needsSegmentationSync) {
-                $segmentation->syncWorkspaceIfStale($workspace);
+                $customerSegmentationStatus = $segmentation->queueWorkspaceSync($workspace);
             } else {
                 $segmentation->ensureDefaultSegments($workspace);
             }
@@ -6777,6 +6798,7 @@ class CrmDashboard extends Component
                     ->values()
                 : collect(),
             'customerInsights' => $customerInsights,
+            'customerSegmentationStatus' => $customerSegmentationStatus,
             'customers' => $customers,
             'disqualificationReasons' => $workspace ? $this->disqualificationReasonOptions($workspace) : Workspace::defaultDisqualificationReasons(),
             'kpis' => $kpis,
